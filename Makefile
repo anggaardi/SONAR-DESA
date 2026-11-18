@@ -20,7 +20,8 @@ setup: ## First run: .env, images, dependencies, key, database
 	$(DC) build
 	$(RUN) composer install --no-interaction
 	$(NODE) npm ci --no-audit --no-fund
-	$(RUN) php artisan key:generate --ansi
+	@# Only on first run, so re-running setup after a pull keeps the existing key.
+	@grep -q '^APP_KEY=base64:' .env || $(RUN) php artisan key:generate --ansi
 	$(DC) up -d db
 	$(RUN) php artisan migrate --seed --force
 	@echo "Setup done. Run 'make up' and open http://localhost:$${APP_PORT:-8080}"
