@@ -19,21 +19,18 @@ Postgres 17 (juga queue/cache/session), Caddy 2. Frontend belum dipasang.
 - ModuleServiceProvider, AppServiceProvider (CurrentVillage scoped, cek env prod), config/sonar.php.
 - Migration villages + users (role, village_id nullable), VillageFactory, UserFactory, seeder idempoten.
 
-## Belum jalan (disengaja)
-App belum bisa boot: bootstrap/app.php memanggil App\Modules\Core\Http\Middleware\HandleInertiaRequests
-yang belum dibuat.
+## M0a selesai (commit db1b1d2..fe52815, terverifikasi 18 Nov)
+- HandleInertiaRequests + app.blade.php; Vue 3.5 + Inertia v3 + Tailwind v4, TypeScript 5.9.
+- resources/js (pages, features, components/ui, layouts, lib/format.ts, lib/labels.ts).
+- Folder modul kosong: Standard, Audit, Project, Report, Review, Demo.
+- Pest di Postgres "testing", Larastan level 6, tes isolasi desa.
+- docs/DECISIONS.md (D-001..D-005), docs/ENGINEERING.md, tasks/README.md.
+- Verifikasi: make setup jalan sampai selesai, /up = 200, halaman Inertia core/Home di :8080,
+  make test (17 Pest + 13 Vitest) lulus, make lint (Pint, Larastan, ESLint, Prettier, vue-tsc) lulus.
 
-## Langkah berikutnya (M0a, urut)
-1. Cek isi docs/ dan references/ (untracked). Tambah "references" ke .dockerignore.
-2. HandleInertiaRequests + root view app.blade.php; hapus welcome.blade.php.
-3. Frontend: vue 3.5, @inertiajs/vue3 + @inertiajs/vite 3.11, @vitejs/plugin-vue, Tailwind v4,
-   ESLint + Prettier, Vitest, vue-tsc. CEK dulu: vue-tsc dan typescript-eslint sudah mendukung
-   TypeScript 7? Kalau belum, pakai TypeScript 5.x terakhir.
-4. resources/js: pages/, features/, components/ui/, layouts/, lib/format.ts (Rp, WITA), lib/labels.ts.
-5. Folder kosong modul: Standard, Audit, Project, Report, Review, Demo.
-6. phpunit.xml -> pgsql DB "testing"; pest init; phpstan.neon (level 6); test CurrentVillage + isolasi.
-7. docs/DECISIONS.md (D-001, D-002 = A1-A22), docs/ENGINEERING.md (Bagian 9 PRD), tasks/README.md.
-8. Verifikasi: make setup, make up, /up = 200, halaman Inertia tampil di :8080, make test, make lint.
+## Langkah berikutnya
+- M0b (23-24 Nov, Dev 1): tulis tasks/m0-core.md dulu sesuai template di tasks/README.md,
+  lalu kerjakan. Paralel: Dev 2 mulai M1 Standard (tasks/m1-standard.md).
 
 ## Catatan teknis
 - "docker compose build" pernah macet tanpa output; "docker build --target dev -t sonar-desa-php:dev
