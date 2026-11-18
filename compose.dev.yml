@@ -1,0 +1,78 @@
+name: sonar-desa-dev
+
+# Local development (PRD Arsitektur 7.1). Same PHP image as prod (target dev) + bind-mounted code.
+# Start with `make setup` once, then `make up`.
+
+x-php: &php
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    target: dev
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  image: sonar-desa-php:dev
+  env_file: .env
+  volumes:
+    - ./:/var/www/html
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *php
+
+  web:
+    image: caddy:2-alpine
+    environment:
+      SITE_ADDRESS: ':80'
+      PHP_UPSTREAM: 'app:9000'
+    ports:
+      - '127.0.0.1:${APP_PORT:-8080}:80'
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./public:/var/www/html/public:ro
+      - caddy_data:/data
+    depends_on:
+      - app
+
+  # queue:listen reloads code on every job, so edits apply without a restart.
+  queue:
+    <<: *php
+    command: ['php', 'artisan', 'queue:listen', '--tries=1', '--timeout=75']
+
+  scheduler:
+    <<: *php
+    command: ['php', 'artisan', 'schedule:work']
+
+  vite:
+    image: node:24-alpine
+    working_dir: /app
+    user: '${UID:-1000}:${GID:-1000}'
+    command: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0']
+    ports:
+      - '127.0.0.1:5173:5173'
+    volumes:
+      - ./:/app
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-sonar}
+      POSTGRES_USER: ${DB_USERNAME:-sonar}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-sonar_dev_only}
+    ports:
+      - '127.0.0.1:${DB_FORWARD_PORT:-5432}:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:
+  caddy_data:

@@ -1,0 +1,85 @@
+name: sonar-desa
+
+# Production on one VPS (PRD Arsitektur 7.1, 11.1). Secrets live in .env.production (chmod 600),
+# never in the repo. Deploy: `make deploy` on the server.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+x-php: &php
+  image: sonar-desa-app:${IMAGE_TAG:-latest}
+  restart: unless-stopped
+  logging: *logging
+  env_file: .env.production
+  volumes:
+    - storage_app:/var/www/html/storage/app
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  app:
+    <<: *php
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: prod
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+
+  web:
+    image: sonar-desa-web:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+      target: web
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SITE_ADDRESS: ${DOMAIN:?set DOMAIN}
+      PHP_UPSTREAM: 'app:9000'
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # 3 workers: one RAB read can take 60 s, so a single worker makes later uploads queue (C4).
+  queue:
+    <<: *php
+    command: ['php', 'artisan', 'queue:work', '--tries=1', '--timeout=75', '--max-time=3600']
+    deploy:
+      replicas: ${QUEUE_WORKERS:-3}
+    stop_grace_period: 90s
+
+  scheduler:
+    <<: *php
+    command: ['php', 'artisan', 'schedule:work']
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-sonar}
+      POSTGRES_USER: ${DB_USERNAME:?set DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:
+  storage_app:
+  caddy_data:
+  caddy_config:
