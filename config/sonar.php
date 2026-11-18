@@ -8,6 +8,9 @@ return [
 
     'display_timezone' => env('DISPLAY_TIMEZONE', 'Asia/Makassar'),
 
+    // Short git SHA baked in at deploy (F0-4, shown in the footer).
+    'commit' => env('GIT_COMMIT', 'dev'),
+
     'rab_reader' => [
         // "ai" in production, "fixture" in tests, CI, and when AI must be switched off.
         'driver' => env('RAB_READER', 'fixture'),
