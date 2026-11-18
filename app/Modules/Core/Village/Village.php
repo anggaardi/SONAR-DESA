@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * A desa. Demo sessions are villages too: a clone of the Desa Contoh template (decision A9).
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $slug
  * @property string $regency
  * @property bool $is_demo
- * @property \Illuminate\Support\Carbon|null $demo_expires_at
+ * @property Carbon|null $demo_expires_at
  */
 #[Fillable(['name', 'slug', 'regency', 'is_demo', 'demo_expires_at'])]
 #[UseFactory(VillageFactory::class)]

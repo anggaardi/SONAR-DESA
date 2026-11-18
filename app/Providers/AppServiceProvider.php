@@ -12,7 +12,19 @@ use RuntimeException;
 final class AppServiceProvider extends ServiceProvider
 {
     /** Keys that must be set outside local/testing. Values are never printed. */
-    private const REQUIRED_IN_PRODUCTION = ['APP_KEY', 'APP_URL', 'DB_HOST', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'];
+    /**
+     * Env name => config key. Read through config() so the check survives `config:cache`.
+     *
+     * @var array<string, string>
+     */
+    private const REQUIRED_IN_PRODUCTION = [
+        'APP_KEY' => 'app.key',
+        'APP_URL' => 'app.url',
+        'DB_HOST' => 'database.connections.pgsql.host',
+        'DB_DATABASE' => 'database.connections.pgsql.database',
+        'DB_USERNAME' => 'database.connections.pgsql.username',
+        'DB_PASSWORD' => 'database.connections.pgsql.password',
+    ];
 
     public function register(): void
     {
@@ -37,9 +49,9 @@ final class AppServiceProvider extends ServiceProvider
             return;
         }
 
-        $missing = array_values(array_filter(
+        $missing = array_keys(array_filter(
             self::REQUIRED_IN_PRODUCTION,
-            static fn (string $key): bool => blank(env($key)),
+            static fn (string $configKey): bool => blank(config($configKey)),
         ));
 
         if ($missing !== []) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Http\Middleware;
 
+use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\CurrentVillage;
 use Closure;
 use Illuminate\Http\Request;
@@ -21,7 +22,10 @@ final class SetCurrentVillage
 
     public function handle(Request $request, Closure $next): Response
     {
-        $villageId = $request->user()?->village_id ?? $request->session()->get(self::DEMO_SESSION_KEY);
+        $user = $request->user();
+        $villageId = $user instanceof User && $user->village_id !== null
+            ? $user->village_id
+            : $request->session()->get(self::DEMO_SESSION_KEY);
 
         if (is_numeric($villageId)) {
             $this->current->set((int) $villageId);
