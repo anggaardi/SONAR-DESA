@@ -16,5 +16,6 @@ storage/logs/*
 bootstrap/cache/*.php
 tests/coverage
 docs
+references
 tasks
 *.log
