@@ -33,6 +33,10 @@ final class HandleInertiaRequests extends Middleware
                     'role' => $user->role->value,
                 ],
             ],
+            // PRD Fitur 7.2: every demo screen shows the banner with "Ganti peran" and "Mulai ulang demo".
+            'demo' => $request->session()->has(SetCurrentVillage::DEMO_SESSION_KEY) ? [
+                'role' => (string) $request->session()->get(SetCurrentVillage::DEMO_ROLE_SESSION_KEY, 'warga'),
+            ] : null,
             // F0-4: commit shown in the footer to confirm which build is live.
             'app' => [
                 'commit' => config('sonar.commit'),

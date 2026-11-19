@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\Project\Http\Controllers;
 
-use App\Modules\Core\Http\Middleware\SetCurrentVillage;
 use App\Modules\Core\Village\CurrentVillage;
+use App\Modules\Core\Village\VillageVisibility;
 use App\Modules\Project\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class OriginalDocumentController
 {
+    public function __construct(private readonly VillageVisibility $visibility) {}
+
     /**
      * PRD Fitur Inti 4.2 Step 7 (P11, F20): stream original RAB document lazily.
      */
@@ -27,12 +29,7 @@ final class OriginalDocumentController
             abort(404, 'Dokumen asli tidak ditemukan');
         }
 
-        if ($project->village->is_demo) {
-            $demoSessionVillageId = $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY);
-            if ((int) $demoSessionVillageId !== $project->village_id) {
-                abort(404, 'Dokumen asli tidak ditemukan');
-            }
-        }
+        abort_unless($this->visibility->allows($request, $project->village), 404, 'Dokumen asli tidak ditemukan');
 
         app(CurrentVillage::class)->set($project->village_id);
 

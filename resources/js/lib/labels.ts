@@ -67,4 +67,18 @@ export const document = {
 
 export const demoBanner = 'Data demo - desa & angka fiktif';
 
+/** PRD Fitur Inti 7: demo doors and banner actions. */
+export const demo = {
+    banner: demoBanner,
+    switchRole: 'Ganti peran',
+    restart: 'Mulai ulang demo',
+    roles: {
+        warga: 'Warga',
+        desa: 'Pemerintah Desa',
+        bpd: 'BPD',
+    },
+    tryAs: (role: 'warga' | 'desa' | 'bpd') => `Coba sebagai ${demo.roles[role]}`,
+    playingAs: (role: 'warga' | 'desa' | 'bpd') => `Kamu sebagai ${demo.roles[role]}`,
+} as const;
+
 export const priceStandardSource = (year: number) => `Standar harga Kab. Gianyar ${year}`;

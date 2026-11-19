@@ -18,6 +18,9 @@ final class SetCurrentVillage
 {
     public const DEMO_SESSION_KEY = 'demo_village_id';
 
+    /** Role the demo visitor is playing (desa, bpd, warga). Written by M6, read by the shared props. */
+    public const DEMO_ROLE_SESSION_KEY = 'demo_role';
+
     public function __construct(private readonly CurrentVillage $current) {}
 
     public function handle(Request $request, Closure $next): Response

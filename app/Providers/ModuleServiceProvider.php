@@ -29,5 +29,26 @@ final class ModuleServiceProvider extends ServiceProvider
                 $this->loadMigrationsFrom("{$base}/Database/Migrations");
             }
         }
+
+        // Artisan only discovers app/Console/Commands; module commands live in app/Modules/<Name>/Console.
+        if ($this->app->runningInConsole()) {
+            $this->commands($this->moduleCommands());
+        }
+    }
+
+    /**
+     * @return list<class-string>
+     */
+    private function moduleCommands(): array
+    {
+        $commands = [];
+
+        foreach (self::MODULES as $module) {
+            foreach (glob(app_path("Modules/{$module}/Console/*.php")) ?: [] as $file) {
+                $commands[] = "App\\Modules\\{$module}\\Console\\".basename($file, '.php');
+            }
+        }
+
+        return $commands;
     }
 }

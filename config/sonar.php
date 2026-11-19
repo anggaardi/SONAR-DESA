@@ -42,6 +42,8 @@ return [
     ],
 
     'demo' => [
+        // The Desa Contoh village that every demo session clones (PRD Arsitektur 6.7).
+        'template_slug' => env('DEMO_TEMPLATE_SLUG', 'desa-contoh-template'),
         'upload_limit' => (int) env('DEMO_UPLOAD_LIMIT', 3),
         'ttl_hours' => (int) env('DEMO_TTL_HOURS', 24),
     ],

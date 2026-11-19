@@ -3,16 +3,9 @@
 // Sidebar 256px + content max-w-7xl px-6. Responsive: collapses to top nav on mobile.
 // See docs/DESIGN.md §4.
 
+// DemoBanner comes from RootLayout (app.ts), so it is not repeated here.
+
 import { ref } from 'vue';
-import DemoBanner from '@/layouts/DemoBanner.vue';
-
-interface Props {
-    isDemo?: boolean;
-}
-
-withDefaults(defineProps<Props>(), {
-    isDemo: false,
-});
 
 const sidebarOpen = ref(false);
 
@@ -23,8 +16,6 @@ function toggleSidebar(): void {
 
 <template>
     <div class="min-h-screen bg-surface-subtle text-content antialiased">
-        <DemoBanner v-if="isDemo" />
-
         <!-- Mobile header -->
         <header class="flex items-center justify-between border-b border-stroke bg-surface px-4 py-3 md:hidden">
             <slot name="logo">

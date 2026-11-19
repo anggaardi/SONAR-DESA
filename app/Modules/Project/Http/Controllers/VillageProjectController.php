@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Project\Http\Controllers;
 
-use App\Modules\Core\Http\Middleware\SetCurrentVillage;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
+use App\Modules\Core\Village\VillageVisibility;
 use App\Modules\Project\Http\Resources\VillageProjectResource;
 use App\Modules\Project\Models\Project;
 use Illuminate\Http\Request;
@@ -15,16 +15,12 @@ use Inertia\Response;
 
 final class VillageProjectController
 {
+    public function __construct(private readonly VillageVisibility $visibility) {}
     public function index(Request $request, string $village): Response
     {
         $villageModel = Village::where('slug', $village)->firstOrFail();
 
-        if ($villageModel->is_demo) {
-            $demoSessionVillageId = $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY);
-            if ((int) $demoSessionVillageId !== $villageModel->id) {
-                abort(404, 'Desa tidak ditemukan');
-            }
-        }
+        abort_unless($this->visibility->allows($request, $villageModel), 404, 'Desa tidak ditemukan');
 
         app(CurrentVillage::class)->set($villageModel->id);
 
