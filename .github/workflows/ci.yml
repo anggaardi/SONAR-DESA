@@ -52,13 +52,11 @@ jobs:
           key: composer-${{ hashFiles('composer.lock') }}
           restore-keys: composer-
 
+      # .env must exist before composer install: its post-autoload-dump runs `artisan package:discover`,
+      # and without .env APP_ENV falls back to production, where AppServiceProvider stops boot.
+      - run: cp .env.example .env
       - run: composer install --no-interaction --no-progress --prefer-dist
-
-      # Without .env, APP_ENV falls back to production and AppServiceProvider stops boot.
-      - name: Prepare environment
-        run: |
-          cp .env.example .env
-          php artisan key:generate --ansi
+      - run: php artisan key:generate --ansi
 
       - run: vendor/bin/pint --test
       - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
