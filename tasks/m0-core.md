@@ -59,7 +59,15 @@ Spec: PRD Arsitektur 8, 13.1
 - Files: `database/seeders/*`, `app/Modules/Core/Demo/*`
 
 ### M0-07 · Login desa/BPD
-- Status: todo · Ukuran: M · Owner: Dev 1
+- Status: done · Ukuran: M · Owner: Dev 1
+- Catatan implementasi (berbeda dari rencana, mengikuti struktur modul A8 dan PRD Arsitektur 6.8):
+  - File: `app/Modules/Core/Auth/Http/LoginController.php`, `LoginRequest.php`, `app/Modules/Core/routes.php`,
+    `resources/js/pages/core/Login.vue`, `tests/Feature/Core/LoginTest.php`. Akun seeder sudah ada di `DatabaseSeeder`.
+  - Throttle per email+IP lewat `RateLimiter`; percobaan ke-6 ditolak dengan pesan tunggu (422 + error field),
+    bukan 429, supaya pesan tampil di form.
+  - Login berhasil -> halaman tujuan (`intended`) atau `/` (dashboard belum ada; `/audits` datang di M2).
+    Logout -> `/`. Akun warga ditolak dengan pesan yang sama seperti password salah.
+  - Verify: `make test ARGS="--filter=Login"` (7 test).
 - Spec: PRD Arsitektur 6.1, A9; PRD Fitur 8.1
 - Scope:
   - Route `GET /login` → Inertia page `Auth/Login`.
@@ -83,7 +91,7 @@ Spec: PRD Arsitektur 8, 13.1
 - Verify: `make test ARGS="--filter=AuthController"`
 
 ### M0-08 · Layout + komponen UI
-- Status: doing · Ukuran: L · Owner: Dev 1
+- Status: done · Ukuran: L · Owner: Dev 1 (commit 8488ccd, 01733c3; tambahan EmptyState, D-007)
 - Spec: PRD Arsitektur A13; docs/DESIGN.md
 - Scope:
   - Layouts: `PublicLayout`, `AppLayout`, `DemoBanner`.

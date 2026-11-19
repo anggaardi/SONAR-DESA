@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [HandleInertiaRequests::class]);
         $middleware->alias(['village' => SetCurrentVillage::class]);
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(fn () => route('home'));
         $middleware->priority([
             HandlePrecognitiveRequests::class,
             EncryptCookies::class,
