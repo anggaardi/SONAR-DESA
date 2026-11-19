@@ -49,8 +49,7 @@ withDefaults(defineProps<Props>(), {
                     />
                     <path d="M28 142h104" class="stroke-stroke" stroke-width="2" stroke-linecap="round" />
                     <path d="M36 147h24" class="stroke-stroke" stroke-width="2" stroke-linecap="round" />
-                    <rect                    <rect
-
+                    <rect
                         x="26"
                         y="28"
                         width="108"

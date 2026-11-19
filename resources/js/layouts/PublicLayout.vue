@@ -3,6 +3,8 @@
 // Max width max-w-md (448px), designed from 360px. See docs/DESIGN.md §4.
 // Wraps: DemoBanner (when isDemo=true), <main>, and optional <footer>.
 
+import DemoBanner from '@/layouts/DemoBanner.vue';
+
 interface Props {
     isDemo?: boolean;
 }
