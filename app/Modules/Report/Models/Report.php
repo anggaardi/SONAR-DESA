@@ -1,0 +1,88 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Report\Models;
+
+use App\Modules\Core\Auth\User;
+use App\Modules\Core\Village\OwnedThroughParent;
+use App\Modules\Project\Models\Project;
+use App\Modules\Report\Enums\ReportKind;
+use App\Modules\Review\Models\ReviewCycle;
+use Database\Factories\ReportFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
+
+/**
+ * @property int $id
+ * @property int $project_id
+ * @property int|null $cycle_id
+ * @property int $user_id
+ * @property ReportKind $kind
+ * @property string|null $lat
+ * @property string|null $lng
+ * @property string|null $accuracy_m
+ * @property string|null $distance_m
+ * @property bool $in_radius
+ * @property string|null $note
+ * @property int|null $superseded_by
+ * @property string|null $invalid_reason
+ * @property Carbon|null $opened_at
+ */
+#[Fillable([
+    'project_id',
+    'cycle_id',
+    'user_id',
+    'kind',
+    'lat',
+    'lng',
+    'accuracy_m',
+    'distance_m',
+    'in_radius',
+    'note',
+    'superseded_by',
+    'invalid_reason',
+    'opened_at',
+])]
+#[UseFactory(ReportFactory::class)]
+final class Report extends Model implements OwnedThroughParent
+{
+    /** @use HasFactory<ReportFactory> */
+    use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'kind' => ReportKind::class,
+            'in_radius' => 'boolean',
+            'opened_at' => 'immutable_datetime',
+        ];
+    }
+
+    public function villageId(): int
+    {
+        return $this->project->village_id;
+    }
+
+    /** @return BelongsTo<Project, $this> */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<ReviewCycle, $this> */
+    public function cycle(): BelongsTo
+    {
+        return $this->belongsTo(ReviewCycle::class, 'cycle_id');
+    }
+}
