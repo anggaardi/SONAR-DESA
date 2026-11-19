@@ -17,13 +17,12 @@ Kalau ada konflik antara file ini dan kode, ikuti kode, lalu perbaiki salah satu
 
 ## 1. Tema dan suasana
 
-"Papan informasi resmi": tenang, terang, datar, padat fakta. Warga harus merasa sedang membaca dokumen
-publik, bukan iklan. Desa dan BPD harus merasa memakai alat kerja.
+"Papan informasi publik yang humanis dan tepercaya": tenang, terang, ramah warga (*human-friendly*), dan berwibawa. Warga desa harus merasa sedang membaca dokumen publik yang transparan dan mengayomi; desa dan BPD merasa memakai alat kerja modern yang efisien.
 
-- Kanvas putih, hampir semua elemen netral. Warna hanya muncul untuk aksi utama dan status.
-- Satu warna brand (biru IDDS) untuk aksi. Hijau, merah, kuning, dan biru tua sudah punya arti status
-  dari PRD, jadi tidak boleh dipakai untuk hiasan.
-- Tanpa gradien, glassmorphism, ilustrasi dekoratif, atau angka tanpa konteks (IDDS anti-AI-slop).
+- Kanvas putih/subtle bersih, hampir semua elemen netral. Warna hanya muncul untuk aksi utama dan status semantik.
+- Satu warna brand (biru IDDS `#196bcd`) untuk aksi utama dan navigasi.
+- **Spot Ilustrasi Humanis (IDDS)**: Mengadopsi prinsip pustaka ilustrasi resmi INA Digital Design System — gaya *flat line-art* membulat (*rounded corners*) dengan bentuk geometris ramah Indonesia dan warna semantik token (`primary-subtle`, `stroke-strong`, `surface-subtle`). Ilustrasi hadir pada titik sentuh bermakna (*purposeful*): Empty State, panduan Cek Spek, dan konfirmasi keamanan data warga.
+- **Bukan hiasan acak**: Tetap dilarang menggunakan ilustrasi 3D generic, gradien neon/glow mengambang, glassmorphism, atau ornamen tanpa tujuan (prinsip antislop IDDS).
 
 ## 2. Warna
 
@@ -156,7 +155,7 @@ Dibuat sendiri di `components/ui` (A13). Daftar dan aturan pakai:
 | `Radio` / `Checkbox` | Target sentuh minimal 44 px; seluruh baris pilihan bisa diklik. Dipakai untuk Sesuai / Tidak / Tidak bisa ukur. |
 | `Dialog` | `<dialog>` native, `rounded-lg shadow-sm`, judul + aksi di bawah, fokus terkunci. |
 | `Stepper` | Untuk alur Cek Spek: "Langkah 2 dari 5" + judul langkah. Satu hal per layar (GOV.UK). |
-| `EmptyState` | Ikon netral, judul, satu kalimat penjelasan, maksimal satu aksi. |
+| `EmptyState` | Komponen human-friendly dengan spot ilustrasi IDDS (line-art SVG: plang desa, peta arah arsip, pencarian kosong, segel sukses), judul bersahabat, deskripsi membimbing, dan tombol aksi. |
 | `DemoBanner` | Bar penuh `bg-demo-subtle text-demo` di atas semua layar demo, dengan "Ganti peran" dan "Mulai ulang demo". |
 
 Ikon: SVG garis 1,5-2 px, `currentColor`, ukuran 16/20/24. Ikon selalu punya teks di sebelahnya atau

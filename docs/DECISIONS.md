@@ -102,3 +102,10 @@ Format entri:
   halaman M3 sudah dimigrasi. Inter dimuat lewat `@fontsource-variable/inter` (self-hosted, jalan offline
   untuk demo final F27; browser hanya mengunduh subset yang dipakai, latin ±48 KB).
 - Spec reference: PRD Sonar Desa 6 / 6.1, PRD Fitur Inti 4.3, 7.2, A13, A17.
+
+## D-007 · Spot ilustrasi humanis IDDS & komponen UI dasar
+- Date: 19 Nov 2026 · Status: accepted · Owner: Dev 1
+- Context: desain sistem murni netral tanpa ilustrasi terasa dingin/steril ("The Sterile Default"). IDDS resmi menyediakan pustaka ilustrasi bertema humanis, inklusif, dan ramah masyarakat Indonesia.
+- Decision: adopsi pustaka ilustrasi spot IDDS berbasis SVG garis membulat (*rounded line-art*) dengan token semantik (`primary-subtle`, `stroke-strong`, `surface-subtle`) untuk titik sentuh krusial (Empty State, panduan Cek Spek, segel verifikasi desa). Komponen dasar di `resources/js/components/ui/` (`EmptyState`, `Button`, `Card`, `Badge`, `Alert`, `PriceLabel`, `Table`, `Dialog`, `SummaryList`) menjadi rujukan implementasi antarmuka yang humanis di mobile dan desktop.
+- Consequences: UI memiliki kehangatan dan rasa manusiawi (*human-friendly*) seperti Gojek/IDDS tanpa melanggar WCAG 2.1 AA atau menambah ukuran bundle eksternal.
+- Spec reference: D-006, docs/DESIGN.md, PRD Sonar Desa 6.1.

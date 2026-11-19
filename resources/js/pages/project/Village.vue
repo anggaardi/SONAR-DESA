@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Badge from '@/components/ui/Badge.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import { formatRupiah, formatRupiahShort } from '@/lib/format';
 import { projectType } from '@/lib/labels';
 import type { ProjectVillage, VillageProjectSummary } from '@/types/project';
@@ -84,15 +86,12 @@ const totalVillageBudget = computed(() => {
 
             <!-- Project Cards List -->
             <section class="mt-4 flex flex-col gap-3" aria-label="Daftar proyek">
-                <div
+                <EmptyState
                     v-if="filteredProjects.length === 0"
-                    class="rounded-lg border border-dashed border-stroke-strong bg-surface p-8 text-center"
-                >
-                    <p class="text-base font-medium text-content">Tidak ada proyek yang sesuai.</p>
-                    <p class="mt-1 text-sm text-content-secondary">
-                        Belum ada proyek yang diterbitkan atau kata kunci tidak cocok.
-                    </p>
-                </div>
+                    illustration="search-empty"
+                    title="Tidak ada proyek yang sesuai"
+                    description="Belum ada proyek yang diterbitkan untuk kata kunci ini atau nama kegiatan belum terdaftar."
+                />
 
                 <Link
                     v-for="p in filteredProjects"
@@ -103,11 +102,9 @@ const totalVillageBudget = computed(() => {
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-2">
-                                <span
-                                    class="rounded-full border border-stroke bg-surface-muted px-2.5 py-0.5 text-sm font-medium text-content-secondary"
-                                >
+                                <Badge>
                                     {{ projectType[p.type as keyof typeof projectType] ?? p.type }}
-                                </span>
+                                </Badge>
                                 <span class="text-sm text-content-secondary">
                                     {{ p.fund_source }} &middot; {{ p.year }}
                                 </span>
@@ -151,20 +148,14 @@ const totalVillageBudget = computed(() => {
                         </div>
 
                         <!-- Status publik: none = tanpa lencana (PRD Fitur 4.3) -->
-                        <span
-                            v-if="p.public_status === 'in_review'"
-                            class="inline-flex items-center gap-1.5 self-start rounded-full border border-warning-border bg-warning-subtle px-2.5 py-0.5 font-medium text-warning"
-                        >
+                        <Badge v-if="p.public_status === 'in_review'" color="warning">
                             <span class="h-2 w-2 rounded-full bg-warning-solid" aria-hidden="true"></span>
                             <span>Dalam tinjauan BPD</span>
-                        </span>
-                        <span
-                            v-else-if="p.public_status === 'reviewed'"
-                            class="inline-flex items-center gap-1.5 self-start rounded-full border border-info-border bg-info-subtle px-2.5 py-0.5 font-medium text-info"
-                        >
+                        </Badge>
+                        <Badge v-else-if="p.public_status === 'reviewed'" color="info">
                             <span class="h-2 w-2 rounded-full bg-info-solid" aria-hidden="true"></span>
                             <span>Telah ditinjau BPD</span>
-                        </span>
+                        </Badge>
                     </div>
                 </Link>
             </section>

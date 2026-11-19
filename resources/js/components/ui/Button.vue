@@ -4,11 +4,15 @@
 // - secondary: border bg-surface text-content.
 // - ghost: text-primary only.
 // - danger: text-negative border-negative-border. Only for destructive actions.
+// If `href` is passed, renders as an Inertia <Link>.
+
+import { Link } from '@inertiajs/vue3';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'md' | 'sm';
 
 interface Props {
+    href?: string;
     variant?: Variant;
     size?: Size;
     type?: 'button' | 'submit' | 'reset';
@@ -17,6 +21,7 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
+    href: undefined,
     variant: 'secondary',
     size: 'md',
     type: 'button',
@@ -39,7 +44,21 @@ const sizeClasses: Record<Size, string> = {
 </script>
 
 <template>
+    <Link
+        v-if="href"
+        :href="href"
+        :class="[
+            'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors',
+            'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+            variantClasses[variant],
+            sizeClasses[size],
+            (disabled || loading) && 'pointer-events-none opacity-50',
+        ]"
+    >
+        <slot />
+    </Link>
     <button
+        v-else
         :type="type"
         :disabled="disabled || loading"
         :aria-disabled="disabled || loading"
