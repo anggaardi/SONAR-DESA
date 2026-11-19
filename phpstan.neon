@@ -10,9 +10,4 @@ parameters:
         - routes
         - bootstrap/app.php
     tmpDir: storage/framework/cache/phpstan
-    ignoreErrors:
-        # BelongsToVillage has no user until the first (V) table lands in M1/M2.
-        # It is covered by tests/Feature/Core/VillageIsolationTest. TODO(M1-01): remove this entry.
-        -
-            identifier: trait.unused
-            path: app/Modules/Core/Village/BelongsToVillage.php
+    ignoreErrors: []

@@ -25,7 +25,7 @@ trait BelongsToVillage
         });
 
         static::creating(function (Model $model): void {
-            $model->village_id ??= app(CurrentVillage::class)->id();
+            $model->setAttribute('village_id', $model->getAttribute('village_id') ?? app(CurrentVillage::class)->id());
         });
     }
 
