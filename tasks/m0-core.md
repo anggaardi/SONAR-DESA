@@ -24,7 +24,7 @@ Spec: PRD Arsitektur 8, 13.1
 - Files: `app/Modules/Core/Village/*`, `app/Http/Middleware/WithVillage.php`
 
 ### M0-04 · CI (GitHub Actions)
-- Status: review (menunggu run pertama di GitHub; push masih dimatikan) · Ukuran: M · Owner: Dev 1
+- Status: done (run 44546623803 hijau di 586f57b; branch protection belum dipasang) · Ukuran: M · Owner: Dev 1
 - Catatan implementasi:
   - 3 job paralel: `php` (Pint, Larastan, Pest di service Postgres 17), `js` (cek bahasa netral, ESLint,
     Prettier, vue-tsc, Vitest, `vite build`), `secrets` (gitleaks v8.30.1 CLI, seluruh history).
