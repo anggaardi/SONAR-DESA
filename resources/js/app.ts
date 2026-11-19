@@ -5,5 +5,6 @@ import { createInertiaApp } from '@inertiajs/vue3';
 createInertiaApp({
     pages: './pages',
     title: (title) => (title ? `${title} · Sonar Desa` : 'Sonar Desa'),
-    progress: { color: '#4f46e5' },
+    // Same value as --color-primary in resources/css/app.css (D-006).
+    progress: { color: '#196bcd' },
 });

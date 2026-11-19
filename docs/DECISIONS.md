@@ -87,3 +87,18 @@ Format entri:
 - Decision: config/inertia.php dipublikasikan dengan `ssr.enabled = false`; plugin Vite `inertia({ ssr: false })`.
 - Consequences: tidak ada service Node di runtime prod. Sesuai A17.
 - Spec reference: PRD Arsitektur A17.
+
+## D-006 · Design system: IDDS (mode terang) sebagai dasar visual
+- Date: 19 Nov 2026 · Status: accepted · Owner: Dev 1
+- Context: PRD Sonar Desa 6 menunda warna dan tipografi ke Q7. Tim memilih INA Digital Design System (IDDS)
+  setelah membandingkan screenshot IDDS, GOV.UK, MYDS, SGDS, USWDS, NL Design System, Carbon, dan NerdWallet.
+  A13 melarang library komponen, jadi paket `@idds/vue` tidak dipasang.
+- Decision: token IDDS mode terang (tema inagov) ditulis sebagai token semantik Tailwind v4 di
+  `resources/css/app.css`; aturan pakai di `docs/DESIGN.md`. Penyimpangan dari IDDS:
+  `content-tertiary` memakai neutral-500 `#737373` (IDDS `#a3a3a3` hanya 2,5:1); teks status memakai
+  shade 700 di atas latar 100 supaya lulus AA; warna `demo` (violet) khusus banner demo. Font Inter.
+- Consequences: UI memakai kelas semantik (`bg-surface`, `text-content`, `bg-primary`, `text-negative`).
+  Palet default Tailwind di-reset (`--color-*: initial`), jadi kelas seperti `bg-slate-50` tidak lagi ada;
+  halaman M3 sudah dimigrasi. Inter dimuat lewat `@fontsource-variable/inter` (self-hosted, jalan offline
+  untuk demo final F27; browser hanya mengunduh subset yang dipakai, latin ±48 KB).
+- Spec reference: PRD Sonar Desa 6 / 6.1, PRD Fitur Inti 4.3, 7.2, A13, A17.
