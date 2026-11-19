@@ -24,7 +24,15 @@ Spec: PRD Arsitektur 8, 13.1
 - Files: `app/Modules/Core/Village/*`, `app/Http/Middleware/WithVillage.php`
 
 ### M0-04 · CI (GitHub Actions)
-- Status: todo · Ukuran: M · Owner: Dev 1
+- Status: review (menunggu run pertama di GitHub; push masih dimatikan) · Ukuran: M · Owner: Dev 1
+- Catatan implementasi:
+  - 3 job paralel: `php` (Pint, Larastan, Pest di service Postgres 17), `js` (cek bahasa netral, ESLint,
+    Prettier, vue-tsc, Vitest, `vite build`), `secrets` (gitleaks v8.30.1 CLI, seluruh history).
+  - Larastan memakai level di `phpstan.neon` (level 6, M0a), bukan level 9 seperti rencana di atas.
+  - Cek kata terlarang D9 dipindah ke `scripts/check-neutral-language.sh`, dipakai `make lint` dan CI.
+  - `tests/TestCase.php` memanggil `withoutVite()`: checkout bersih tidak punya `public/build`, 9 test gagal tanpanya.
+  - Diuji lokal: checkout bersih -> 41 Pest + 13 Vitest + build lulus; gitleaks 31 commit, tanpa temuan;
+    actionlint bersih.
 - Spec: PRD Arsitektur 7.3, A18
 - Scope:
   - Workflow `.github/workflows/ci.yml` dipicu `push` dan `pull_request` ke `main`.

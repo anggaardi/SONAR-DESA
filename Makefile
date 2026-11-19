@@ -62,7 +62,8 @@ test-php: ## Pest on the Postgres "testing" database
 test-js: ## Vitest for resources/js/lib
 	$(NODE) npm run test
 
-lint: ## Pint, Larastan, ESLint, vue-tsc
+lint: ## Pint, Larastan, neutral language, ESLint, vue-tsc (same as CI)
+	sh scripts/check-neutral-language.sh
 	$(APP) vendor/bin/pint --test
 	$(APP) vendor/bin/phpstan analyse --memory-limit=1G --no-progress
 	$(NODE) npm run lint
