@@ -105,6 +105,9 @@ function cloneScopedIds(string $table, Village $village): array
     return match ($table) {
         'audit_items' => DB::table($table)->whereIn('audit_id', $auditIds)->pluck('id')->all(),
         'review_notes' => DB::table($table)->whereIn('cycle_id', $cycleIds)->pluck('id')->all(),
+        'report_answers', 'report_photos' => DB::table($table)
+            ->whereIn('report_id', DB::table('reports')->whereIn('project_id', $projectIds)->pluck('id'))
+            ->pluck('id')->all(),
         default => DB::table($table)->whereIn('project_id', $projectIds)->pluck('id')->all(),
     };
 }

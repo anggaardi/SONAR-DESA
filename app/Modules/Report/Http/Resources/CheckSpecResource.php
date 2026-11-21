@@ -35,6 +35,7 @@ final class CheckSpecResource extends JsonResource
                 'how_to' => $measurement->how_to,
             ])->all(),
             'limits' => [
+                'radius_m' => (int) config('sonar.report.radius_m'),
                 'max_accuracy_m' => (int) config('sonar.report.max_accuracy_m'),
                 'max_photos' => (int) config('sonar.report.max_photos'),
                 'max_note_length' => (int) config('sonar.report.max_note_length'),

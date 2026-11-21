@@ -41,6 +41,7 @@ it('shows every measurement with its RAB value and how to measure it (C4)', func
         ->where('checkSpec.measurements.0.value', '12')
         ->where('checkSpec.measurements.0.unit', 'cm')
         ->where('checkSpec.measurements.0.how_to', 'Ukur di tepi jalan')
+        ->where('checkSpec.limits.radius_m', 300)
         ->where('checkSpec.limits.max_accuracy_m', 100)
         ->where('checkSpec.limits.max_photos', 3)
         ->where('checkSpec.limits.max_note_length', 280)

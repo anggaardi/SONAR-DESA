@@ -30,7 +30,7 @@ final class ReportFactory extends Factory
             'lng' => 115.3214000,
             'accuracy_m' => '15.00',
             'distance_m' => '25.00',
-            'in_radius' => true,
+            'device_hash' => null,
             'note' => 'Tebal di ujung gang tampak hanya 8 cm',
             'superseded_by' => null,
             'invalid_reason' => null,

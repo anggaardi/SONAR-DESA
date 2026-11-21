@@ -26,7 +26,6 @@ final class ProjectResource extends JsonResource
 
         // PRD Fitur Inti 4.3 (P7): count distinct accounts in-radius not marked invalid.
         $distinctCitizens = $project->reports()
-            ->where('in_radius', true)
             ->whereNull('invalid_reason')
             ->distinct('user_id')
             ->count('user_id');

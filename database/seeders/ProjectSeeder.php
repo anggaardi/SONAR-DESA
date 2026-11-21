@@ -293,7 +293,6 @@ final class ProjectSeeder extends Seeder
                     'project_id' => $project->id,
                     'user_id' => $wargaUser->id,
                     'kind' => ReportKind::Match,
-                    'in_radius' => true,
                     'invalid_reason' => null,
                     'created_at' => Carbon::now()->subDays(random_int(1, 10)),
                 ]);

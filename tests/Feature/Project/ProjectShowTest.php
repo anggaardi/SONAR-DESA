@@ -112,7 +112,6 @@ it('does not leak citizen personal data in props (F3-2, R-05)', function () {
         'note' => 'Catatan privat warga',
         'lat' => -8.5340000,
         'lng' => 115.3210000,
-        'in_radius' => true,
         'invalid_reason' => null,
     ]);
 
@@ -146,24 +145,15 @@ it('displays citizen count only when in-radius valid reports exist (P7)', functi
         Report::factory()->create([
             'project_id' => $project->id,
             'user_id' => $citizen->id,
-            'in_radius' => true,
             'invalid_reason' => null,
         ]);
     }
 
-    // Add 1 report out of radius and 1 invalid report
-    $otherCitizen = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
-    Report::factory()->create([
-        'project_id' => $project->id,
-        'user_id' => $otherCitizen->id,
-        'in_radius' => false,
-    ]);
-
+    // Add 1 invalid report. Out of radius is never saved (D-009).
     $invalidCitizen = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
     Report::factory()->create([
         'project_id' => $project->id,
         'user_id' => $invalidCitizen->id,
-        'in_radius' => true,
         'invalid_reason' => 'foto tidak relevan',
     ]);
 

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -27,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $lng
  * @property string|null $accuracy_m
  * @property string|null $distance_m
- * @property bool $in_radius
+ * @property string|null $device_hash
  * @property string|null $note
  * @property int|null $superseded_by
  * @property string|null $invalid_reason
@@ -42,7 +43,7 @@ use Illuminate\Support\Carbon;
     'lng',
     'accuracy_m',
     'distance_m',
-    'in_radius',
+    'device_hash',
     'note',
     'superseded_by',
     'invalid_reason',
@@ -58,7 +59,6 @@ final class Report extends Model implements OwnedThroughParent
     {
         return [
             'kind' => ReportKind::class,
-            'in_radius' => 'boolean',
             'opened_at' => 'immutable_datetime',
         ];
     }
@@ -78,6 +78,18 @@ final class Report extends Model implements OwnedThroughParent
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return HasMany<ReportAnswer, $this> */
+    public function answers(): HasMany
+    {
+        return $this->hasMany(ReportAnswer::class);
+    }
+
+    /** @return HasMany<ReportPhoto, $this> */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(ReportPhoto::class)->orderBy('position');
     }
 
     /** @return BelongsTo<ReviewCycle, $this> */

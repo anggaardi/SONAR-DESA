@@ -28,7 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [HandleInertiaRequests::class]);
         $middleware->alias(['village' => SetCurrentVillage::class]);
         // Warga sign in with Google before Cek Spek (F11); desa and BPD use the email login form.
-        $middleware->redirectGuestsTo(fn (Request $request) => $request->routeIs('reports.check')
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->routeIs('reports.check', 'reports.submitted')
             ? route('auth.google')
             : route('login'));
         $middleware->redirectUsersTo(fn () => route('home'));

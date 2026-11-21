@@ -10,6 +10,7 @@ use App\Modules\Project\Models\Project;
 use App\Modules\Report\Domain\ReportSubmission;
 use App\Modules\Report\Domain\SubmittedAnswer;
 use App\Modules\Report\Enums\MeasurementAnswer;
+use App\Modules\Report\Http\Middleware\EnsureDeviceCookie;
 use App\Modules\Report\Models\Report;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
@@ -24,9 +25,6 @@ final class SubmitReportRequest extends FormRequest
 {
     /** Up to 9,999,999.999: what a field measurement of a village project can reasonably be. */
     private const MEASURED_VALUE_PATTERN = '/^\d{1,7}(\.\d{1,3})?$/';
-
-    /** Largest accuracy the reports.accuracy_m column (decimal 8,2) can hold. */
-    private const MAX_STORABLE_ACCURACY_M = 999_999;
 
     private ?Project $project = null;
 
@@ -117,10 +115,11 @@ final class SubmitReportRequest extends FormRequest
 
             'note' => ['nullable', 'string', 'max:'.(int) config('sonar.report.max_note_length')],
 
-            // Read again at send time (M4-05 readFresh). A coarse fix is kept but not counted (PRD Fitur Inti 9).
+            // Read again at send time (M4-05 readFresh). A coarse fix cannot prove the warga is at the project,
+            // so it is refused like out of radius (D-009, C7). The distance itself is checked in SubmitReport.
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
-            'accuracy_m' => ['required', 'numeric', 'min:0', 'max:'.self::MAX_STORABLE_ACCURACY_M],
+            'accuracy_m' => ['required', 'numeric', 'min:0', 'max:'.(int) config('sonar.report.max_accuracy_m')],
         ];
     }
 
@@ -148,7 +147,10 @@ final class SubmitReportRequest extends FormRequest
             'note.max' => 'Catatan paling banyak :max huruf.',
             'lat.*' => 'Lokasi belum terbaca. Izinkan lokasi, lalu kirim lagi.',
             'lng.*' => 'Lokasi belum terbaca. Izinkan lokasi, lalu kirim lagi.',
-            'accuracy_m.*' => 'Lokasi belum terbaca. Izinkan lokasi, lalu kirim lagi.',
+            'accuracy_m.required' => 'Lokasi belum terbaca. Izinkan lokasi, lalu kirim lagi.',
+            'accuracy_m.numeric' => 'Lokasi belum terbaca. Izinkan lokasi, lalu kirim lagi.',
+            'accuracy_m.min' => 'Lokasi belum terbaca. Izinkan lokasi, lalu kirim lagi.',
+            'accuracy_m.max' => 'Sinyal lokasi lemah (ketelitian lebih dari :max m). Tunggu sebentar di tempat terbuka, lalu kirim lagi.',
         ];
     }
 
@@ -173,6 +175,16 @@ final class SubmitReportRequest extends FormRequest
             lat: (float) $this->validated('lat'),
             lng: (float) $this->validated('lng'),
             accuracyMeters: (float) $this->validated('accuracy_m'),
+            deviceHash: $this->deviceHash(),
         );
+    }
+
+    /**
+     * D-010: the device is the cookie set by EnsureDeviceCookie (route middleware), stored only as an HMAC keyed
+     * with APP_KEY, so the database alone cannot be used to recognise a browser.
+     */
+    private function deviceHash(): string
+    {
+        return hash_hmac('sha256', (string) $this->cookie(EnsureDeviceCookie::COOKIE), (string) config('app.key'));
     }
 }

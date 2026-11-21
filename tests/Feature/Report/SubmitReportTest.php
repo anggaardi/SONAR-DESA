@@ -6,15 +6,31 @@ use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\Village;
 use App\Modules\Project\Models\Project;
 use App\Modules\Project\Models\ProjectMeasurement;
+use App\Modules\Report\Enums\MeasurementAnswer;
 use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Events\ReportSubmitted;
+use App\Modules\Report\Http\Middleware\EnsureDeviceCookie;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Models\ReviewCycle;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
 
 // Project point is -8.5321, 115.3214 (ProjectFactory). 0.001 degree of latitude is about 111.2 m.
 const SUBMIT_SLUG = 'rabat-beton-melati';
+
+// Every accepted send writes photos to the private disk; without this they would land in storage/app.
+// File-level on purpose: almost every test here sends a report.
+beforeEach(fn () => Storage::fake('local'));
+
+/** A device cookie value as EnsureDeviceCookie makes it (40 letters and digits). */
+function deviceToken(string $seed): string
+{
+    return str_pad($seed, 40, '0');
+}
 
 /** A published project with two measurements: tebal (cm) and lebar (m). */
 function projectWithMeasurements(array $attributes = []): Project
@@ -75,13 +91,12 @@ it('saves the report, recomputes the distance on the server, and dispatches Repo
         reportPayload($project, answersFor($project, 'match', 'mismatch'), ['lat' => -8.5321 + 0.001]),
     );
 
-    $response->assertSessionHasNoErrors()->assertRedirect(route('projects.show', SUBMIT_SLUG));
+    $response->assertSessionHasNoErrors()->assertRedirect(route('reports.submitted', SUBMIT_SLUG));
     $report = Report::query()->sole();
     expect($report->user_id)->toBe($warga->id)
         ->and($report->project_id)->toBe($project->id)
         ->and($report->cycle_id)->toBe($cycle->id)
         ->and($report->kind)->toBe(ReportKind::Mismatch)
-        ->and($report->in_radius)->toBeTrue()
         ->and((float) $report->distance_m)->toEqualWithDelta(111.2, 1.0)
         ->and((float) $report->accuracy_m)->toBe(15.0)
         ->and($report->note)->toBe('Dicek pagi hari')
@@ -107,32 +122,52 @@ it('decides the kind from the answers (PRD Fitur Inti 5.3, C9)', function (array
     'all "Tidak bisa ukur"' => [['unmeasurable', 'unmeasurable'], ReportKind::Unmeasurable],
 ]);
 
-it('keeps a report sent from outside the radius but does not count it, whatever the client claims (C8, F4-2)', function () {
+it('refuses a report from outside the radius and saves nothing, whatever the client claims (D-009, F4-2)', function () {
     $project = projectWithMeasurements();
+    Event::fake([ReportSubmitted::class]);
 
     // 0.0045 degree is about 500 m; the client also claims to be inside the radius.
     $this->actingAs(citizen())->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, overrides: [
         'lat' => -8.5321 + 0.0045,
         'distance_m' => 0,
         'in_radius' => true,
-    ]))->assertSessionHasNoErrors();
+    ]))->assertSessionHasErrors([
+        'location' => 'Kamu berada di luar 300 m dari titik proyek. Datangi lokasi proyek, lalu kirim lagi. Isianmu tidak hilang.',
+    ]);
 
-    $report = Report::query()->sole();
-    expect($report->in_radius)->toBeFalse()
-        ->and((float) $report->distance_m)->toEqualWithDelta(500.4, 1.0);
+    expect(Report::query()->count())->toBe(0);
+    Event::assertNotDispatched(ReportSubmitted::class);
 });
 
-it('keeps a report with a coarse location fix but does not count it (PRD Fitur Inti 9)', function () {
+it('accepts a report exactly at the radius and refuses one just beyond it (D-009)', function (float $latitudeOffset, bool $accepted) {
+    $project = projectWithMeasurements();
+
+    $response = $this->actingAs(citizen())->post(
+        route('reports.store', SUBMIT_SLUG),
+        reportPayload($project, overrides: ['lat' => -8.5321 + $latitudeOffset]),
+    );
+
+    $accepted ? $response->assertSessionHasNoErrors() : $response->assertSessionHasErrors('location');
+    expect(Report::query()->count())->toBe($accepted ? 1 : 0);
+})->with([
+    // 0.002697 degree is about 299.9 m; 0.002700 degree is about 300.2 m.
+    'just inside' => [0.002697, true],
+    'just outside' => [0.002700, false],
+]);
+
+it('refuses a report with a coarse location fix (D-009, C7)', function () {
     $project = projectWithMeasurements();
 
     $this->actingAs(citizen())
         ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, overrides: ['accuracy_m' => 100.5]))
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasErrors([
+            'accuracy_m' => 'Sinyal lokasi lemah (ketelitian lebih dari 100 m). Tunggu sebentar di tempat terbuka, lalu kirim lagi.',
+        ]);
 
-    expect(Report::query()->sole()->in_radius)->toBeFalse();
+    expect(Report::query()->count())->toBe(0);
 });
 
-it('counts the edge case of 280 m with 90 m accuracy (PRD Fitur Inti 9)', function () {
+it('accepts the edge case of 280 m with 90 m accuracy (PRD Fitur Inti 9)', function () {
     $project = projectWithMeasurements();
 
     // 0.002518 degree is about 280 m.
@@ -140,20 +175,147 @@ it('counts the edge case of 280 m with 90 m accuracy (PRD Fitur Inti 9)', functi
         ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, overrides: ['lat' => -8.5321 + 0.002518, 'accuracy_m' => 90]))
         ->assertSessionHasNoErrors();
 
-    expect(Report::query()->sole()->in_radius)->toBeTrue();
+    expect((float) Report::query()->sole()->distance_m)->toEqualWithDelta(280.0, 1.0);
 });
 
-it('stores the distance of a reporter very far away without a database error', function () {
+it('limits submissions per IP address across accounts (D-010)', function () {
+    config(['sonar.report.submits_per_minute' => 2]);
     $project = projectWithMeasurements();
+    $url = route('reports.store', SUBMIT_SLUG);
 
-    // Medan is about 2,000 km from the project, more than the distance_m column holds (999,999.99 m).
+    $this->actingAs(citizen())->post($url, reportPayload($project))->assertSessionHasNoErrors();
+    $this->actingAs(citizen())->post($url, reportPayload($project))->assertSessionHasNoErrors();
+
+    $this->actingAs(citizen())->post($url, reportPayload($project))->assertStatus(429);
+    expect(Report::query()->count())->toBe(2);
+});
+
+it('saves every answer with the measured value in the RAB unit, and the photos as WebP (M4-02, C5)', function () {
+    $project = projectWithMeasurements();
+    [$thickness, $width] = $project->measurements()->orderBy('id')->get()->all();
+    $answers = [
+        ['measurement_id' => $thickness->id, 'answer' => 'mismatch', 'measured_value' => '8,5'],
+        // A value sent with "Sesuai" is dropped.
+        ['measurement_id' => $width->id, 'answer' => 'match', 'measured_value' => '9'],
+    ];
+    $photos = [UploadedFile::fake()->image('a.jpg', 3200, 2400), UploadedFile::fake()->image('b.jpg', 640, 480)];
+
     $this->actingAs(citizen())
-        ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, overrides: ['lat' => 3.59, 'lng' => 98.67]))
+        ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, $answers, ['photos' => $photos]))
         ->assertSessionHasNoErrors();
 
     $report = Report::query()->sole();
-    expect($report->in_radius)->toBeFalse()
-        ->and((float) $report->distance_m)->toBe(999999.99);
+    $saved = ReportAnswer::query()->where('report_id', $report->id)->orderBy('measurement_id')->get();
+    expect($saved)->toHaveCount(2)
+        ->and($saved[0]->answer)->toBe(MeasurementAnswer::Mismatch)
+        ->and($saved[0]->measured_value)->toBe('8.500')
+        ->and($saved[0]->measured_unit)->toBe('cm')
+        ->and($saved[1]->answer)->toBe(MeasurementAnswer::Match)
+        ->and($saved[1]->measured_value)->toBeNull()
+        ->and($saved[1]->measured_unit)->toBeNull();
+
+    $savedPhotos = ReportPhoto::query()->where('report_id', $report->id)->orderBy('position')->get();
+    expect($savedPhotos->pluck('position')->all())->toBe([1, 2]);
+    foreach ($savedPhotos as $photo) {
+        Storage::disk('local')->assertExists($photo->path);
+        expect($photo->path)->toStartWith('reports/')->toEndWith('.webp');
+    }
+    [$width, $height] = getimagesizefromstring(Storage::disk('local')->get($savedPhotos[0]->path));
+    expect(max($width, $height))->toBe(1600);
+});
+
+it('leaves no photo file behind when the send is refused', function () {
+    $project = projectWithMeasurements();
+    $warga = citizen();
+    Report::factory()->count(3)->create(['project_id' => $project->id, 'user_id' => $warga->id, 'superseded_by' => 999]);
+
+    $this->actingAs($warga)->post(route('reports.store', SUBMIT_SLUG), reportPayload($project))->assertSessionHasErrors('report');
+
+    expect(Storage::disk('local')->allFiles())->toBe([]);
+});
+
+it('refuses a send from a device another account already reported this project with (D-010)', function () {
+    $project = projectWithMeasurements();
+    $url = route('reports.store', SUBMIT_SLUG);
+
+    $this->withCookie(EnsureDeviceCookie::COOKIE, deviceToken('hp1'))->actingAs(citizen())
+        ->post($url, reportPayload($project))->assertSessionHasNoErrors();
+    $this->withCookie(EnsureDeviceCookie::COOKIE, deviceToken('hp1'))->actingAs(citizen())
+        ->post($url, reportPayload($project))
+        ->assertSessionHasErrors(['device' => 'Perangkat ini sudah dipakai akun lain untuk melaporkan proyek ini. Satu perangkat hanya untuk satu pelapor.']);
+
+    expect(Report::query()->count())->toBe(1);
+});
+
+it('lets the same account on the same device replace its report, and other devices report freely (D-010)', function () {
+    $project = projectWithMeasurements();
+    $warga = citizen();
+    $url = route('reports.store', SUBMIT_SLUG);
+
+    $this->withCookie(EnsureDeviceCookie::COOKIE, deviceToken('hp1'))->actingAs($warga)->post($url, reportPayload($project))->assertSessionHasNoErrors();
+    $this->withCookie(EnsureDeviceCookie::COOKIE, deviceToken('hp1'))->actingAs($warga)->post($url, reportPayload($project))->assertSessionHasNoErrors();
+    $this->withCookie(EnsureDeviceCookie::COOKIE, deviceToken('hp2'))->actingAs(citizen())->post($url, reportPayload($project))->assertSessionHasNoErrors();
+
+    expect(Report::query()->count())->toBe(3)
+        ->and(Report::query()->whereNull('superseded_by')->count())->toBe(2);
+});
+
+it('stores only a hash of the device cookie, not the cookie itself (D-010)', function () {
+    $project = projectWithMeasurements();
+
+    $this->withCookie(EnsureDeviceCookie::COOKIE, deviceToken('hp1'))->actingAs(citizen())
+        ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project))->assertSessionHasNoErrors();
+
+    $hash = Report::query()->sole()->device_hash;
+    expect($hash)->toMatch('/^[0-9a-f]{64}$/')->not->toBe(deviceToken('hp1'));
+});
+
+it('gives the checklist page a device cookie (D-010)', function () {
+    Project::factory()->create(['slug' => SUBMIT_SLUG]);
+
+    $this->actingAs(citizen())->get(route('reports.check', SUBMIT_SLUG))
+        ->assertOk()
+        ->assertCookie(EnsureDeviceCookie::COOKIE);
+});
+
+it('allows only one active report per account and per device in a cycle, in the database (F4-4)', function (array $second) {
+    $project = projectWithMeasurements();
+    $warga = citizen();
+    Report::factory()->create(['project_id' => $project->id, 'user_id' => $warga->id, 'device_hash' => str_repeat('a', 64)]);
+
+    $insertSecond = fn () => Report::factory()->create([
+        'project_id' => $project->id,
+        'user_id' => $second['same_user'] ? $warga->id : citizen()->id,
+        'device_hash' => $second['device_hash'],
+    ]);
+
+    expect($insertSecond)->toThrow(UniqueConstraintViolationException::class);
+})->with([
+    'same account, no cycle yet' => [['same_user' => true, 'device_hash' => str_repeat('b', 64)]],
+    'same device, another account' => [['same_user' => false, 'device_hash' => str_repeat('a', 64)]],
+]);
+
+it('keeps the reporter, photos, and answers off the public project page (C11)', function () {
+    $project = projectWithMeasurements();
+    $warga = User::factory()->create(['email' => 'pelapor.rahasia@contoh.test']);
+    $answers = answersFor($project, 'mismatch', 'match');
+    $answers[0]['measured_value'] = '7,25';
+
+    $this->actingAs($warga)
+        ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, $answers, ['note' => 'Catatan rahasia pelapor']))
+        ->assertSessionHasNoErrors();
+    $photoPath = ReportPhoto::query()->sole()->path;
+
+    $this->flushSession();
+    auth()->logout();
+    $content = (string) $this->get(route('projects.show', SUBMIT_SLUG))->assertOk()->getContent();
+
+    expect($content)
+        ->not->toContain('pelapor.rahasia@contoh.test')
+        ->not->toContain('Catatan rahasia pelapor')
+        ->not->toContain($photoPath)
+        ->not->toContain('7.250')
+        ->not->toContain('7,25');
 });
 
 it('supersedes the earlier active report of the same account in the same cycle (C10)', function () {

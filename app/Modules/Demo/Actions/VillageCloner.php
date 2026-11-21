@@ -34,10 +34,14 @@ final class VillageCloner
         'review_cycles' => ['project_id' => 'projects'],
         'review_notes' => ['cycle_id' => 'review_cycles'],
         'reports' => ['project_id' => 'projects', 'cycle_id' => 'review_cycles'],
+        'report_answers' => ['report_id' => 'reports', 'measurement_id' => 'project_measurements'],
+        'report_photos' => ['report_id' => 'reports'],
     ];
 
     /**
-     * Foreign keys that point forward or to their own table. Inserted as null, then remapped.
+     * Foreign keys that point forward or to their own table. Inserted with the template's value, then remapped.
+     * Not null: reports.superseded_by decides which report is active, and an active copy of a superseded report
+     * would break the one-active-report index (M4-02).
      *
      * @var array<string, array<string, string>>
      */
@@ -138,7 +142,6 @@ final class VillageCloner
                 if ($data[$column] !== null) {
                     $deferred[$column] = [(int) $data[$column], $source];
                 }
-                $data[$column] = null;
             }
 
             if ($table === 'projects') {

@@ -49,6 +49,9 @@ final class AppServiceProvider extends ServiceProvider
 
         $this->assertRequiredEnv();
 
+        RateLimiter::for('report-submit', static fn (Request $request): Limit => Limit::perMinute(
+            (int) config('sonar.report.submits_per_minute'),
+        )->by((string) $request->ip()));
         RateLimiter::for('report-distance', static fn (Request $request): Limit => Limit::perMinute(
             (int) config('sonar.report.distance_hints_per_minute'),
         )->by((string) $request->ip()));

@@ -143,9 +143,11 @@ export const location = {
         body: 'Pastikan GPS aktif, lalu coba lagi.',
     },
     nearby: (distance: string) => `Lokasi aktif: ${distance} dari titik proyek`,
-    farAway: (distance: string) =>
-        `Kamu berada ${distance} dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.`,
-    farAwayUnknown: 'Kamu berada jauh dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.',
+    farAway: (distance: string, radiusMeters: number) =>
+        `Kamu berada ${distance} dari titik proyek. Cek Spek hanya bisa dikirim dalam ${radiusMeters} m dari proyek. Datangi lokasi proyek, lalu cek lokasi lagi.`,
+    farAwayUnknown: (radiusMeters: number) =>
+        `Kamu berada jauh dari titik proyek. Cek Spek hanya bisa dikirim dalam ${radiusMeters} m dari proyek. Datangi lokasi proyek, lalu cek lokasi lagi.`,
+    recheck: 'Cek lokasi lagi',
     checkingDistance: 'Menghitung jarak ke proyek...',
     distanceFailed: {
         title: 'Jarak belum bisa dihitung',
@@ -205,4 +207,18 @@ export const checkSpec = {
         title: 'Laporan belum terkirim',
         body: 'Periksa sinyal internetmu, lalu tekan Kirim lagi. Isianmu tidak hilang.',
     },
+} as const;
+
+/** PRD Fitur Inti 5.1 step 9, C9: confirmation after a Cek Spek report is saved. */
+export const reportSubmitted = {
+    title: 'Laporanmu masuk ke BPD',
+    body: 'Laporan tidak langsung tampil di halaman publik, dan namamu tidak pernah ditampilkan.',
+    kindLabel: 'Jenis laporan',
+    mismatchCount: (current: number, threshold: number) =>
+        `Laporan selisih di proyek ini: ${current} dari ${threshold}`,
+    mismatchHint: (threshold: number) =>
+        `Proyek masuk tinjauan BPD setelah ${threshold} warga berbeda mengirim laporan selisih dari lokasi.`,
+    replaceHint: 'Mengirim lagi akan menggantikan laporanmu sebelumnya.',
+    backToProject: 'Kembali ke halaman proyek',
+    sendAgain: 'Kirim laporan baru',
 } as const;

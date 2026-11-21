@@ -13,6 +13,8 @@ import { useGeolocation, type GeoPosition } from './useGeolocation';
 import { useProjectDistance } from './useProjectDistance';
 
 interface Props {
+    /** Same as config('sonar.report.radius_m'); only for the text. Inside or not comes from the server. */
+    radiusMeters: number;
     maxAccuracyMeters: number;
     distanceUrl: string;
 }
@@ -80,16 +82,23 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
                 <Button variant="secondary" @click="position && check(position)">{{ location.retry }}</Button>
             </template>
 
-            <template v-else-if="hint">
-                <Alert v-if="hint.within_radius && hint.distance_m !== null" color="positive">
+            <!-- D-009: out of radius cannot go on; the server refuses such a send as well. -->
+            <template v-else-if="hint && hint.within_radius">
+                <Alert v-if="hint.distance_m !== null" color="positive">
                     {{ location.nearby(formatLength(hint.distance_m)) }}
                 </Alert>
-                <Alert v-else-if="hint.distance_m !== null" color="warning">
-                    {{ location.farAway(formatLength(hint.distance_m)) }}
-                </Alert>
-                <Alert v-else color="warning">{{ location.farAwayUnknown }}</Alert>
-
                 <Button variant="primary" @click="emit('continue')">{{ location.continue }}</Button>
+            </template>
+
+            <template v-else-if="hint">
+                <Alert color="warning">
+                    {{
+                        hint.distance_m !== null
+                            ? location.farAway(formatLength(hint.distance_m), radiusMeters)
+                            : location.farAwayUnknown(radiusMeters)
+                    }}
+                </Alert>
+                <Button variant="secondary" @click="start">{{ location.recheck }}</Button>
             </template>
         </template>
     </section>

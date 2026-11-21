@@ -45,6 +45,8 @@ return [
         'distance_hint_round_m' => (int) env('REPORT_DISTANCE_HINT_ROUND_M', 10),
         'distance_hint_max_m' => (int) env('REPORT_DISTANCE_HINT_MAX_M', 1000),
         'distance_hints_per_minute' => (int) env('REPORT_DISTANCE_HINTS_PER_MINUTE', 30),
+        // D-010: IP is only a rate limit, never stored. Loose on purpose: with CGNAT many warga share one IP.
+        'submits_per_minute' => (int) env('REPORT_SUBMITS_PER_MINUTE', 20),
     ],
 
     'review' => [

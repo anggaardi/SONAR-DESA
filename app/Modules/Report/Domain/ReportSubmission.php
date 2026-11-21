@@ -24,6 +24,8 @@ final readonly class ReportSubmission
         public float $lat,
         public float $lng,
         public float $accuracyMeters,
+        /** HMAC-SHA256 of the device cookie (D-010), 64 hex characters. */
+        public string $deviceHash,
     ) {}
 
     /** @return list<MeasurementAnswer> */

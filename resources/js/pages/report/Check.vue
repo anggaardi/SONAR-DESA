@@ -124,6 +124,7 @@ function continueToPhotos(): void {
             <!-- Kept mounted (v-show) so the position and camera state survive moving between steps. -->
             <div v-show="step === 'location'">
                 <LocationGate
+                    :radius-meters="checkSpec.limits.radius_m"
                     :max-accuracy-meters="checkSpec.limits.max_accuracy_m"
                     :distance-url="checkSpec.urls.distance"
                     @position="rememberPosition"
