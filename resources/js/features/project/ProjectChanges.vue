@@ -16,7 +16,7 @@ const showHistory = ref(false);
 </script>
 
 <template>
-    <section v-if="changes && changes.length > 0" class="mt-8 border-t border-stroke pt-6">
+    <section v-if="changes && changes.length > 0" id="dokumen" class="mt-8 scroll-mt-20 border-t border-stroke pt-6">
         <button
             type="button"
             class="flex min-h-11 w-full items-center justify-between gap-3 text-left"
@@ -36,16 +36,18 @@ const showHistory = ref(false);
             <div
                 v-for="change in changes"
                 :key="change.id"
-                class="rounded-lg border border-stroke bg-surface p-3 text-sm"
+                class="rounded-xl border border-stroke bg-surface p-3 text-sm shadow-2xs"
             >
-                <div class="flex items-center justify-between gap-2 text-content-secondary">
+                <div class="flex items-center justify-between gap-2 text-xs text-content-secondary sm:text-sm">
                     <span class="font-medium text-content">{{ change.item_label }}</span>
                     <span>{{ formatDate(change.changed_at) }}</span>
                 </div>
-                <p class="mt-1 text-content-secondary">
+                <p class="mt-1 text-xs text-content-secondary sm:text-sm">
                     Perubahan pada <span class="font-medium text-content">{{ change.field }}</span>:
                 </p>
-                <div class="mt-1 flex flex-wrap items-center gap-2 rounded-md bg-surface-subtle p-2 tabular-nums">
+                <div
+                    class="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-surface-subtle p-2 text-xs tabular-nums sm:text-sm"
+                >
                     <span class="text-content-secondary line-through">{{ change.old_value }}</span>
                     <span class="text-content-tertiary" aria-hidden="true">&rarr;</span>
                     <span class="font-semibold text-content">{{ change.new_value }}</span>

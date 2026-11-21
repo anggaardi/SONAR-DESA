@@ -1,118 +1,250 @@
 <script setup lang="ts">
-// ProjectItems: filterable RAB item list with detail drawer. PRD P3, P4 (Langkah 3).
+// ProjectItems: perbandingan baris RAB dengan harga standar. PRD P3, P4 (Langkah 3).
+// Tiga kotak angka sekaligus jadi filter; baris membuka bottom sheet perbandingan harga.
 
-import { computed, ref } from 'vue';
-import { formatPercentAbove, formatRupiah } from '@/lib/format';
-import { priceLabel as priceLabelTexts, priceStandardSource } from '@/lib/labels';
+import { computed, ref, watch } from 'vue';
+import PriceLabel from '@/components/ui/PriceLabel.vue';
+import { formatPercentAbove, formatRupiah, formatRupiahShort } from '@/lib/format';
+import { document as documentLabels, priceStandardSource } from '@/lib/labels';
 import type { ProjectBudgetItem, ProjectDetail } from '@/types/project';
+
+export type BudgetFilter = 'all' | 'above' | 'within' | 'no_ref';
+
+type ItemLabel = 'within_standard' | 'above_standard' | 'needs_check' | 'no_reference';
 
 interface Props {
     project: ProjectDetail;
+    activeFilter?: BudgetFilter;
 }
 
-const props = defineProps<Props>();
-
-type Filter = 'all' | 'above' | 'no_ref';
-
-const selectedFilter = ref<Filter>('all');
-const activeItem = ref<ProjectBudgetItem | null>(null);
-
-const filteredItems = computed(() => {
-    if (selectedFilter.value === 'above') {
-        return props.project.items.filter((i) => i.label === 'above_standard');
-    }
-    if (selectedFilter.value === 'no_ref') {
-        return props.project.items.filter((i) => i.label === 'no_reference');
-    }
-    return props.project.items;
+const props = withDefaults(defineProps<Props>(), {
+    activeFilter: 'all',
 });
 
-type FilterOption = { value: Filter; label: string; count: number };
+const emit = defineEmits<{
+    'update:activeFilter': [filter: BudgetFilter];
+}>();
 
-const filterOptions = computed<FilterOption[]>(() => [
-    { value: 'all', label: 'Semua', count: props.project.items.length },
-    { value: 'above', label: 'Di atas standar', count: props.project.label_counts.above_standard },
-    { value: 'no_ref', label: 'Tanpa acuan', count: props.project.label_counts.no_reference },
+const selectedFilter = ref<BudgetFilter>(props.activeFilter);
+const activeItem = ref<ProjectBudgetItem | null>(null);
+
+watch(
+    () => props.activeFilter,
+    (value) => {
+        selectedFilter.value = value;
+    },
+);
+
+function setFilter(value: BudgetFilter): void {
+    const next = selectedFilter.value === value ? 'all' : value;
+    selectedFilter.value = next;
+    emit('update:activeFilter', next);
+}
+
+const filterLabel: Record<Exclude<BudgetFilter, 'all'>, ItemLabel> = {
+    above: 'above_standard',
+    within: 'within_standard',
+    no_ref: 'no_reference',
+};
+
+const filteredItems = computed(() => {
+    if (selectedFilter.value === 'all') {
+        return props.project.items;
+    }
+    return props.project.items.filter((i) => i.label === filterLabel[selectedFilter.value as keyof typeof filterLabel]);
+});
+
+const tiles = computed(() => [
+    {
+        value: 'above' as const,
+        label: 'Di atas standar',
+        count: props.project.label_counts.above_standard,
+        classes: 'border-negative-border bg-negative-subtle text-negative',
+        ring: 'ring-negative',
+        icon: 'M12 19V5m-6 6 6-6 6 6',
+    },
+    {
+        value: 'within' as const,
+        label: 'Sesuai',
+        count: props.project.label_counts.within_standard,
+        classes: 'border-positive-border bg-positive-subtle text-positive',
+        ring: 'ring-positive',
+        icon: 'M5 12.5l4.5 4.5L19 7.5',
+    },
+    {
+        value: 'no_ref' as const,
+        label: 'Tanpa acuan',
+        count: props.project.label_counts.no_reference,
+        classes: 'border-stroke bg-surface-muted text-content-secondary',
+        ring: 'ring-content-secondary',
+        icon: 'M5 12h14',
+    },
 ]);
+
+const standardSource = computed(
+    () =>
+        props.project.items.find((i) => i.standard_source)?.standard_source ?? priceStandardSource(props.project.year),
+);
+
+const comparison = computed(() => {
+    const item = activeItem.value;
+    if (!item?.unit_price_rp || !item.standard_price_rp) {
+        return null;
+    }
+    const max = Math.max(item.unit_price_rp, item.standard_price_rp);
+    return {
+        rabWidth: `${(item.unit_price_rp / max) * 100}%`,
+        standardWidth: `${(item.standard_price_rp / max) * 100}%`,
+    };
+});
+
+/** Selisih total = selisih per satuan × volume, rumus yang sama dengan yang tertulis di layar. */
+const totalDiff = computed(() => {
+    const item = activeItem.value;
+    const volume = Number(item?.volume);
+    if (!item?.unit_diff_rp || !item.volume || Number.isNaN(volume)) {
+        return null;
+    }
+    return Math.round(item.unit_diff_rp * volume);
+});
+
+function percentAbove(item: ProjectBudgetItem): string | null {
+    return item.over_pct ? formatPercentAbove(item.over_pct) : null;
+}
 </script>
 
 <template>
-    <section class="mt-8">
-        <h2 class="text-xl font-semibold text-content">Rincian anggaran</h2>
-        <p class="text-sm text-content-secondary">Ketuk baris untuk melihat perbandingan acuan</p>
+    <section id="rincian" class="scroll-mt-20">
+        <h2 class="text-xl font-semibold text-content">Dibandingkan harga standar</h2>
+        <p class="text-sm text-content-secondary">Acuan: {{ standardSource }}</p>
 
-        <!-- Filter tabs (P4) -->
-        <div class="mt-3 flex gap-2 overflow-x-auto pb-1 text-sm" role="group" aria-label="Saring item">
+        <div class="mt-3 grid grid-cols-3 gap-2.5" role="group" aria-label="Saring baris RAB menurut label harga">
             <button
-                v-for="opt in filterOptions"
-                :key="opt.value"
+                v-for="tile in tiles"
+                :key="tile.value"
                 type="button"
-                class="h-11 shrink-0 rounded-full border px-4 font-medium transition-colors"
-                :class="
-                    selectedFilter === opt.value
-                        ? 'border-primary bg-primary-subtle text-primary'
-                        : 'border-stroke bg-surface text-content-secondary hover:bg-surface-muted'
-                "
-                :aria-pressed="selectedFilter === opt.value"
-                @click="selectedFilter = opt.value"
+                class="flex min-h-20 flex-col justify-between rounded-2xl border p-3 text-left transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                :class="[tile.classes, selectedFilter === tile.value ? `ring-2 ring-offset-1 ${tile.ring}` : '']"
+                :aria-pressed="selectedFilter === tile.value"
+                @click="setFilter(tile.value)"
             >
-                {{ opt.label }} ({{ opt.count }})
+                <span class="flex w-full items-start justify-between">
+                    <span class="text-2xl leading-none font-bold tabular-nums">{{ tile.count }}</span>
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" :d="tile.icon" />
+                    </svg>
+                </span>
+                <span class="mt-2 text-xs leading-tight font-medium sm:text-sm">{{ tile.label }}</span>
             </button>
         </div>
 
-        <!-- Item list -->
-        <div class="mt-3 flex flex-col gap-2">
-            <div
-                v-if="filteredItems.length === 0"
-                class="rounded-lg border border-dashed border-stroke-strong p-6 text-center text-sm text-content-secondary"
+        <p class="mt-3 flex items-start gap-2 text-sm text-content-secondary">
+            <svg
+                class="mt-0.5 h-4 w-4 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
             >
-                Tidak ada item untuk filter ini.
-            </div>
+                <circle cx="12" cy="12" r="9" stroke-width="2" />
+                <path stroke-linecap="round" stroke-width="2" d="M12 11v5M12 8h.01" />
+            </svg>
+            <span>"Di atas standar" belum tentu salah. Ketuk barisnya untuk melihat perbandingan harganya.</span>
+        </p>
 
+        <div class="mt-3 flex items-center justify-between text-sm">
+            <p class="text-content-secondary">
+                Menampilkan <span class="font-semibold text-content tabular-nums">{{ filteredItems.length }}</span> dari
+                {{ project.items.length }} baris
+            </p>
             <button
-                v-for="item in filteredItems"
-                :key="item.id"
+                v-if="selectedFilter !== 'all'"
                 type="button"
-                class="flex min-h-14 w-full items-center justify-between gap-3 rounded-lg border border-stroke bg-surface p-3 text-left transition-colors hover:bg-surface-muted"
-                :class="{ 'bg-warning-subtle': item.label === 'needs_check' }"
-                @click="activeItem = item"
+                class="min-h-11 font-semibold text-primary hover:text-primary-hover"
+                @click="setFilter('all')"
             >
-                <div class="min-w-0">
-                    <p class="text-base font-medium text-content">{{ item.name }}</p>
-                    <p class="mt-0.5 text-sm text-content-secondary tabular-nums">
-                        {{ item.volume }} {{ item.unit }}
-                        <span v-if="item.unit_price_rp">&middot; @{{ formatRupiah(item.unit_price_rp) }}</span>
-                    </p>
-                </div>
-
-                <div class="flex shrink-0 flex-col items-end gap-1">
-                    <span class="text-base font-semibold text-content tabular-nums">
-                        {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
-                    </span>
-                    <span
-                        v-if="item.label === 'above_standard' && item.over_pct"
-                        class="rounded-full border border-negative-border bg-negative-subtle px-2 py-0.5 text-sm font-medium text-negative"
-                    >
-                        {{ priceLabelTexts.above_standard(item.over_pct) }}
-                    </span>
-                    <span
-                        v-else-if="item.label === 'no_reference'"
-                        class="rounded-full border border-stroke bg-surface-muted px-2 py-0.5 text-sm font-medium text-content-secondary"
-                    >
-                        {{ priceLabelTexts.no_reference }}
-                    </span>
-                    <span
-                        v-else-if="item.label === 'within_standard'"
-                        class="rounded-full border border-positive-border bg-positive-subtle px-2 py-0.5 text-sm font-medium text-positive"
-                    >
-                        {{ priceLabelTexts.within_standard }}
-                    </span>
-                </div>
+                Tampilkan semua
             </button>
+        </div>
+
+        <p
+            v-if="filteredItems.length === 0"
+            class="mt-2 rounded-2xl border border-dashed border-stroke-strong p-6 text-center text-sm text-content-secondary"
+        >
+            Tidak ada baris untuk label ini.
+        </p>
+
+        <ul
+            v-else
+            class="mt-2 divide-y divide-stroke overflow-hidden rounded-2xl border border-stroke bg-surface shadow-2xs"
+        >
+            <li v-for="item in filteredItems" :key="item.id">
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                    :class="{ 'bg-warning-subtle': item.label === 'needs_check' }"
+                    @click="activeItem = item"
+                >
+                    <span class="min-w-0 flex-1">
+                        <span class="flex items-start justify-between gap-3">
+                            <span class="text-base font-semibold text-content">{{ item.name }}</span>
+                            <span class="shrink-0 text-base font-bold text-content tabular-nums">
+                                {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
+                            </span>
+                        </span>
+                        <span
+                            class="mt-0.5 flex items-start justify-between gap-3 text-sm text-content-secondary tabular-nums"
+                        >
+                            <span>
+                                {{ item.volume }} {{ item.unit }}
+                                <template v-if="item.unit_price_rp"
+                                    >&times; {{ formatRupiah(item.unit_price_rp) }}</template
+                                >
+                            </span>
+                            <span
+                                v-if="item.label === 'above_standard' && item.standard_price_rp"
+                                class="shrink-0 text-xs text-content-tertiary"
+                            >
+                                Standar {{ formatRupiah(item.standard_price_rp) }}
+                            </span>
+                        </span>
+                        <PriceLabel class="mt-2" :label="item.label as ItemLabel" :percent-above="percentAbove(item)" />
+                    </span>
+                    <svg
+                        class="h-5 w-5 shrink-0 text-content-tertiary"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 6l6 6-6 6" />
+                    </svg>
+                </button>
+            </li>
+        </ul>
+
+        <div v-if="project.document_url" class="mt-4 text-center">
+            <a
+                :href="project.document_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-stroke-strong bg-surface px-4 text-base font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8zM14 3v5h5M9 13h6M9 17h4"
+                    />
+                </svg>
+                {{ documentLabels.viewOriginal }}
+            </a>
+            <p class="mt-2 text-xs text-content-tertiary">{{ documentLabels.readFrom }}</p>
         </div>
     </section>
 
-    <!-- Item detail drawer (P3, P4) -->
+    <!-- Bottom sheet perbandingan harga (P3, P4) -->
     <div
         v-if="activeItem"
         class="fixed inset-0 z-50 flex items-end justify-center bg-content/50 sm:items-center sm:p-4"
@@ -122,22 +254,27 @@ const filterOptions = computed<FilterOption[]>(() => [
         @click.self="activeItem = null"
     >
         <div
-            class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-lg bg-surface p-4 shadow-sm sm:rounded-lg sm:p-6"
+            class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-surface p-5 shadow-md sm:rounded-2xl sm:p-6"
         >
-            <div class="flex items-start justify-between gap-3 border-b border-stroke pb-3">
-                <div>
-                    <p class="text-sm text-content-secondary">Baris {{ activeItem.position }}</p>
-                    <h3 id="modal-item-title" class="mt-0.5 text-xl font-semibold text-content">
-                        {{ activeItem.name }}
-                    </h3>
+            <div class="mx-auto mb-4 h-1 w-10 rounded-full bg-stroke sm:hidden" aria-hidden="true" />
+
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h3 id="modal-item-title" class="text-xl font-bold text-content">{{ activeItem.name }}</h3>
+                    <p class="mt-1 text-sm text-content-secondary tabular-nums">
+                        Baris {{ activeItem.position }} &middot; {{ activeItem.volume }} {{ activeItem.unit }}
+                        <template v-if="activeItem.amount_rp"
+                            >&middot; {{ formatRupiah(activeItem.amount_rp) }}</template
+                        >
+                    </p>
                 </div>
                 <button
                     type="button"
-                    class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-content-secondary hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    aria-label="Tutup panel detail"
+                    class="-mt-1 -mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-content-secondary hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                    aria-label="Tutup perbandingan harga"
                     @click="activeItem = null"
                 >
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path
                             stroke-linecap="round"
                             stroke-linejoin="round"
@@ -148,101 +285,79 @@ const filterOptions = computed<FilterOption[]>(() => [
                 </button>
             </div>
 
-            <!-- Price comparison -->
-            <div class="mt-4 flex flex-col gap-3 text-sm">
-                <dl class="grid grid-cols-2 gap-3 rounded-md bg-surface-subtle p-3">
-                    <div>
-                        <dt class="text-content-secondary">Harga satuan RAB</dt>
-                        <dd class="mt-0.5 text-base font-semibold text-content tabular-nums">
-                            {{ activeItem.unit_price_rp ? formatRupiah(activeItem.unit_price_rp) : '-' }}
-                        </dd>
-                        <dd class="text-xs text-content-secondary">per {{ activeItem.unit }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-content-secondary">Standar acuan kab.</dt>
-                        <dd class="mt-0.5 text-base font-semibold text-content tabular-nums">
-                            {{ activeItem.standard_price_rp ? formatRupiah(activeItem.standard_price_rp) : '-' }}
-                        </dd>
-                        <dd class="text-xs text-content-secondary">
-                            {{ activeItem.standard_price_rp ? `per ${activeItem.unit}` : 'Tidak ada di daftar' }}
-                        </dd>
-                    </div>
-                </dl>
+            <PriceLabel class="mt-3" :label="activeItem.label as ItemLabel" :percent-above="percentAbove(activeItem)" />
 
-                <dl class="grid grid-cols-2 gap-3 rounded-md bg-surface-subtle p-3">
+            <!-- Dua batang harga satuan -->
+            <div v-if="comparison" class="mt-5">
+                <p class="text-sm font-semibold text-content">Harga satuan</p>
+                <div class="mt-3 flex flex-col gap-4">
                     <div>
-                        <dt class="text-content-secondary">Volume</dt>
-                        <dd class="mt-0.5 text-base font-semibold text-content tabular-nums">
-                            {{ activeItem.volume }} {{ activeItem.unit }}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt class="text-content-secondary">Total di RAB</dt>
-                        <dd class="mt-0.5 text-base font-semibold text-content tabular-nums">
-                            {{ activeItem.amount_rp ? formatRupiah(activeItem.amount_rp) : '-' }}
-                        </dd>
-                    </div>
-                </dl>
-
-                <!-- Diff block: above_standard only -->
-                <div
-                    v-if="activeItem.label === 'above_standard' && activeItem.unit_diff_rp"
-                    class="rounded-md border border-negative-border bg-negative-subtle p-3 text-negative"
-                >
-                    <div class="flex items-center justify-between gap-2">
-                        <span class="font-medium">Selisih per {{ activeItem.unit }}</span>
-                        <span class="font-semibold tabular-nums">+{{ formatRupiah(activeItem.unit_diff_rp) }}</span>
-                    </div>
-                    <div
-                        v-if="activeItem.total_diff_rp"
-                        class="mt-1.5 flex items-center justify-between gap-2 border-t border-negative-border pt-1.5"
-                    >
-                        <span class="font-medium">Total selisih anggaran</span>
-                        <span class="text-base font-semibold tabular-nums"
-                            >+{{ formatRupiah(activeItem.total_diff_rp) }}</span
-                        >
-                    </div>
-                </div>
-
-                <!-- Neutral explanation (PRD 4.3) -->
-                <div class="rounded-md border border-stroke bg-surface p-3 text-content-secondary">
-                    <p class="font-semibold text-content">Keterangan</p>
-
-                    <div v-if="activeItem.label === 'above_standard'" class="mt-1.5 flex flex-col gap-2">
-                        <p>
-                            Harga di RAB {{ formatPercentAbove(activeItem.over_pct ?? 0) }} di atas standar harga
-                            Kabupaten {{ project.village.regency }} {{ project.year }}.
-                            <span class="font-medium text-content">
-                                Belum tentu salah: BPD dapat meminta penjelasan resmi dari pemerintah desa.
+                        <div class="flex items-baseline justify-between gap-3 text-sm">
+                            <span class="text-content-secondary">Di RAB desa</span>
+                            <span class="text-base font-bold text-content tabular-nums">
+                                {{ formatRupiah(activeItem.unit_price_rp ?? 0) }} / {{ activeItem.unit }}
                             </span>
-                        </p>
-                        <div v-if="activeItem.explanation" class="rounded-md bg-info-subtle p-2.5 text-info">
-                            <p class="font-semibold">Catatan dari Pemerintah Desa:</p>
-                            <p class="mt-0.5">&ldquo;{{ activeItem.explanation }}&rdquo;</p>
+                        </div>
+                        <div class="mt-2 h-3 rounded-full bg-surface-muted">
+                            <div
+                                class="h-full rounded-full bg-content-secondary"
+                                :style="{ width: comparison.rabWidth }"
+                            />
                         </div>
                     </div>
-
-                    <p v-else-if="activeItem.label === 'no_reference'" class="mt-1.5">
-                        Item ini tidak ada di daftar standar harga Kabupaten {{ project.village.regency }}
-                        {{ project.year }}, sehingga tidak dinilai selisihnya.
-                    </p>
-
-                    <p v-else class="mt-1.5">
-                        Harga satuan pada item ini berada dalam batas wajar standar harga daerah.
-                    </p>
-
-                    <p class="mt-3 text-xs text-content-tertiary">
-                        Sumber: {{ activeItem.standard_source || priceStandardSource(project.year) }}
-                    </p>
+                    <div>
+                        <div class="flex items-baseline justify-between gap-3 text-sm">
+                            <span class="text-content-secondary">Harga standar</span>
+                            <span class="text-base font-bold text-content tabular-nums">
+                                {{ formatRupiah(activeItem.standard_price_rp ?? 0) }} / {{ activeItem.unit }}
+                            </span>
+                        </div>
+                        <div class="mt-2 h-3 rounded-full bg-surface-muted">
+                            <div class="h-full rounded-full bg-primary" :style="{ width: comparison.standardWidth }" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <div
+                v-if="activeItem.label === 'above_standard' && totalDiff !== null"
+                class="mt-5 rounded-xl border border-stroke bg-surface-subtle p-3.5"
+            >
+                <p class="text-sm text-content-secondary tabular-nums">
+                    Selisih {{ formatRupiah(activeItem.unit_diff_rp ?? 0) }} per {{ activeItem.unit }} &times;
+                    {{ activeItem.volume }} {{ activeItem.unit }}
+                </p>
+                <p class="mt-0.5 text-base font-semibold text-content tabular-nums">
+                    {{ formatRupiahShort(totalDiff ?? 0) }} lebih tinggi dari standar
+                </p>
+            </div>
+
+            <div class="mt-5">
+                <p class="text-sm font-semibold text-content">Kenapa label ini?</p>
+                <p class="mt-2 border-l-4 border-info-border pl-3 text-base leading-relaxed text-content">
+                    <template v-if="activeItem.explanation">{{ activeItem.explanation }}</template>
+                    <template v-else-if="activeItem.label === 'within_standard'">
+                        Harga satuan di RAB sama dengan atau di bawah standar harga resmi pemerintah daerah.
+                    </template>
+                    <template v-else-if="activeItem.label === 'needs_check'">
+                        Baris ini belum bisa dibaca dengan yakin dari dokumen. Cocokkan dengan dokumen RAB asli.
+                    </template>
+                    <template v-else>
+                        Item ini tidak tercantum dalam standar harga daerah tahun ini, jadi tidak dinilai.
+                    </template>
+                </p>
+            </div>
+
+            <p v-if="activeItem.standard_source" class="mt-4 text-xs text-content-tertiary">
+                Acuan: {{ activeItem.standard_source }}
+            </p>
+
             <button
                 type="button"
-                class="mt-5 h-11 w-full rounded-md border border-stroke-strong bg-surface text-base font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                class="mt-6 inline-flex h-12 w-full items-center justify-center rounded-xl border border-stroke-strong bg-surface text-base font-medium text-content hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                 @click="activeItem = null"
             >
-                Tutup
+                Mengerti
             </button>
         </div>
     </div>
