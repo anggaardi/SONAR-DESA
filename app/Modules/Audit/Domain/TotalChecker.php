@@ -26,8 +26,7 @@ final readonly class TotalChecker
             $amount = match (true) {
                 is_int($item) => $item,
                 $item instanceof AuditItem => $item->amount_rp ?? 0,
-                is_array($item) => (int) ($item['amount_rp'] ?? 0),
-                default => 0,
+                default => (int) ($item['amount_rp'] ?? 0),
             };
 
             $calculatedTotalStr = bcadd($calculatedTotalStr, (string) $amount, 0);

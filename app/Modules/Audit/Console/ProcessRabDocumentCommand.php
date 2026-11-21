@@ -11,6 +11,7 @@ use App\Modules\Audit\Reading\RabReader;
 use App\Modules\Audit\Reading\StandardRef;
 use App\Modules\Standard\Models\PriceStandard;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Artisan command for Dev 2 to test document processing (PDF / Image)
@@ -19,17 +20,49 @@ use Illuminate\Console\Command;
 final class ProcessRabDocumentCommand extends Command
 {
     protected $signature = 'audit:process-rab
-                            {file : Path ke file PDF atau gambar dokumen RAB}
+                            {file? : Path ke file PDF atau gambar dokumen RAB}
                             {--driver= : Driver pembaca: "ai" (DataByte Gateway) atau "fixture"}
                             {--key= : Override API Key DataByte langsung di terminal}
                             {--base-url= : Override Base URL gateway (default: https://ai.databyte.co.id/gateway/v1)}
-                            {--model= : Override nama model (default: google/gemini-1.5-flash)}';
+                            {--model= : Override nama model (default: google/gemini-1.5-flash)}
+                            {--list-models : Tampilkan daftar model yang didukung di gateway}';
 
     protected $description = 'Ekstrak tabel RAB dari PDF/gambar berbasis AI Vision (DataByte) dengan deteksi baris buram/ragu';
 
     public function handle(PriceLabeler $labeler): int
     {
+        $baseUrl = (string) ($this->option('base-url') ?: config('sonar.rab_reader.ai.base_url', 'https://ai.databyte.co.id/gateway/v1'));
+        $apiKey = (string) ($this->option('key') ?: config('sonar.rab_reader.ai.api_key', ''));
+
+        if ($this->option('list-models')) {
+            $this->info("Menghubungi gateway {$baseUrl}/models ...");
+            try {
+                $response = Http::withToken($apiKey)->timeout(15)->get(rtrim($baseUrl, '/').'/models');
+                if (! $response->successful()) {
+                    $this->error("Gagal mengambil model: HTTP {$response->status()} - {$response->body()}");
+
+                    return self::FAILURE;
+                }
+                $data = $response->json('data') ?? [];
+                $modelIds = collect($data)->pluck('id')->sort()->values();
+                $this->info("Ditemukan {$modelIds->count()} model di DataByte:");
+                $this->table(['Model ID Tersedia di Gateway'], $modelIds->map(static fn ($id): array => [$id])->all());
+
+                return self::SUCCESS;
+            } catch (\Throwable $e) {
+                $this->error("Error koneksi: {$e->getMessage()}");
+
+                return self::FAILURE;
+            }
+        }
+
         $fileArg = (string) $this->argument('file');
+        if ($fileArg === '') {
+            $this->error('Argumen file PDF atau gambar wajib diisi (atau gunakan flag --list-models).');
+
+            return self::FAILURE;
+        }
+
         $filePath = str_starts_with($fileArg, '/') ? $fileArg : base_path($fileArg);
 
         if (! file_exists($filePath)) {
@@ -39,10 +72,7 @@ final class ProcessRabDocumentCommand extends Command
         }
 
         $driver = (string) ($this->option('driver') ?: config('sonar.rab_reader.driver', 'fixture'));
-
-        $baseUrl = (string) ($this->option('base-url') ?: config('sonar.rab_reader.ai.base_url', 'https://ai.databyte.co.id/gateway/v1'));
         $model = (string) ($this->option('model') ?: config('sonar.rab_reader.ai.model', 'google/gemini-1.5-flash'));
-        $apiKey = (string) ($this->option('key') ?: config('sonar.rab_reader.ai.api_key', env('AI_API_KEY', '')));
 
         /** @var RabReader $reader */
         $reader = match ($driver) {

@@ -87,7 +87,7 @@ PROMPT;
         }
 
         $baseUrl = $this->baseUrl ?? (string) config('sonar.rab_reader.ai.base_url', 'https://ai.databyte.co.id/v1');
-        $apiKey = $this->apiKey ?? (string) config('sonar.rab_reader.ai.api_key', env('AI_API_KEY', ''));
+        $apiKey = $this->apiKey ?? (string) config('sonar.rab_reader.ai.api_key', '');
         $model = $this->model ?? (string) config('sonar.rab_reader.ai.model', 'google/gemini-1.5-flash');
         $timeout = $this->timeoutSeconds ?? (int) config('sonar.rab_reader.timeout_seconds', 60);
 
