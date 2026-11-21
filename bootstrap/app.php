@@ -11,6 +11,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Routing\Middleware\ThrottleRequestsWithRedis;
@@ -26,7 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [HandleInertiaRequests::class]);
         $middleware->alias(['village' => SetCurrentVillage::class]);
-        $middleware->redirectGuestsTo(fn () => route('login'));
+        // Warga sign in with Google before Cek Spek (F11); desa and BPD use the email login form.
+        $middleware->redirectGuestsTo(fn (Request $request) => $request->routeIs('reports.check')
+            ? route('auth.google')
+            : route('login'));
         $middleware->redirectUsersTo(fn () => route('home'));
         $middleware->priority([
             HandlePrecognitiveRequests::class,

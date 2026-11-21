@@ -171,3 +171,27 @@ export const googleSignIn = {
 } as const;
 
 export type GoogleSignInFailure = keyof typeof googleSignIn.reasons;
+
+/** PRD Fitur Inti 5.1 steps 5-8, 5.5, C4-C6: the Cek Spek checklist page. */
+export const checkSpec = {
+    title: 'Cek Spek',
+    start: 'Mulai Cek Spek',
+    back: 'Kembali ke halaman proyek',
+    step: (current: number, total: number, name: string) => `Langkah ${current} dari ${total} · ${name}`,
+    steps: { location: 'Lokasi', measure: 'Ukur', photo: 'Foto & catatan' },
+    answers: { match: 'Sesuai', mismatch: 'Tidak', unmeasurable: 'Tidak bisa ukur' },
+    rabValue: (value: string, unit: string) => `RAB: ${value} ${unit}`,
+    measuredLabel: (unit: string) => `Hasil ukur dalam ${unit} (wajib diisi)`,
+    unanswered: 'Pilih salah satu jawaban.',
+    measuredInvalid: 'Isi hasil ukur dengan angka lebih dari 0.',
+    checklistIncomplete: 'Jawab semua ukuran dulu sebelum lanjut.',
+    noMeasurements: 'Proyek ini belum punya ukuran yang bisa dicek warga.',
+    next: 'Lanjut',
+    previous: 'Kembali',
+    noteLabel: (max: number) => `Catatan (opsional, maks ${max} huruf)`,
+    notePlaceholder: 'contoh: beton retak di 3 titik',
+    noteCounter: (count: number, max: number) => `${count}/${max}`,
+    submit: 'Kirim laporan',
+    submitNotice: 'Laporan masuk ke BPD, tidak langsung tampil di halaman publik.',
+    submitPending: 'Pengiriman laporan sedang disiapkan. Isianmu belum dikirim.',
+} as const;

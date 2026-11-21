@@ -13,6 +13,7 @@ import ProjectJourney from '@/features/project/ProjectJourney.vue';
 import ProjectMeasurements from '@/features/project/ProjectMeasurements.vue';
 import ProjectProgress from '@/features/project/ProjectProgress.vue';
 import ProjectStatusNotice from '@/features/project/ProjectStatusNotice.vue';
+import { checkSpec, googleSignIn, location } from '@/lib/labels';
 import type { ProjectDetail } from '@/types/project';
 
 interface Props {
@@ -58,10 +59,6 @@ async function handleShare(): Promise<void> {
             showToast('Gagal menyalin tautan');
         }
     }
-}
-
-function scrollToSection(sectionId: string): void {
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
 }
 
 /** Lompatan cepat ke tiap bagian halaman, pengganti 4 ikon pintasan lama. */
@@ -380,6 +377,15 @@ function handleTabClick(tabId: string): void {
                     </div>
                 </div>
 
+                <!-- C1: why location is asked, before any permission or Google sign-in. -->
+                <div class="space-y-1.5 rounded-xl border border-stroke bg-surface-subtle p-3">
+                    <p class="font-semibold text-content">{{ location.why.heading }}</p>
+                    <ul class="list-disc space-y-1 pl-5">
+                        <li v-for="point in location.why.points" :key="point">{{ point }}</li>
+                    </ul>
+                    <p>{{ googleSignIn.privacy }}</p>
+                </div>
+
                 <div class="rounded-xl border border-info-border bg-info-subtle p-3 text-xs text-info">
                     <p class="font-semibold">Tips pengecekan:</p>
                     <p class="mt-1">
@@ -397,16 +403,13 @@ function handleTabClick(tabId: string): void {
                     >
                         Tutup
                     </button>
-                    <button
-                        type="button"
-                        class="h-10 w-full rounded-md bg-primary px-4 text-sm font-semibold text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                        @click="
-                            showCheckSpecDialog = false;
-                            scrollToSection('ukuran');
-                        "
+                    <!-- Plain link: a guest is redirected off-site to Google, so this must be a full page visit (F11). -->
+                    <a
+                        :href="`/p/${project.slug}/cek`"
+                        class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                     >
-                        Lihat Spesifikasi Fisik
-                    </button>
+                        {{ checkSpec.start }}
+                    </a>
                 </div>
             </template>
         </Dialog>

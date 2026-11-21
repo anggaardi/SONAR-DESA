@@ -178,7 +178,7 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - [ ] Laporan lama menjadi "digantikan" dan tidak dihitung dua kali.
 
 ### M4-07 · Checklist Cek Spek + layar konfirmasi
-- Status: todo · Ukuran: L · Owner: Dev 2 · Depends on: M4-04, M4-05, M4-06
+- Status: doing (bagian halaman selesai; kirim + konfirmasi menunggu M4-06) · Ukuran: L · Owner: Dev 2 · Depends on: M4-04, M4-05, M4-06
 - Spec: PRD Fitur Inti 5.1 langkah 5-9, 5.5, C4, C9, C11; PRD Arsitektur 6.8, M4-07
 - Scope:
   - `GET /p/{slug}/cek`: checklist semua ukuran wajib dari template + tambahan desa, dengan nilai RAB dan
@@ -192,11 +192,26 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - Semua teks dari `lib/labels.ts`; tanpa kata "korupsi", "mark-up", "curang", "penyelewengan".
 - Files: `resources/js/pages/report/Check.vue`, `Submitted.vue`, `resources/js/features/report/*`,
   `resources/js/types/report.ts`, `app/Modules/Report/Http/Controllers/*`, `Http/Resources/*`,
-  `tests/Feature/Report/CheckPageTest.php`
+  `tests/Feature/Report/CheckSpecPageTest.php`
 - Acceptance criteria
-  - [ ] C4, C9, C11 (wajib: nama, foto, hasil laporan tidak tampil di halaman publik).
+  - [x] C4: checklist berisi semua ukuran, nilai RAB, dan cara ukur (`CheckSpecResource`, test di `CheckSpecPageTest`).
+  - [x] C5 di layar: "Tidak" membuka isian hasil ukur dengan satuan RAB; Lanjut ditahan sampai terisi
+        (`checkSpecRules.ts`). Server tetap memvalidasi ulang di M4-06.
+  - [x] Tamu diarahkan ke Google lalu kembali ke `/p/{slug}/cek` (F11); desa/BPD 403; proyek tidak publik 404.
+  - [ ] C9, C11 (wajib: nama, foto, hasil laporan tidak tampil di halaman publik): menunggu M4-06.
   - [ ] Layar 360 px tanpa scroll horizontal; `make lint` hijau.
   - [ ] Teks "x dari 3" berasal dari props server.
+- Catatan (bagian halaman, 21 Nov):
+  - Tombol "Cek spek di lokasi" membuka dialog berisi penjelasan C1 (lokasi, laporan ke BPD, nama tidak tampil,
+    login Google), lalu "Mulai Cek Spek" menuju `/p/{slug}/cek`. Penjelasan muncul sebelum login dan izin apa pun.
+  - Urutan langkah di halaman: Lokasi -> Ukur -> Foto & catatan. Login Google terjadi sebelum halaman (route `auth`),
+    jadi lokasi tidak perlu diminta ulang setelah redirect Google. Tetap memenuhi F11 (login sebelum checklist).
+  - `FindPublicProject` (modul Project) dipakai `ProjectController`, `DistanceHintController`, `CheckSpecController`.
+  - Batas `max_photos` dan `max_note_length` ditambahkan ke `config/sonar.php` dan dikirim lewat props.
+  - Tombol "Kirim laporan" masih nonaktif dengan pesan "sedang disiapkan" (TODO(M4-06) di `Check.vue`).
+  - Celah demo: pengunjung demo peran warga belum login, jadi Cek Spek di mode demo mengarah ke Google.
+    Harus ditutup M6-05 (akun warga demo) sebelum branch ini dipakai juri (M8).
+
 
 ### M6-05 · Foto + lokasi contoh di Cek Spek (milik M6, bergantung ke M4)
 - Status: todo · Depends on: M4-06, M4-07

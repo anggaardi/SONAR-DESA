@@ -35,6 +35,9 @@ return [
     'report' => [
         'radius_m' => (int) env('REPORT_RADIUS_M', 300),
         'max_accuracy_m' => (int) env('REPORT_MAX_ACCURACY_M', 100),
+        // PRD Fitur Inti 5.1 steps 6-7: 1-3 camera photos, note up to 280 characters.
+        'max_photos' => (int) env('REPORT_MAX_PHOTOS', 3),
+        'max_note_length' => (int) env('REPORT_MAX_NOTE_LENGTH', 280),
 
         // Public distance hint (D-008): coarse on purpose so repeated probes cannot pin down the project point.
         'distance_hint_round_m' => (int) env('REPORT_DISTANCE_HINT_ROUND_M', 10),
