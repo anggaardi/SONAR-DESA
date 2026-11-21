@@ -54,7 +54,7 @@ final class LoginRequest extends FormRequest
             'role' => [Role::Desa->value, Role::Bpd->value],
         ];
 
-        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
+        if (! Auth::attempt($credentials)) {
             RateLimiter::hit($this->throttleKey(), self::DECAY_SECONDS);
 
             throw ValidationException::withMessages([

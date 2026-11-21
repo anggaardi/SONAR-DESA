@@ -230,3 +230,33 @@ export const reportSubmitted = {
     backToProject: 'Kembali ke halaman proyek',
     sendAgain: 'Kirim laporan baru',
 } as const;
+
+/** PRD Fitur Inti 6: Ulasan warga yang diterbitkan BPD & catatan resmi BPD. */
+export const projectReviews = {
+    fabAriaLabel: (count: number) => `Lihat ulasan warga dan catatan BPD (${count} diterbitkan)`,
+    dialogTitle: 'Ulasan Warga & Catatan BPD',
+    dialogSubtitle: 'Diterbitkan resmi oleh Badan Permusyawaratan Desa (BPD)',
+    tabs: {
+        all: 'Semua',
+        bpd: 'Catatan BPD',
+        reports: 'Ulasan Warga',
+    },
+    bpdSection: {
+        title: 'Tinjauan Resmi BPD',
+        followUpTitle: 'Catatan Tindak Lanjut BPD',
+        officialLabel: 'Badan Permusyawaratan Desa',
+        verifiedBadge: 'Diterbitkan BPD',
+    },
+    citizenSection: {
+        title: 'Ulasan & Laporan Warga',
+        anonymousReporter: (index: number) => `Warga Pelapor ${index}`,
+        verifiedBadge: 'Diverifikasi BPD',
+    },
+    empty: {
+        title: 'Belum Ada Ulasan Diterbitkan',
+        body: 'BPD belum menerbitkan catatan pemeriksaan atau ulasan warga untuk proyek ini. Warga di sekitar lokasi proyek dapat berpartisipasi dengan Cek Spek.',
+        action: 'Cek Spek di Lokasi',
+    },
+    privacyNotice: 'Data pelapor dilindungi kerahasiaannya sesuai UU PDP dan UU No. 6/2014 tentang Desa.',
+    close: 'Tutup',
+} as const;

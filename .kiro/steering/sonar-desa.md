@@ -1,7 +1,8 @@
 # Sonar Desa: konteks project (selalu dibaca)
 
 ## Aturan kerja
-- JANGAN push. Remote push sudah DISABLED. Commit lokal saja, Conventional Commits, scope = modul.
+- Push hanya bila user minta. Remote `origin` push ke GitHub + GitLab sekaligus. Conventional Commits, scope = modul.
+- CI: .github/workflows/ci.yml (php, js, secrets) hijau sejak 586f57b (19 Nov).
 - Acuan: docs/prd/PRD-Arsitektur-Sonar-Desa.pdf (v1.2) untuk teknis, PRD Fitur Inti untuk produk.
 - Feature Spec lama (Laravel 11, Redis, MinIO, Gemini 1.5) USANG (D-001).
 - Semua perintah lewat Docker (make ...), bukan PHP/Node di host.

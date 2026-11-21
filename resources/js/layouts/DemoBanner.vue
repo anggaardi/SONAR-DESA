@@ -76,6 +76,13 @@ function restart(): void {
             >
                 {{ demoLabels.roles[role] }}
             </button>
+            <button
+                type="button"
+                class="h-9 rounded-md px-3 text-xs font-medium text-demo underline underline-offset-2 sm:hidden"
+                @click="restart"
+            >
+                {{ demoLabels.restart }}
+            </button>
         </div>
     </div>
 </template>

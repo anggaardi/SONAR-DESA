@@ -9,9 +9,15 @@ use App\Modules\Core\Auth\Role;
 use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\Village;
 use App\Modules\Project\Enums\MeasurementOrigin;
+use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
 use App\Modules\Project\Models\ProjectMeasurement;
+use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Review\Enums\ReviewOutcome;
+use App\Modules\Review\Models\ReviewCycle;
+use App\Modules\Review\Models\ReviewNote;
 use App\Modules\Standard\Models\PriceStandard;
 use Inertia\Testing\AssertableInertia;
 
@@ -193,4 +199,86 @@ it('formats neutral explanation text according to PRD 4.3 (P3)', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('project.items.0.explanation', 'Harga di RAB 25% di atas standar harga Kabupaten Gianyar 2026. Belum tentu salah: BPD bisa meminta penjelasan desa.')
             ->where('project.items.1.explanation', 'Item ini tidak ada di daftar standar Gianyar 2026, jadi tidak dinilai'));
+});
+
+it('exposes published citizen reports and BPD review notes only when project is reviewed by BPD (B1-B10)', function () {
+    $village = Village::factory()->create();
+    $audit = Audit::factory()->create(['village_id' => $village->id]);
+
+    $project = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => $audit->id,
+        'slug' => 'posyandu-kaja',
+        'public_status' => PublicStatus::Reviewed,
+        'published_at' => now(),
+    ]);
+
+    $cycle = ReviewCycle::query()->create([
+        'project_id' => $project->id,
+        'opened_at' => now()->subDays(10),
+        'in_review_since' => now()->subDays(8),
+        'closed_at' => now()->subDays(1),
+        'result' => ReviewOutcome::NoMismatch,
+        'note' => 'Pemeriksaan fisik sesuai spesifikasi RAB.',
+    ]);
+
+    ReviewNote::query()->create([
+        'cycle_id' => $cycle->id,
+        'note' => 'Catatan susulan BPD memverifikasi dimensi fisik bersama perwakilan warga.',
+    ]);
+
+    $project->update(['current_cycle_id' => $cycle->id]);
+
+    $measurement = ProjectMeasurement::factory()->create([
+        'project_id' => $project->id,
+        'name' => 'Luas bangunan',
+        'value' => '48.000',
+        'unit' => 'm2',
+    ]);
+
+    $citizen = User::factory()->create([
+        'role' => Role::Warga,
+        'email' => 'citizen_secret@example.com',
+        'village_id' => null,
+    ]);
+
+    $report = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $citizen->id,
+        'kind' => ReportKind::Match,
+        'note' => 'Dimensi bangunan dan lantai keramik rapi sesuai rencana.',
+        'lat' => -8.5430000,
+        'lng' => 115.3230000,
+        'invalid_reason' => null,
+    ]);
+
+    ReportAnswer::query()->create([
+        'report_id' => $report->id,
+        'measurement_id' => $measurement->id,
+        'answer' => 'match',
+        'measured_value' => '48.000',
+        'measured_unit' => 'm2',
+    ]);
+
+    $response = $this->get('/p/posyandu-kaja')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('project.public_status', 'reviewed')
+            ->where('project.review.outcome', 'no_mismatch')
+            ->where('project.review.note', 'Pemeriksaan fisik sesuai spesifikasi RAB.')
+            ->has('project.review.notes', 1)
+            ->where('project.review.notes.0.note', 'Catatan susulan BPD memverifikasi dimensi fisik bersama perwakilan warga.')
+            ->has('project.published_reports', 1)
+            ->where('project.published_reports.0.reporter_label', 'Warga Pelapor 1')
+            ->where('project.published_reports.0.kind', 'match')
+            ->where('project.published_reports.0.note', 'Dimensi bangunan dan lantai keramik rapi sesuai rencana.')
+            ->has('project.published_reports.0.answers', 1)
+            ->where('project.published_reports.0.answers.0.measurement_name', 'Luas bangunan'));
+
+    // Check privacy: citizen email, raw coordinates must NOT be in the HTML content
+    $content = $response->getContent();
+    expect($content)->not->toContain('citizen_secret@example.com');
+    expect($content)->not->toContain('-8.5430000');
+    expect($content)->not->toContain('115.3230000');
 });

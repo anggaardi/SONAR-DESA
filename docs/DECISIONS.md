@@ -126,3 +126,50 @@ Format entri:
   tidak presisi; titik proyek memang bukan rahasia di lapangan (plang proyek ada di lokasi). Bila F25 disetujui
   (laporan luar radius ditolak), endpoint ini tidak berubah.
 - Spec reference: PRD Fitur Inti 5.1 (langkah 2-3), F11, C8; PRD Arsitektur 6.9, ENGINEERING 2.
+
+## D-009 · Laporan Cek Spek di luar radius ditolak; radius dari sistem, titik dari desa
+- Date: 22 Nov 2026 · Status: accepted · Owner: Dev 2
+- Context: PRD Fitur Inti v1.1 C8 menerima laporan di luar radius dengan tanda "di luar radius" (tidak dihitung).
+  Rapat 22 Nov memilih F25 (PRD Arsitektur 14.3): warga harus datang ke lokasi untuk melaporkan, dan laporan
+  dari jauh tidak boleh masuk sama sekali. Diusulkan juga radius per proyek oleh desa, tetapi desa bisa mengisi
+  radius sangat kecil supaya tidak ada yang bisa melapor.
+- Decision:
+  - Radius tetap satu angka dari sistem: `config('sonar.report.radius_m')` (300 m, QF3). Desa hanya mengisi
+    titik lokasi proyek (F10: lokasi HP di proyek atau tempel koordinat dari peta), tidak mengisi radius.
+  - Server menghitung ulang jarak dari lokasi saat kirim (F4-2). Jarak > radius: 422 di field `location`
+    (kode log `out_of_radius`), laporan tidak tersimpan.
+  - Ketelitian lokasi > `config('sonar.report.max_accuracy_m')` (100 m) juga ditolak 422: dengan ketelitian
+    seburuk itu server tidak bisa memastikan warga ada di dalam radius. Layar sudah menahan ini (C7).
+  - Layar lokasi tidak menampilkan "Lanjut" bila warga di luar radius; yang ada pesan + "Cek lokasi lagi".
+  - Kolom `reports.in_radius` dihapus di migration M4-02, bersama penyesuaian kueri yang memakainya
+    (`ProjectResource`, `VillageProjectController`, `CountValidMismatchReporters`). Sampai itu, laporan baru
+    selalu `in_radius = true`. `distance_m` tetap disimpan untuk BPD.
+- Consequences: C8 dan F4-2 di PRD Fitur Inti berubah (laporan luar radius tidak diterima). Juri dan pengunjung
+  demo tidak bisa melapor tanpa M6-05 ("Pakai foto & lokasi contoh"), jadi M6-05 wajib sebelum M8. Endpoint
+  jarak (D-008) tidak berubah.
+- Spec reference: PRD Fitur Inti 5.1, 5.3, 9, C7, C8; PRD Arsitektur 14.3 (F25), F4-2; D-008.
+
+## D-010 · Satu akun Google + satu perangkat per pelapor; IP hanya untuk rate limit
+- Date: 22 Nov 2026 · Status: accepted · Owner: Dev 2
+- Context: satu orang bisa memakai beberapa akun Google untuk menambah hitungan ambang. Rapat sempat mengusulkan
+  "1 IP 1 pelapor", tetapi operator seluler di Indonesia memakai CGNAT (banyak warga satu desa keluar lewat IP
+  publik yang sama) dan satu keluarga berbagi IP WiFi, jadi warga asli akan tertolak, sedangkan orang yang
+  curang cukup pindah dari WiFi ke data seluler. IP juga data pribadi menurut UU PDP.
+- Decision:
+  - Identitas pelapor = akun Google (`user_id`) + perangkat (`device_hash`: HMAC-SHA256 dari cookie perangkat
+    acak, kunci dari `APP_KEY`; nilai cookie asli tidak disimpan). Laporan aktif unik per
+    (project, cycle, user) dan per (project, cycle, device_hash), ditegakkan partial unique index di M4-02.
+  - IP tidak disimpan di `reports` dan tidak ditulis di log. IP hanya dipakai rate limiter
+    (`report-submit` dan `report-distance`, per menit per IP), dengan batas longgar karena CGNAT.
+  - Laporan dari perangkat berbeda yang lokasi dan waktunya berdekatan tetap diterima (tidak ditolak).
+- Consequences: menghapus cookie atau memakai browser lain menghasilkan perangkat baru; ini diterima (bukan
+  jaminan mutlak, hanya menaikkan biaya manipulasi). Penanda klaster untuk BPD belum diputuskan.
+- Spec reference: PRD Arsitektur 14.3-14.5 (Perangkat, Klaster), 8 (rate limit, log); PRD Fitur Inti 8.3.
+
+## D-011 · Isian banjar di laporan tidak dipakai
+- Date: 22 Nov 2026 · Status: accepted · Owner: Dev 2
+- Context: F30 mengusulkan warga memilih banjar saat melapor (tidak tampil publik).
+- Decision: tidak dipakai. Tidak ada kolom `reports.banjar` dan tidak ada isian banjar di Cek Spek.
+- Consequences: data laporan lebih sedikit (sejalan dengan PRD Fitur Inti 8.3). BPD tidak bisa memilah laporan
+  per banjar.
+- Spec reference: PRD Arsitektur 14.4 (F30).

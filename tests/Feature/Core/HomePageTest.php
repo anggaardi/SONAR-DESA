@@ -13,6 +13,14 @@ it('renders the Inertia home page with shared props', function () {
             ->has('app.commit'));
 });
 
+it('renders the Inertia demo page', function () {
+    $this->get('/demo')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('demo/Index')
+            ->has('app.commit'));
+});
+
 it('answers the health check', function () {
     $this->get('/up')->assertOk();
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Modules\Core\Auth\Role;
 use App\Modules\Core\Auth\User;
+use App\Modules\Core\Http\Middleware\SetCurrentVillage;
 use App\Modules\Core\Village\Village;
 use Inertia\Testing\AssertableInertia;
 
@@ -69,6 +70,37 @@ it('logs out and ends the session', function () {
         ->assertRedirect(route('home'));
 
     $this->assertGuest();
+});
+
+it('drops the demo village from the session when a real account logs in', function () {
+    $user = villageAccount(Role::Desa);
+    $demoVillage = Village::factory()->create(['is_demo' => true]);
+
+    $this->withSession([
+        SetCurrentVillage::DEMO_SESSION_KEY => $demoVillage->id,
+        SetCurrentVillage::DEMO_ROLE_SESSION_KEY => 'warga',
+    ])->post('/login', ['email' => $user->email, 'password' => 'rahasia-benar'])
+        ->assertRedirect(route('home'))
+        ->assertSessionMissing(SetCurrentVillage::DEMO_SESSION_KEY)
+        ->assertSessionMissing(SetCurrentVillage::DEMO_ROLE_SESSION_KEY);
+
+    $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page->where('demo', null));
+});
+
+it('lets a demo account open the login page to switch to a real account', function () {
+    $demoVillage = Village::factory()->create(['is_demo' => true]);
+    $demoAccount = User::factory()->desa($demoVillage)->create(['password' => null]);
+
+    $this->actingAs($demoAccount)
+        ->get('/login')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->component('core/Login'));
+});
+
+it('sends a logged-in real account away from the login page', function () {
+    $this->actingAs(villageAccount(Role::Bpd))
+        ->get('/login')
+        ->assertRedirect(route('home'));
 });
 
 it('sends guests on protected routes to the login page', function () {

@@ -12,6 +12,7 @@ import ProjectHero from '@/features/project/ProjectHero.vue';
 import ProjectJourney from '@/features/project/ProjectJourney.vue';
 import ProjectMeasurements from '@/features/project/ProjectMeasurements.vue';
 import ProjectProgress from '@/features/project/ProjectProgress.vue';
+import ProjectReviewsFab from '@/features/project/ProjectReviewsFab.vue';
 import ProjectStatusNotice from '@/features/project/ProjectStatusNotice.vue';
 import { checkSpec, googleSignIn, location } from '@/lib/labels';
 import type { ProjectDetail } from '@/types/project';
@@ -351,6 +352,9 @@ function handleTabClick(tabId: string): void {
                 </button>
             </div>
         </div>
+
+        <!-- Tombol sticky ulasan warga & catatan BPD (IDDS) -->
+        <ProjectReviewsFab :project="project" @check-spec="handleCheckSpecClick" />
 
         <!-- Dialog: Panduan Cek Spek di Lokasi -->
         <Dialog :open="showCheckSpecDialog" title="Cek Spek di Lokasi" @close="showCheckSpecDialog = false">

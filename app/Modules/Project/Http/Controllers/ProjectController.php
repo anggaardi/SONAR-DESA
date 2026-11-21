@@ -33,7 +33,7 @@ final class ProjectController
             'measurements',
             'progressPhotos',
             'projectChanges',
-            'reports',
+            'reports.answers.measurement',
             'currentCycle.notes',
         ]);
 
