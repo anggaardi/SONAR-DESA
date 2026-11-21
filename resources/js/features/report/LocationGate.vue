@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // LocationGate: penjelasan lokasi (C1), izin (C2), sinyal lemah (C7), lalu jarak ke proyek.
-// Jarak dan "dalam radius atau tidak" datang dari server lewat props; layar ini tidak menghitung angka (ENGINEERING 2).
+// Jarak dan "dalam radius atau tidak" dihitung server (D-008); layar ini tidak menghitung angka (ENGINEERING 2).
 
 import { watch } from 'vue';
 
@@ -10,22 +10,24 @@ import { formatLength } from '@/lib/format';
 import { location } from '@/lib/labels';
 
 import { useGeolocation, type GeoPosition } from './useGeolocation';
+import { useProjectDistance } from './useProjectDistance';
 
 interface Props {
     maxAccuracyMeters: number;
-    distanceMeters?: number | null;
-    withinRadius?: boolean | null;
+    distanceUrl: string;
 }
 
-const props = withDefaults(defineProps<Props>(), { distanceMeters: null, withinRadius: null });
+const props = defineProps<Props>();
 
 const emit = defineEmits<{ position: [position: GeoPosition]; continue: [] }>();
 
 const { status, position, start } = useGeolocation({ maxAccuracyMeters: props.maxAccuracyMeters });
+const { status: distanceStatus, hint, check } = useProjectDistance(props.distanceUrl);
 
 watch(status, (current) => {
     if (current === 'ready' && position.value) {
         emit('position', position.value);
+        void check(position.value);
     }
 });
 
@@ -58,17 +60,30 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
         </template>
 
         <template v-else-if="status === 'ready'">
-            <Alert v-if="distanceMeters !== null && withinRadius === false" color="warning">
-                {{ location.farAway(formatLength(Math.round(distanceMeters))) }}
-            </Alert>
-            <Alert v-else-if="distanceMeters !== null" color="positive">
-                {{ location.nearby(formatLength(Math.round(distanceMeters))) }}
-            </Alert>
-            <p v-else class="text-sm text-content-secondary" role="status">{{ location.locating }}</p>
+            <p
+                v-if="distanceStatus === 'loading' || distanceStatus === 'idle'"
+                class="text-sm text-content-secondary"
+                role="status"
+            >
+                {{ location.checkingDistance }}
+            </p>
 
-            <Button variant="primary" :disabled="distanceMeters === null" @click="emit('continue')">
-                {{ location.continue }}
-            </Button>
+            <template v-else-if="distanceStatus === 'failed'">
+                <Alert color="warning" :title="location.distanceFailed.title">{{ location.distanceFailed.body }}</Alert>
+                <Button variant="secondary" @click="position && check(position)">{{ location.retry }}</Button>
+            </template>
+
+            <template v-else-if="hint">
+                <Alert v-if="hint.within_radius && hint.distance_m !== null" color="positive">
+                    {{ location.nearby(formatLength(hint.distance_m)) }}
+                </Alert>
+                <Alert v-else-if="hint.distance_m !== null" color="warning">
+                    {{ location.farAway(formatLength(hint.distance_m)) }}
+                </Alert>
+                <Alert v-else color="warning">{{ location.farAwayUnknown }}</Alert>
+
+                <Button variant="primary" @click="emit('continue')">{{ location.continue }}</Button>
+            </template>
         </template>
     </section>
 </template>

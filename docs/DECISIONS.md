@@ -109,3 +109,20 @@ Format entri:
 - Decision: adopsi pustaka ilustrasi spot IDDS berbasis SVG garis membulat (*rounded line-art*) dengan token semantik (`primary-subtle`, `stroke-strong`, `surface-subtle`) untuk titik sentuh krusial (Empty State, panduan Cek Spek, segel verifikasi desa). Komponen dasar di `resources/js/components/ui/` (`EmptyState`, `Button`, `Card`, `Badge`, `Alert`, `PriceLabel`, `Table`, `Dialog`, `SummaryList`) menjadi rujukan implementasi antarmuka yang humanis di mobile dan desktop.
 - Consequences: UI memiliki kehangatan dan rasa manusiawi (*human-friendly*) seperti Gojek/IDDS tanpa melanggar WCAG 2.1 AA atau menambah ukuran bundle eksternal.
 - Spec reference: D-006, docs/DESIGN.md, PRD Sonar Desa 6.1.
+
+## D-008 · Jarak di layar Cek Spek dihitung server lewat endpoint publik
+- Date: 21 Nov 2026 · Status: accepted · Owner: Dev 2
+- Context: layar lokasi Cek Spek menampilkan jarak ke proyek (PRD Fitur Inti 5.1 step 3) sebelum warga login (F11).
+  ENGINEERING 2 melarang Vue menjadi sumber angka, dan koordinat proyek tidak ada di props halaman publik. Warga
+  tidak perlu tahu titik proyek: orang yang tidak ada di lokasi bisa mendatangi koordinat itu untuk melapor sembarangan.
+- Decision: `POST /p/{slug}/cek/jarak` (publik, throttle `report-distance`, 30/menit per IP) menerima posisi
+  pengunjung dan mengembalikan `{ within_radius, distance_m }`. Jarak dihitung `DistanceCalculator`, status radius
+  oleh `ReportClassifier`. `distance_m` dibulatkan ke atas ke kelipatan 10 m dan bernilai `null` di atas 1000 m
+  (`config('sonar.report.distance_hint_*')`). Respons `Cache-Control: no-store, private`. Proyek draf, tidak ada,
+  tanpa lokasi, atau demo milik pengunjung lain menghasilkan 404 (aturan sama dengan P10).
+- Consequences: koordinat proyek tidak pernah dikirim ke browser. Ini hanya petunjuk; jarak resmi tetap dihitung
+  ulang dari lokasi segar saat laporan dikirim (M4-06). Risiko yang diterima: banyak kueri dari posisi palsu
+  secara teori bisa memperkirakan titik proyek. Pembulatan, batas 1000 m, dan throttle membuatnya lambat dan
+  tidak presisi; titik proyek memang bukan rahasia di lapangan (plang proyek ada di lokasi). Bila F25 disetujui
+  (laporan luar radius ditolak), endpoint ini tidak berubah.
+- Spec reference: PRD Fitur Inti 5.1 (langkah 2-3), F11, C8; PRD Arsitektur 6.9, ENGINEERING 2.

@@ -140,4 +140,10 @@ export const location = {
     nearby: (distance: string) => `Lokasi aktif: ${distance} dari titik proyek`,
     farAway: (distance: string) =>
         `Kamu berada ${distance} dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.`,
+    farAwayUnknown: 'Kamu berada jauh dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.',
+    checkingDistance: 'Menghitung jarak ke proyek...',
+    distanceFailed: {
+        title: 'Jarak belum bisa dihitung',
+        body: 'Periksa sinyal internetmu, lalu coba lagi. Isianmu tidak hilang.',
+    },
 } as const;

@@ -35,6 +35,11 @@ return [
     'report' => [
         'radius_m' => (int) env('REPORT_RADIUS_M', 300),
         'max_accuracy_m' => (int) env('REPORT_MAX_ACCURACY_M', 100),
+
+        // Public distance hint (D-008): coarse on purpose so repeated probes cannot pin down the project point.
+        'distance_hint_round_m' => (int) env('REPORT_DISTANCE_HINT_ROUND_M', 10),
+        'distance_hint_max_m' => (int) env('REPORT_DISTANCE_HINT_MAX_M', 1000),
+        'distance_hints_per_minute' => (int) env('REPORT_DISTANCE_HINTS_PER_MINUTE', 30),
     ],
 
     'review' => [

@@ -6,7 +6,10 @@ namespace App\Providers;
 
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Report\Domain\ReportClassifier;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -45,6 +48,10 @@ final class AppServiceProvider extends ServiceProvider
         Model::shouldBeStrict(! $this->app->isProduction());
 
         $this->assertRequiredEnv();
+
+        RateLimiter::for('report-distance', static fn (Request $request): Limit => Limit::perMinute(
+            (int) config('sonar.report.distance_hints_per_minute'),
+        )->by((string) $request->ip()));
     }
 
     /**
