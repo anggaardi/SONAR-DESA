@@ -38,6 +38,8 @@ return [
         // PRD Fitur Inti 5.1 steps 6-7: 1-3 camera photos, note up to 280 characters.
         'max_photos' => (int) env('REPORT_MAX_PHOTOS', 3),
         'max_note_length' => (int) env('REPORT_MAX_NOTE_LENGTH', 280),
+        // C10: sends per account per project per day (display timezone); the next one is refused.
+        'max_per_day' => (int) env('REPORT_MAX_PER_DAY', 3),
 
         // Public distance hint (D-008): coarse on purpose so repeated probes cannot pin down the project point.
         'distance_hint_round_m' => (int) env('REPORT_DISTANCE_HINT_ROUND_M', 10),
