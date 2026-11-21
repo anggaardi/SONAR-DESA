@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Project\Http\Controllers;
 
 use App\Modules\Core\Village\CurrentVillage;
-use App\Modules\Core\Village\VillageVisibility;
+use App\Modules\Project\Actions\FindPublicProject;
 use App\Modules\Project\Http\Resources\ProjectResource;
 use App\Modules\Project\Models\Project;
 use Illuminate\Http\Request;
@@ -15,23 +15,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class ProjectController
 {
-    public function __construct(private readonly VillageVisibility $visibility) {}
-
-    public function show(Request $request, string $slug): Response|InertiaResponse
+    public function show(Request $request, string $slug, FindPublicProject $findProject): Response|InertiaResponse
     {
-        $project = Project::withoutGlobalScope('village')
-            ->where('slug', $slug)
-            ->with('village')
-            ->first();
+        $project = $findProject->handle($request, $slug);
 
         // PRD Fitur Inti 4.2 (P10): non-existent or unpublished project displays friendly message instead of 500 error.
-        if ($project === null || ! $project->isPublished()) {
-            return Inertia::render('project/NotFound', [
-                'message' => 'Proyek belum diterbitkan atau tidak ditemukan',
-            ])->toResponse($request)->setStatusCode(404);
-        }
-
-        if (! $this->visibility->allows($request, $project->village)) {
+        if ($project === null) {
             return Inertia::render('project/NotFound', [
                 'message' => 'Proyek belum diterbitkan atau tidak ditemukan',
             ])->toResponse($request)->setStatusCode(404);

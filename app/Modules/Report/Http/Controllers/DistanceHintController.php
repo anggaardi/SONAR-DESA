@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Report\Http\Controllers;
 
-use App\Modules\Core\Village\VillageVisibility;
-use App\Modules\Project\Models\Project;
+use App\Modules\Project\Actions\FindPublicProject;
 use App\Modules\Report\Actions\EstimateProjectDistance;
 use App\Modules\Report\Http\Requests\EstimateDistanceRequest;
 use App\Modules\Report\Http\Resources\DistanceHintResource;
@@ -16,20 +15,13 @@ final class DistanceHintController
     public function __invoke(
         EstimateDistanceRequest $request,
         string $slug,
-        VillageVisibility $visibility,
+        FindPublicProject $findProject,
         EstimateProjectDistance $action,
     ): JsonResponse {
-        $project = Project::withoutGlobalScope('village')
-            ->with('village')
-            ->where('slug', $slug)
-            ->first();
+        $project = $findProject->handle($request, $slug);
 
-        // Same rule as the public project page (P10): draft, unknown, or another visitor's demo project is a 404.
-        if ($project === null
-            || ! $project->isPublished()
-            || ! $visibility->allows($request, $project->village)
-            || $project->lat === null
-            || $project->lng === null) {
+        // Same 404 as the public project page (P10), plus projects without a location point.
+        if ($project === null || $project->lat === null || $project->lng === null) {
             abort(404);
         }
 
