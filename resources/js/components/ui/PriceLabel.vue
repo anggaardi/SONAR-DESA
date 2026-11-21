@@ -4,6 +4,8 @@
 // Values mirror backend PriceLabel enum: within_standard | above_standard |
 // needs_check | no_reference.
 
+import { computed } from 'vue';
+
 type Label = 'within_standard' | 'above_standard' | 'needs_check' | 'no_reference';
 
 interface Props {
@@ -12,7 +14,7 @@ interface Props {
     percentAbove?: string | null;
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     percentAbove: null,
 });
 
@@ -28,6 +30,12 @@ const configs: Record<Label, Config> = {
     needs_check: { color: 'warning', text: 'Perlu dicek', icon: 'question' },
     no_reference: { color: 'neutral', text: 'Tanpa acuan', icon: 'minus' },
 };
+
+const text = computed(() =>
+    props.label === 'above_standard' && props.percentAbove
+        ? `${configs[props.label].text} ${props.percentAbove}`
+        : configs[props.label].text,
+);
 
 const colorClasses: Record<Config['color'], string> = {
     positive: 'border-positive-border bg-positive-subtle text-positive',
@@ -91,9 +99,6 @@ const colorClasses: Record<Config['color'], string> = {
             <path stroke-linecap="round" stroke-width="2" d="M4 8h8" />
         </svg>
 
-        <span
-            >{{ configs[label].text
-            }}<template v-if="label === 'above_standard' && percentAbove"> {{ percentAbove }}</template></span
-        >
+        <span>{{ text }}</span>
     </span>
 </template>

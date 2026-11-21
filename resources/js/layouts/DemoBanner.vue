@@ -24,32 +24,51 @@ function restart(): void {
 </script>
 
 <template>
-    <div v-if="demo" class="bg-demo-subtle text-sm font-medium text-demo">
-        <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-2">
-            <span>{{ demoLabels.banner }} &middot; {{ demoLabels.playingAs(demo.role) }}</span>
+    <div v-if="demo" class="border-b border-demo/15 bg-demo-subtle text-xs font-medium text-demo sm:text-sm">
+        <div class="mx-auto flex max-w-md items-center justify-between px-4 py-2 sm:max-w-xl md:max-w-2xl">
+            <div class="flex items-center gap-1.5">
+                <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                </svg>
+                <span>{{ demoLabels.banner }}</span>
+                <span class="hidden text-demo/80 sm:inline">&middot; {{ demoLabels.playingAs(demo.role) }}</span>
+            </div>
 
-            <div class="flex gap-4">
+            <div class="flex items-center gap-3">
                 <button
                     type="button"
-                    class="min-h-11 underline-offset-2 hover:underline"
+                    class="min-h-8 rounded font-medium underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-demo"
                     :aria-expanded="choosingRole"
                     aria-controls="demo-role-picker"
                     @click="choosingRole = !choosingRole"
                 >
                     {{ demoLabels.switchRole }}
                 </button>
-                <button type="button" class="min-h-11 underline-offset-2 hover:underline" @click="restart">
+                <button
+                    type="button"
+                    class="hidden min-h-8 rounded font-medium underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-demo sm:inline"
+                    @click="restart"
+                >
                     {{ demoLabels.restart }}
                 </button>
             </div>
         </div>
 
-        <div v-if="choosingRole" id="demo-role-picker" class="flex flex-wrap gap-2 px-4 pb-3">
+        <div
+            v-if="choosingRole"
+            id="demo-role-picker"
+            class="mx-auto flex max-w-md flex-wrap gap-2 px-4 pb-3 sm:max-w-xl md:max-w-2xl"
+        >
             <button
                 v-for="role in roles"
                 :key="role"
                 type="button"
-                class="h-11 rounded-md border border-demo bg-surface px-3 text-demo disabled:opacity-50"
+                class="h-9 rounded-md border border-demo bg-surface px-3 text-xs text-demo transition-colors hover:bg-demo/10 disabled:opacity-50 sm:text-sm"
                 :disabled="role === demo.role"
                 @click="switchRole(role)"
             >
