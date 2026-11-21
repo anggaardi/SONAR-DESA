@@ -16,6 +16,7 @@ use Inertia\Response;
 final class VillageProjectController
 {
     public function __construct(private readonly VillageVisibility $visibility) {}
+
     public function index(Request $request, string $village): Response
     {
         $villageModel = Village::where('slug', $village)->firstOrFail();

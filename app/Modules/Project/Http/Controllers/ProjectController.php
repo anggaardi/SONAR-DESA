@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class ProjectController
 {
     public function __construct(private readonly VillageVisibility $visibility) {}
+
     public function show(Request $request, string $slug): Response|InertiaResponse
     {
         $project = Project::withoutGlobalScope('village')
