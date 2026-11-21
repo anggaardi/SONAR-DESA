@@ -74,10 +74,14 @@ const howTos = computed(() => props.project.measurements.filter((m) => m.how_to)
                     </svg>
                 </div>
 
-                <div :class="[diagram ? 'mt-4 md:mt-0 md:col-span-6' : '']">
+                <div :class="[diagram ? 'mt-4 md:col-span-6 md:mt-0' : '']">
                     <dl
                         class="grid gap-2.5"
-                        :class="[project.measurements.length >= 3 ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-2' : 'grid-cols-2']"
+                        :class="[
+                            project.measurements.length >= 3
+                                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-2'
+                                : 'grid-cols-2',
+                        ]"
                     >
                         <div
                             v-for="m in project.measurements"
@@ -85,7 +89,9 @@ const howTos = computed(() => props.project.measurements.filter((m) => m.how_to)
                             class="rounded-xl border border-stroke bg-surface p-3"
                         >
                             <dt class="text-xs font-medium text-content-secondary sm:text-sm">{{ m.name }}</dt>
-                            <dd class="mt-1 text-lg font-bold text-content tabular-nums sm:text-xl">{{ display(m) }}</dd>
+                            <dd class="mt-1 text-lg font-bold text-content tabular-nums sm:text-xl">
+                                {{ display(m) }}
+                            </dd>
                         </div>
                     </dl>
                 </div>

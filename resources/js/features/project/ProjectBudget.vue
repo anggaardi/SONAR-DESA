@@ -69,14 +69,19 @@ const swatch: Record<BudgetGroupKey, string> = {
                         class="rounded-xl border border-stroke bg-surface-subtle p-3.5"
                     >
                         <div class="flex items-center gap-2">
-                            <span class="h-2.5 w-2.5 shrink-0 rounded-sm" :class="swatch[group.key]" aria-hidden="true" />
+                            <span
+                                class="h-2.5 w-2.5 shrink-0 rounded-sm"
+                                :class="swatch[group.key]"
+                                aria-hidden="true"
+                            />
                             <span class="text-xs font-medium text-content-secondary">{{ group.label }}</span>
                         </div>
                         <p class="mt-2 text-xl font-bold tracking-tight text-content tabular-nums">
                             {{ formatRupiahShort(group.amountRp) }}
                         </p>
                         <p class="mt-1 truncate text-xs text-content-tertiary">
-                            <span class="font-semibold text-content-secondary">{{ group.percent }}%</span> &middot; {{ group.itemNames.join(', ') }}
+                            <span class="font-semibold text-content-secondary">{{ group.percent }}%</span> &middot;
+                            {{ group.itemNames.join(', ') }}
                         </p>
                     </div>
                 </div>

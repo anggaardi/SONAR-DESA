@@ -223,12 +223,16 @@ const filteredProjects = computed(() => {
                                 class="flex flex-col justify-between rounded-2xl border border-dashed border-stroke bg-surface-subtle p-5 sm:col-span-2 lg:col-span-2"
                             >
                                 <div>
-                                    <span class="inline-flex items-center rounded-full bg-info-subtle px-2.5 py-0.5 text-xs font-semibold text-info">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-info-subtle px-2.5 py-0.5 text-xs font-semibold text-info"
+                                    >
                                         Keterbukaan Publik
                                     </span>
                                     <h3 class="mt-2 text-base font-bold text-content">Proyek lain belum diterbitkan</h3>
                                     <p class="mt-1 text-xs leading-relaxed text-content-secondary">
-                                        Pemerintah {{ formattedVillageName }} menerbitkan proyek setelah verifikasi RAB dan persetujuan BPD. Cek kembali secara berkala atau pindai QR di plang proyek lokasi.
+                                        Pemerintah {{ formattedVillageName }} menerbitkan proyek setelah verifikasi RAB
+                                        dan persetujuan BPD. Cek kembali secara berkala atau pindai QR di plang proyek
+                                        lokasi.
                                     </p>
                                 </div>
                                 <div class="mt-4 flex items-center gap-2">

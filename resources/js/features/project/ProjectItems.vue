@@ -178,7 +178,9 @@ function percentAbove(item: ProjectBudgetItem): string | null {
             <!-- Desktop Tabular Table (md:block) ala FigCraft desk-proyek -->
             <div class="mt-3 hidden overflow-hidden rounded-2xl border border-stroke bg-surface shadow-2xs md:block">
                 <table class="w-full text-left text-sm" role="table">
-                    <thead class="border-b border-stroke bg-surface-subtle text-xs font-semibold uppercase tracking-wider text-content-secondary">
+                    <thead
+                        class="border-b border-stroke bg-surface-subtle text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                    >
                         <tr>
                             <th scope="col" class="py-3 pr-3 pl-4">Uraian Belanja</th>
                             <th scope="col" class="px-3 py-3">Volume</th>
@@ -203,7 +205,6 @@ function percentAbove(item: ProjectBudgetItem): string | null {
                         >
                             <td class="py-3.5 pr-3 pl-4">
                                 <p class="font-semibold text-content">{{ item.name }}</p>
-                                <p v-if="item.group" class="text-xs text-content-tertiary">{{ item.group }}</p>
                             </td>
                             <td class="px-3 py-3.5 text-content-secondary tabular-nums">
                                 {{ item.volume }} {{ item.unit }}
@@ -259,7 +260,11 @@ function percentAbove(item: ProjectBudgetItem): string | null {
                                     Standar {{ formatRupiah(item.standard_price_rp) }}
                                 </span>
                             </span>
-                            <PriceLabel class="mt-2" :label="item.label as ItemLabel" :percent-above="percentAbove(item)" />
+                            <PriceLabel
+                                class="mt-2"
+                                :label="item.label as ItemLabel"
+                                :percent-above="percentAbove(item)"
+                            />
                         </span>
                         <svg
                             class="h-5 w-5 shrink-0 text-content-tertiary"
@@ -275,13 +280,22 @@ function percentAbove(item: ProjectBudgetItem): string | null {
             </ul>
 
             <!-- Catatan Klarifikasi Harga Standar (ala FigCraft desk-proyek) -->
-            <div class="mt-4 flex items-start gap-3 rounded-xl border border-stroke bg-surface-subtle p-3.5 text-xs text-content-secondary">
+            <div
+                class="mt-4 flex items-start gap-3 rounded-xl border border-stroke bg-surface-subtle p-3.5 text-xs text-content-secondary"
+            >
                 <svg class="h-5 w-5 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                 </svg>
                 <div class="leading-relaxed">
                     <strong class="font-semibold text-content">Catatan Analisis Standar Harga:</strong>
-                    Harga yang berada di atas standar daerah belum tentu kesalahan atau penyimpangan. Desa dapat melampirkan nota klarifikasi kondisi lapangan (seperti biaya langsir medan tanjakan/terjal) yang telah diverifikasi dan disahkan oleh BPD.
+                    Harga yang berada di atas standar daerah belum tentu kesalahan atau penyimpangan. Desa dapat
+                    melampirkan nota klarifikasi kondisi lapangan (seperti biaya langsir medan tanjakan/terjal) yang
+                    telah diverifikasi dan disahkan oleh BPD.
                 </div>
             </div>
         </template>
