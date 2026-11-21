@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Modules\Audit\Reading\AiRabReader;
+use App\Modules\Audit\Reading\FixtureRabReader;
+use App\Modules\Audit\Reading\RabReader;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Report\Domain\ReportClassifier;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -40,6 +43,16 @@ final class AppServiceProvider extends ServiceProvider
             radiusMeters: (int) config('sonar.report.radius_m'),
             maxAccuracyMeters: (int) config('sonar.report.max_accuracy_m'),
         ));
+
+        // RAB reader binding: 'ai' uses DataByte/OpenAI gateway, 'fixture' uses offline JSON files (A5, PRD Arsitektur 6.5).
+        $this->app->bind(RabReader::class, static function ($app): RabReader {
+            $driver = (string) config('sonar.rab_reader.driver', 'fixture');
+
+            return match ($driver) {
+                'ai' => $app->make(AiRabReader::class),
+                default => $app->make(FixtureRabReader::class),
+            };
+        });
     }
 
     public function boot(): void

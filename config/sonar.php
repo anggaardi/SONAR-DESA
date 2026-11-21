@@ -16,8 +16,10 @@ return [
         'driver' => env('RAB_READER', 'fixture'),
         'timeout_seconds' => (int) env('RAB_READ_TIMEOUT_SECONDS', 60),
         'ai' => [
-            'provider' => env('AI_PROVIDER'),
-            'model' => env('AI_MODEL'),
+            'provider' => env('AI_PROVIDER', 'databyte'),
+            'base_url' => env('AI_BASE_URL', 'https://ai.databyte.co.id/gateway/v1'),
+            'api_key' => env('AI_API_KEY'),
+            'model' => env('AI_MODEL', 'google/gemini-1.5-flash'),
         ],
     ],
 

@@ -44,4 +44,11 @@ return [
         ],
     ],
 
+    // DataByte AI Gateway (OpenAI-compatible) for Vision & Document Processing
+    'databyte' => [
+        'key' => env('AI_API_KEY'),
+        'base_url' => env('AI_BASE_URL', 'https://ai.databyte.co.id/gateway/v1'),
+        'model' => env('AI_MODEL', 'google/gemini-1.5-flash'),
+    ],
+
 ];
