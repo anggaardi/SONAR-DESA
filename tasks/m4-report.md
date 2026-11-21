@@ -82,7 +82,7 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   lewat canvas (JPEG, sisi terpanjang <= 1600 px), jadi EXIF/GPS bawaan tidak ikut. Server tetap memvalidasi ulang (M4-06).
 
 ### M4-05 · useGeolocation + layar jarak
-- Status: todo · Ukuran: M · Owner: Dev 2 · Depends on: M4-03 (aturan jarak untuk warna)
+- Status: doing · Ukuran: M · Owner: Dev 2 · Depends on: M4-03 (aturan jarak untuk warna)
 - Spec: PRD Fitur Inti 5.1 langkah 1-3, C1, C2, C7; PRD Arsitektur M4-05
 - Scope:
   - Layar penjelasan sebelum izin diminta: kenapa lokasi diminta, laporan masuk ke BPD, nama tidak tampil (C1).
@@ -92,10 +92,19 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - Tampilkan jarak ke titik proyek (hijau <= 300 m, kuning bila lebih). Jarak di layar hanya petunjuk;
     angka resmi dihitung ulang server saat kirim (M4-06). Titik proyek datang dari server, bukan dihitung di Vue.
   - Lokasi diambil ulang saat kirim.
-- Files: `resources/js/features/report/useGeolocation.ts`, `LocationGate.vue`, `useGeolocation.test.ts`
+- Files: `resources/js/features/report/useGeolocation.ts`, `LocationGate.vue`, `useGeolocation.test.ts`; teks di `lib/labels.ts` (`location`)
 - Acceptance criteria
-  - [ ] C1, C2 (wajib), C7.
-  - [ ] Layar 360 px tanpa scroll horizontal.
+  - [x] C2 (wajib), C7: `useGeolocation` + `LocationGate` (penjelasan C1 ada di `LocationGate`, dipasang di halaman oleh M4-07).
+  - [ ] Layar 360 px tanpa scroll horizontal (cek manual saat dipasang di M4-07).
+  - [ ] Jarak + status radius dari server (lihat catatan).
+- Catatan:
+  - `LocationGate` tidak menghitung angka. Jarak dan "dalam radius" masuk lewat props `distanceMeters` dan
+    `withinRadius` (ENGINEERING 2: angka hanya dari Domain). Sumbernya belum diputuskan: titik proyek tidak ada
+    di `ProjectResource` (tidak publik), dan langkah lokasi terjadi sebelum login (F11). Opsi: endpoint publik
+    ber-throttle yang memakai `DistanceCalculator`, atau mengirim titik proyek ke Vue untuk hitungan tampilan saja.
+    Putusan dicatat di DECISIONS.md.
+  - Lokasi dipantau dengan `watchPosition` sampai akurasi <= batas lalu berhenti; `readFresh()` dipakai M4-07 untuk
+    mengambil ulang lokasi saat kirim. Batas akurasi dioper dari server (`config('sonar.report.max_accuracy_m')`).
 
 ### M4-02 · Migration report_answers + report_photos (+ kolom hasil rapat 22 Nov)
 - Status: todo (menunggu keputusan 22 Nov) · Ukuran: M · Owner: Dev 2 · Depends on: D-xxx hasil rapat

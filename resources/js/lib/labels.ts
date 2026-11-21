@@ -104,3 +104,40 @@ export const camera = {
         body: 'Tutup aplikasi lain yang memakai kamera, lalu coba lagi.',
     },
 } as const;
+
+/** PRD Fitur Inti 5.1 steps 1-3 and C1, C2, C7: why location is asked, weak signal, distance hint. */
+export const location = {
+    title: 'Lokasi kamu',
+    why: {
+        heading: 'Kenapa lokasi diminta?',
+        points: [
+            'Untuk memastikan kamu berada di dekat proyek saat mengecek.',
+            'Laporanmu masuk ke BPD, tidak langsung tampil di halaman publik.',
+            'Namamu tidak ditampilkan ke publik.',
+        ],
+    },
+    allow: 'Izinkan lokasi',
+    retry: 'Coba lagi',
+    continue: 'Lanjut',
+    locating: 'Mencari lokasimu...',
+    weak: {
+        title: 'Sinyal lokasi lemah',
+        body: (accuracyMeters: number) =>
+            `Tunggu sebentar. Ketelitian saat ini sekitar ${accuracyMeters} m. Coba keluar ke tempat terbuka.`,
+    },
+    denied: {
+        title: 'Lokasi belum diizinkan',
+        body: 'Aktifkan izin lokasi untuk situs ini di pengaturan browser atau HP, lalu coba lagi. Cek Spek tidak bisa dilanjutkan tanpa lokasi.',
+    },
+    unavailable: {
+        title: 'Lokasi tidak tersedia',
+        body: 'Buka halaman ini di HP dengan GPS aktif dan pastikan alamatnya diawali https.',
+    },
+    failed: {
+        title: 'Lokasi belum ditemukan',
+        body: 'Pastikan GPS aktif, lalu coba lagi.',
+    },
+    nearby: (distance: string) => `Lokasi aktif: ${distance} dari titik proyek`,
+    farAway: (distance: string) =>
+        `Kamu berada ${distance} dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.`,
+} as const;
