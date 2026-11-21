@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Modules\Core\Village\CurrentVillage;
+use App\Modules\Report\Domain\ReportClassifier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
@@ -30,6 +31,12 @@ final class AppServiceProvider extends ServiceProvider
     {
         // Scoped: reset per request and per queue job (PRD Arsitektur 6.7).
         $this->app->scoped(CurrentVillage::class);
+
+        // Limits live in config/sonar.php (PRD Fitur QF3), so the pure Domain class gets them injected.
+        $this->app->bind(ReportClassifier::class, static fn (): ReportClassifier => new ReportClassifier(
+            radiusMeters: (int) config('sonar.report.radius_m'),
+            maxAccuracyMeters: (int) config('sonar.report.max_accuracy_m'),
+        ));
     }
 
     public function boot(): void
