@@ -174,54 +174,117 @@ function percentAbove(item: ProjectBudgetItem): string | null {
             Tidak ada baris untuk label ini.
         </p>
 
-        <ul
-            v-else
-            class="mt-2 divide-y divide-stroke overflow-hidden rounded-2xl border border-stroke bg-surface shadow-2xs"
-        >
-            <li v-for="item in filteredItems" :key="item.id">
-                <button
-                    type="button"
-                    class="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
-                    :class="{ 'bg-warning-subtle': item.label === 'needs_check' }"
-                    @click="activeItem = item"
-                >
-                    <span class="min-w-0 flex-1">
-                        <span class="flex items-start justify-between gap-3">
-                            <span class="text-base font-semibold text-content">{{ item.name }}</span>
-                            <span class="shrink-0 text-base font-bold text-content tabular-nums">
-                                {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
-                            </span>
-                        </span>
-                        <span
-                            class="mt-0.5 flex items-start justify-between gap-3 text-sm text-content-secondary tabular-nums"
+        <template v-else>
+            <!-- Desktop Tabular Table (md:block) ala FigCraft desk-proyek -->
+            <div class="mt-3 hidden overflow-hidden rounded-2xl border border-stroke bg-surface shadow-2xs md:block">
+                <table class="w-full text-left text-sm" role="table">
+                    <thead class="border-b border-stroke bg-surface-subtle text-xs font-semibold uppercase tracking-wider text-content-secondary">
+                        <tr>
+                            <th scope="col" class="py-3 pr-3 pl-4">Uraian Belanja</th>
+                            <th scope="col" class="px-3 py-3">Volume</th>
+                            <th scope="col" class="px-3 py-3 text-right">Harga Satuan</th>
+                            <th scope="col" class="px-3 py-3 text-right">Total RAB</th>
+                            <th scope="col" class="px-3 py-3 text-right">Standar Kab.</th>
+                            <th scope="col" class="py-3 pr-4 pl-3 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-stroke">
+                        <tr
+                            v-for="item in filteredItems"
+                            :key="item.id"
+                            class="cursor-pointer transition-colors hover:bg-surface-subtle focus-visible:bg-surface-subtle"
+                            :class="{ 'bg-warning-subtle/50': item.label === 'needs_check' }"
+                            tabindex="0"
+                            role="button"
+                            :aria-label="`Buka perbandingan harga ${item.name}`"
+                            @click="activeItem = item"
+                            @keydown.enter="activeItem = item"
+                            @keydown.space.prevent="activeItem = item"
                         >
-                            <span>
+                            <td class="py-3.5 pr-3 pl-4">
+                                <p class="font-semibold text-content">{{ item.name }}</p>
+                                <p v-if="item.group" class="text-xs text-content-tertiary">{{ item.group }}</p>
+                            </td>
+                            <td class="px-3 py-3.5 text-content-secondary tabular-nums">
                                 {{ item.volume }} {{ item.unit }}
-                                <template v-if="item.unit_price_rp"
-                                    >&times; {{ formatRupiah(item.unit_price_rp) }}</template
-                                >
+                            </td>
+                            <td class="px-3 py-3.5 text-right font-medium text-content tabular-nums">
+                                {{ item.unit_price_rp ? formatRupiah(item.unit_price_rp) : '-' }}
+                            </td>
+                            <td class="px-3 py-3.5 text-right font-bold text-content tabular-nums">
+                                {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
+                            </td>
+                            <td class="px-3 py-3.5 text-right text-content-secondary tabular-nums">
+                                {{ item.standard_price_rp ? formatRupiah(item.standard_price_rp) : '-' }}
+                            </td>
+                            <td class="py-3.5 pr-4 pl-3 text-center">
+                                <PriceLabel :label="item.label as ItemLabel" :percent-above="percentAbove(item)" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Compact List (md:hidden) -->
+            <ul
+                class="mt-2 divide-y divide-stroke overflow-hidden rounded-2xl border border-stroke bg-surface shadow-2xs md:hidden"
+            >
+                <li v-for="item in filteredItems" :key="item.id">
+                    <button
+                        type="button"
+                        class="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+                        :class="{ 'bg-warning-subtle': item.label === 'needs_check' }"
+                        @click="activeItem = item"
+                    >
+                        <span class="min-w-0 flex-1">
+                            <span class="flex items-start justify-between gap-3">
+                                <span class="text-base font-semibold text-content">{{ item.name }}</span>
+                                <span class="shrink-0 text-base font-bold text-content tabular-nums">
+                                    {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
+                                </span>
                             </span>
                             <span
-                                v-if="item.label === 'above_standard' && item.standard_price_rp"
-                                class="shrink-0 text-xs text-content-tertiary"
+                                class="mt-0.5 flex items-start justify-between gap-3 text-sm text-content-secondary tabular-nums"
                             >
-                                Standar {{ formatRupiah(item.standard_price_rp) }}
+                                <span>
+                                    {{ item.volume }} {{ item.unit }}
+                                    <template v-if="item.unit_price_rp"
+                                        >&times; {{ formatRupiah(item.unit_price_rp) }}</template
+                                    >
+                                </span>
+                                <span
+                                    v-if="item.label === 'above_standard' && item.standard_price_rp"
+                                    class="shrink-0 text-xs text-content-tertiary"
+                                >
+                                    Standar {{ formatRupiah(item.standard_price_rp) }}
+                                </span>
                             </span>
+                            <PriceLabel class="mt-2" :label="item.label as ItemLabel" :percent-above="percentAbove(item)" />
                         </span>
-                        <PriceLabel class="mt-2" :label="item.label as ItemLabel" :percent-above="percentAbove(item)" />
-                    </span>
-                    <svg
-                        class="h-5 w-5 shrink-0 text-content-tertiary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        aria-hidden="true"
-                    >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 6l6 6-6 6" />
-                    </svg>
-                </button>
-            </li>
-        </ul>
+                        <svg
+                            class="h-5 w-5 shrink-0 text-content-tertiary"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 6l6 6-6 6" />
+                        </svg>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Catatan Klarifikasi Harga Standar (ala FigCraft desk-proyek) -->
+            <div class="mt-4 flex items-start gap-3 rounded-xl border border-stroke bg-surface-subtle p-3.5 text-xs text-content-secondary">
+                <svg class="h-5 w-5 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="leading-relaxed">
+                    <strong class="font-semibold text-content">Catatan Analisis Standar Harga:</strong>
+                    Harga yang berada di atas standar daerah belum tentu kesalahan atau penyimpangan. Desa dapat melampirkan nota klarifikasi kondisi lapangan (seperti biaya langsir medan tanjakan/terjal) yang telah diverifikasi dan disahkan oleh BPD.
+                </div>
+            </div>
+        </template>
 
         <div v-if="project.document_url" class="mt-4 text-center">
             <a

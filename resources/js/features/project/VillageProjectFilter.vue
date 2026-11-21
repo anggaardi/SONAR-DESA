@@ -19,9 +19,9 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <!-- Search field -->
-        <div class="relative">
+        <div class="relative w-full md:max-w-xs lg:max-w-sm">
             <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-content-tertiary">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path

@@ -15,7 +15,10 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface" aria-label="Navigasi aplikasi">
+    <nav
+        class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface md:hidden"
+        aria-label="Navigasi aplikasi"
+    >
         <div class="mx-auto flex h-16 max-w-md items-center justify-around px-2 sm:max-w-xl md:max-w-2xl">
             <Link
                 href="/"

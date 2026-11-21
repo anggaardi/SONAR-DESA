@@ -13,8 +13,8 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <section class="bg-primary-subtle px-4 pt-5 pb-7 sm:px-6 sm:pt-6">
-        <div class="mx-auto flex max-w-md items-center justify-between gap-4 sm:max-w-xl md:max-w-2xl">
+    <section class="bg-primary-subtle px-4 pt-5 pb-7 sm:px-6 sm:pt-6 md:px-8 md:py-8">
+        <div class="mx-auto flex max-w-md items-center justify-between gap-4 sm:max-w-xl md:max-w-3xl lg:max-w-7xl">
             <div class="min-w-0 flex-1">
                 <p class="text-xs font-medium text-content-secondary sm:text-sm">Kab. {{ regency }}</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-content sm:text-3xl">

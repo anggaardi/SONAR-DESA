@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, Link } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
+import DesktopSidebar from '@/components/ui/DesktopSidebar.vue';
 import Dialog from '@/components/ui/Dialog.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import VillageHeader from '@/features/project/VillageHeader.vue';
@@ -117,52 +118,136 @@ const filteredProjects = computed(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-surface-subtle pb-20 text-content antialiased">
+    <div class="min-h-screen bg-surface-subtle text-content antialiased">
         <Head :title="`Proyek Pembangunan ${formattedVillageName}`" />
 
-        <!-- App Bar / Header -->
-        <VillageHeader :village-name="village.name" @share="handleShare" />
-
-        <!-- Hero Section with Balai Spot Illustration -->
-        <VillageHero :regency="village.regency" :name="village.name" />
-
-        <!-- Main Content -->
-        <main class="mx-auto max-w-md space-y-4 px-4 pt-4 pb-8 sm:max-w-xl sm:px-6 md:max-w-2xl">
-            <!-- 2-column Stat Summary Card -->
-            <VillageStatSummary
-                :project-count="projects.length"
-                :total-budget-rp="totalVillageBudget"
-                :year-text="publishedYears"
+        <div class="flex min-h-screen">
+            <!-- Desktop Sidebar -->
+            <DesktopSidebar
+                active-tab="cari-desa"
+                :village-name="village.name"
+                :village-slug="village.slug"
+                :regency="village.regency"
+                @tab-click="handleTabClick"
+                @share="handleShare"
             />
 
-            <!-- Search Field and Category Chips Filter -->
-            <VillageProjectFilter
-                v-model:search-query="searchQuery"
-                v-model:active-category="activeCategory"
-                :categories="categories"
-            />
+            <!-- Main Content Area -->
+            <div class="min-w-0 flex-1 pb-20 md:pb-12">
+                <!-- Mobile App Bar / Header -->
+                <div class="md:hidden">
+                    <VillageHeader :village-name="village.name" @share="handleShare" />
+                </div>
 
-            <!-- Project Cards List / Empty State -->
-            <section class="flex flex-col gap-3 pt-1" aria-label="Daftar proyek">
-                <EmptyState
-                    v-if="projects.length === 0"
-                    illustration="plang-empty"
-                    title="Belum ada proyek yang diterbitkan"
-                    :description="`Pemerintah Desa ${village.name} belum menerbitkan proyek pembangunan di Sonar Desa. Proyek akan muncul di sini setelah diterbitkan.`"
-                />
+                <!-- Desktop Header -->
+                <header
+                    class="sticky top-0 z-20 hidden items-center justify-between border-b border-stroke bg-surface/95 px-6 py-3.5 backdrop-blur-sm md:flex lg:px-8"
+                >
+                    <div class="flex items-center gap-2 text-sm text-content-secondary">
+                        <Link href="/" class="transition-colors hover:text-primary">Beranda</Link>
+                        <span>/</span>
+                        <span class="font-medium text-content">{{ formattedVillageName }}</span>
+                    </div>
 
-                <EmptyState
-                    v-else-if="filteredProjects.length === 0"
-                    illustration="search-empty"
-                    title="Tidak ada proyek yang sesuai"
-                    description="Belum ada proyek yang diterbitkan untuk kata kunci ini atau nama kegiatan belum terdaftar."
-                />
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-2 rounded-lg border border-stroke bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        aria-label="Bagikan profil desa"
+                        @click="handleShare"
+                    >
+                        <svg
+                            class="h-4 w-4 text-content-secondary"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                            />
+                        </svg>
+                        <span>Bagikan</span>
+                    </button>
+                </header>
 
-                <VillageProjectCard v-for="p in filteredProjects" :key="p.id" :project="p" />
-            </section>
-        </main>
+                <!-- Hero Section with Balai Spot Illustration -->
+                <VillageHero :regency="village.regency" :name="village.name" />
 
-        <!-- Bottom Navigation Bar -->
+                <!-- Main Content -->
+                <main
+                    class="mx-auto max-w-md space-y-6 px-4 pt-4 pb-8 sm:max-w-xl sm:px-6 md:max-w-3xl lg:max-w-7xl lg:px-8"
+                >
+                    <!-- 3-column Stat Summary Card on desktop -->
+                    <VillageStatSummary
+                        :project-count="projects.length"
+                        :total-budget-rp="totalVillageBudget"
+                        :year-text="publishedYears"
+                    />
+
+                    <!-- Search Field and Category Chips Filter -->
+                    <VillageProjectFilter
+                        v-model:search-query="searchQuery"
+                        v-model:active-category="activeCategory"
+                        :categories="categories"
+                    />
+
+                    <!-- Project Cards Grid / Empty State -->
+                    <section
+                        class="grid grid-cols-1 gap-4 pt-1 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6"
+                        aria-label="Daftar proyek"
+                    >
+                        <div v-if="projects.length === 0" class="col-span-full">
+                            <EmptyState
+                                illustration="plang-empty"
+                                title="Belum ada proyek yang diterbitkan"
+                                :description="`Pemerintah Desa ${village.name} belum menerbitkan proyek pembangunan di Sonar Desa. Proyek akan muncul di sini setelah diterbitkan.`"
+                            />
+                        </div>
+
+                        <div v-else-if="filteredProjects.length === 0" class="col-span-full">
+                            <EmptyState
+                                illustration="search-empty"
+                                title="Tidak ada proyek yang sesuai"
+                                description="Belum ada proyek yang diterbitkan untuk kata kunci ini atau nama kegiatan belum terdaftar."
+                            />
+                        </div>
+
+                        <template v-else>
+                            <VillageProjectCard v-for="p in filteredProjects" :key="p.id" :project="p" />
+
+                            <!-- Banner info update di akhir grid (ala FigCraft desk-desa) -->
+                            <div
+                                v-if="filteredProjects.length > 0 && activeCategory === 'all'"
+                                class="flex flex-col justify-between rounded-2xl border border-dashed border-stroke bg-surface-subtle p-5 sm:col-span-2 lg:col-span-2"
+                            >
+                                <div>
+                                    <span class="inline-flex items-center rounded-full bg-info-subtle px-2.5 py-0.5 text-xs font-semibold text-info">
+                                        Keterbukaan Publik
+                                    </span>
+                                    <h3 class="mt-2 text-base font-bold text-content">Proyek lain belum diterbitkan</h3>
+                                    <p class="mt-1 text-xs leading-relaxed text-content-secondary">
+                                        Pemerintah {{ formattedVillageName }} menerbitkan proyek setelah verifikasi RAB dan persetujuan BPD. Cek kembali secara berkala atau pindai QR di plang proyek lokasi.
+                                    </p>
+                                </div>
+                                <div class="mt-4 flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        class="inline-flex h-9 items-center justify-center rounded-lg border border-stroke bg-surface px-3 text-xs font-semibold text-content transition-colors hover:bg-surface-muted"
+                                        @click="showHelpDialog = true"
+                                    >
+                                        Panduan transparansi
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </section>
+                </main>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation Bar (Mobile only) -->
         <BottomNav active-tab="cari-desa" @tab-click="handleTabClick" />
 
         <!-- Toast Feedback -->

@@ -25,7 +25,9 @@ function restart(): void {
 
 <template>
     <div v-if="demo" class="border-b border-demo/15 bg-demo-subtle text-xs font-medium text-demo sm:text-sm">
-        <div class="mx-auto flex max-w-md items-center justify-between px-4 py-2 sm:max-w-xl md:max-w-2xl">
+        <div
+            class="mx-auto flex max-w-md items-center justify-between px-4 py-2 sm:max-w-xl md:max-w-full md:px-6 lg:px-8"
+        >
             <div class="flex items-center gap-1.5">
                 <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
