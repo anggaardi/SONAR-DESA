@@ -13,7 +13,7 @@ declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             auth: { user: AuthUser | null };
-            demo: { role: Role } | null;
+            demo: { role: Role; village_slug?: string | null } | null;
             app: { commit: string };
         };
     }

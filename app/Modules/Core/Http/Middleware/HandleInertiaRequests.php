@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Core\Http\Middleware;
 
 use App\Modules\Core\Auth\User;
+use App\Modules\Core\Village\Village;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -36,6 +37,7 @@ final class HandleInertiaRequests extends Middleware
             // PRD Fitur 7.2: every demo screen shows the banner with "Ganti peran" and "Mulai ulang demo".
             'demo' => $request->session()->has(SetCurrentVillage::DEMO_SESSION_KEY) ? [
                 'role' => (string) $request->session()->get(SetCurrentVillage::DEMO_ROLE_SESSION_KEY, 'warga'),
+                'village_slug' => Village::whereKey((int) $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY))->value('slug'),
             ] : null,
             // F0-4: commit shown in the footer to confirm which build is live.
             'app' => [

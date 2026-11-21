@@ -9,13 +9,20 @@ use App\Modules\Core\Village\Village;
 use App\Modules\Demo\Actions\DemoSession;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 /**
- * POST /demo/start/{role}, /demo/switch/{role}, /demo/reset .
+ * GET /demo, POST /demo/start/{role}, /demo/switch/{role}, /demo/reset .
  */
 final class DemoController
 {
     public function __construct(private readonly DemoSession $demo) {}
+
+    public function index(): Response
+    {
+        return Inertia::render('demo/Index');
+    }
 
     public function start(Request $request, Role $role): RedirectResponse
     {
