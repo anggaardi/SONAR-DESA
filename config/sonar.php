@@ -35,11 +35,18 @@ return [
     'report' => [
         'radius_m' => (int) env('REPORT_RADIUS_M', 300),
         'max_accuracy_m' => (int) env('REPORT_MAX_ACCURACY_M', 100),
+        // PRD Fitur Inti 5.1 steps 6-7: 1-3 camera photos, note up to 280 characters.
+        'max_photos' => (int) env('REPORT_MAX_PHOTOS', 3),
+        'max_note_length' => (int) env('REPORT_MAX_NOTE_LENGTH', 280),
+        // C10: sends per account per project per day (display timezone); the next one is refused.
+        'max_per_day' => (int) env('REPORT_MAX_PER_DAY', 3),
 
         // Public distance hint (D-008): coarse on purpose so repeated probes cannot pin down the project point.
         'distance_hint_round_m' => (int) env('REPORT_DISTANCE_HINT_ROUND_M', 10),
         'distance_hint_max_m' => (int) env('REPORT_DISTANCE_HINT_MAX_M', 1000),
         'distance_hints_per_minute' => (int) env('REPORT_DISTANCE_HINTS_PER_MINUTE', 30),
+        // D-010: IP is only a rate limit, never stored. Loose on purpose: with CGNAT many warga share one IP.
+        'submits_per_minute' => (int) env('REPORT_SUBMITS_PER_MINUTE', 20),
     ],
 
     'review' => [
@@ -51,6 +58,9 @@ return [
         'template_slug' => env('DEMO_TEMPLATE_SLUG', 'desa-contoh-template'),
         'upload_limit' => (int) env('DEMO_UPLOAD_LIMIT', 3),
         'ttl_hours' => (int) env('DEMO_TTL_HOURS', 24),
+        // M6-05: "Pakai foto & lokasi contoh" puts the visitor this far from the project, well inside the radius.
+        'sample_distance_m' => (int) env('DEMO_SAMPLE_DISTANCE_M', 20),
+        'sample_accuracy_m' => (int) env('DEMO_SAMPLE_ACCURACY_M', 10),
     ],
 
 ];

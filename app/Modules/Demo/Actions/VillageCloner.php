@@ -34,10 +34,14 @@ final class VillageCloner
         'review_cycles' => ['project_id' => 'projects'],
         'review_notes' => ['cycle_id' => 'review_cycles'],
         'reports' => ['project_id' => 'projects', 'cycle_id' => 'review_cycles'],
+        'report_answers' => ['report_id' => 'reports', 'measurement_id' => 'project_measurements'],
+        'report_photos' => ['report_id' => 'reports'],
     ];
 
     /**
-     * Foreign keys that point forward or to their own table. Inserted as null, then remapped.
+     * Foreign keys that point forward or to their own table. Inserted with the template's value, then remapped.
+     * Not null: reports.superseded_by decides which report is active, and an active copy of a superseded report
+     * would break the one-active-report index (M4-02).
      *
      * @var array<string, array<string, string>>
      */
@@ -46,8 +50,11 @@ final class VillageCloner
         'reports' => ['superseded_by' => 'reports'],
     ];
 
-    /** Roles that get a demo account per clone (PRD Arsitektur 6.7). Warga browse without login until M4. */
-    public const ACCOUNT_ROLES = [Role::Desa, Role::Bpd];
+    /**
+     * Roles that get a demo account per clone (PRD Arsitektur 6.7). The warga account stands in for Google sign-in,
+     * so one demo session counts as one reporter (PRD Fitur Inti 5.6, M6-05).
+     */
+    public const ACCOUNT_ROLES = [Role::Desa, Role::Bpd, Role::Warga];
 
     public function clone(Village $template): Village
     {
@@ -88,7 +95,11 @@ final class VillageCloner
         $accounts = [];
         foreach (self::ACCOUNT_ROLES as $role) {
             $accounts[$role->value] = User::query()->create([
-                'name' => $role === Role::Desa ? 'Pemerintah Desa (demo)' : 'BPD (demo)',
+                'name' => match ($role) {
+                    Role::Desa => 'Pemerintah Desa (demo)',
+                    Role::Bpd => 'BPD (demo)',
+                    Role::Warga => 'Warga (demo)',
+                },
                 'email' => "demo-{$role->value}-{$village->id}@demo.sonar-desa.test",
                 'role' => $role,
                 'village_id' => $village->id,
@@ -138,7 +149,6 @@ final class VillageCloner
                 if ($data[$column] !== null) {
                     $deferred[$column] = [(int) $data[$column], $source];
                 }
-                $data[$column] = null;
             }
 
             if ($table === 'projects') {

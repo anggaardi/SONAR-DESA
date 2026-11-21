@@ -147,6 +147,63 @@ describe('start', () => {
     });
 });
 
+describe('giving up', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('stops watching and becomes too_weak when the fix never gets accurate enough', () => {
+        const geo = useGeolocation({ maxAccuracyMeters: 100, giveUpAfterMs: 30_000 });
+        geo.start();
+        onSuccess(fix(1500));
+
+        vi.advanceTimersByTime(29_999);
+        expect(geo.status.value).toBe('weak');
+
+        vi.advanceTimersByTime(1);
+        expect(geo.status.value).toBe('too_weak');
+        expect(geo.position.value?.accuracyMeters).toBe(1500);
+        expect(clearWatch).toHaveBeenCalledWith(7);
+    });
+
+    it('fails when the browser never answers at all', () => {
+        const geo = useGeolocation({ maxAccuracyMeters: 100, giveUpAfterMs: 30_000 });
+        geo.start();
+
+        vi.advanceTimersByTime(30_000);
+
+        expect(geo.status.value).toBe('failed');
+        expect(clearWatch).toHaveBeenCalledWith(7);
+    });
+
+    it('can be retried after giving up', () => {
+        const geo = useGeolocation({ maxAccuracyMeters: 100, giveUpAfterMs: 30_000 });
+        geo.start();
+        onSuccess(fix(1500));
+        vi.advanceTimersByTime(30_000);
+
+        geo.start();
+        onSuccess(fix(40));
+
+        expect(watchPosition).toHaveBeenCalledTimes(2);
+        expect(geo.status.value).toBe('ready');
+    });
+
+    it('does not give up once a good fix arrived', () => {
+        const geo = useGeolocation({ maxAccuracyMeters: 100, giveUpAfterMs: 30_000 });
+        geo.start();
+        onSuccess(fix(40));
+
+        vi.advanceTimersByTime(60_000);
+
+        expect(geo.status.value).toBe('ready');
+    });
+});
+
 describe('stop', () => {
     it('stops watching and goes back to idle while still searching', () => {
         const geo = lowAccuracyThreshold();
@@ -197,5 +254,19 @@ describe('readFresh', () => {
         const geo = lowAccuracyThreshold();
 
         expect(await geo.readFresh()).toBeNull();
+    });
+});
+
+describe('useFixed', () => {
+    it('uses a given position instead of the GPS and stops a running watch', () => {
+        const geo = lowAccuracyThreshold();
+        geo.start();
+        onSuccess(fix(900));
+
+        geo.useFixed({ lat: -8.53, lng: 115.32, accuracyMeters: 10 });
+
+        expect(geo.status.value).toBe('ready');
+        expect(geo.position.value).toEqual({ lat: -8.53, lng: 115.32, accuracyMeters: 10 });
+        expect(clearWatch).toHaveBeenCalledWith(7);
     });
 });

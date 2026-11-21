@@ -14,22 +14,19 @@ listener di M5 menghitung ulang ambang. M4 tidak pernah memanggil M5.
 - `config/sonar.php`: `report.radius_m` (300), `report.max_accuracy_m` (100), `review.threshold` (3).
 - `users.google_id`, `Role::Warga`. Tombol Cek Spek di halaman proyek masih nonaktif (diaktifkan di M4-07).
 
-## Keputusan yang menunggu rapat 22 Nov (PRD Arsitektur 14.3-14.5)
+## Hasil rapat 22 Nov (PRD Arsitektur 14.3-14.5)
 
-Semua ini mengubah tabel `reports`. Migration yang sudah di-merge tidak boleh diedit (ENGINEERING 3), jadi
-M4-02 menunggu keputusan dan memuat semua kolom final dalam satu migration baru. Hasil rapat dicatat sebagai
-entri D-xxx di `docs/DECISIONS.md`, lalu bagian ini dihapus.
-
-| ID | Usulan | Dampak ke M4 |
+| ID | Keputusan | Dampak ke M4 |
 | --- | --- | --- |
-| F25 | Laporan di luar radius ditolak (422 `REPORT_OUT_OF_RADIUS`), tidak tersimpan | Kolom `in_radius` dihapus; C8 dan F4-2 berubah; `ReportClassifier` tidak lagi menandai "di luar radius" |
-| F30 | Isian banjar di laporan | Kolom `reports.banjar` (varchar 60, nullable), tidak tampil publik |
-| Perangkat | 1 perangkat 1 pelapor | Kolom `device_hash` (HMAC-SHA256 cookie perangkat acak); unik aktif per (project, cycle, device_hash) |
-| Klaster | Tanda laporan berdekatan (<= 15 m, <= 10 menit) | `ReportClusterDetector` + `cluster_flag`; hanya penanda untuk BPD |
-| PDP | Layar persetujuan sebelum lokasi dan kamera | `users.consent_at`, `consent_version`, `POST /consent` |
-| Retensi | Koordinat di-null-kan 30 hari setelah siklus ditutup | Job `PurgeReportCoordinates` |
+| F25 | **Diterima (D-009).** Di luar radius atau ketelitian > batas ditolak 422, tidak tersimpan. Radius dari sistem (`sonar.report.radius_m`), desa hanya mengisi titik | M4-06 menolak (sudah); `LocationGate` tanpa "Lanjut" bila jauh (sudah); kolom `in_radius` dihapus di M4-02 |
+| F30 | **Tidak dipakai (D-011).** | Tidak ada kolom `banjar` |
+| Perangkat | **Diterima (D-010).** 1 akun Google + 1 perangkat (`device_hash`); IP hanya rate limit, tidak disimpan | Kolom `device_hash` + cookie perangkat + partial unique index di M4-02; throttle `report-submit` per IP (sudah) |
+| Klaster | Laporan berdekatan tetap diterima (D-010). Penanda untuk BPD: **belum diputuskan** | - |
+| PDP | **Belum diputuskan** | - |
+| Retensi | **Belum diputuskan** | - |
 
-Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-04, M4-05.
+M4-02 sudah bisa dikerjakan (kolom final: `device_hash`, hapus `in_radius`). PDP dan Retensi menambah migration
+terpisah bila disetujui nanti.
 
 ## Task List
 
@@ -104,9 +101,14 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
     (10 m, `null` di atas 1000 m). Hanya petunjuk; jarak resmi dihitung ulang saat kirim (M4-06).
   - Lokasi dipantau dengan `watchPosition` sampai akurasi <= batas lalu berhenti; `readFresh()` dipakai M4-07 untuk
     mengambil ulang lokasi saat kirim. Batas akurasi dioper dari server (`config('sonar.report.max_accuracy_m')`).
+  - (21 Nov) Batas waktu `giveUpAfterMs` (30 dtk): laptop tanpa GPS bisa melapor posisi kasar sekali lalu diam,
+    sehingga layar "Sinyal lemah, tunggu sebentar" macet tanpa tombol. Sekarang setelah 30 dtk status menjadi
+    `too_weak` (pesan + Coba lagi) atau `failed` bila browser tidak menjawab sama sekali. Batas 100 m tetap (C7).
+  - Tes lokal di laptop: Chrome DevTools > Sensors > Location, isi titik proyek seed (`-8.5412340, 115.3214560`)
+    dan accuracy <= 100. HP butuh HTTPS (tunnel) karena lokasi dan kamera diblokir di `http://IP-LAN`.
 
 ### M4-02 · Migration report_answers + report_photos (+ kolom hasil rapat 22 Nov)
-- Status: todo (menunggu keputusan 22 Nov) · Ukuran: M · Owner: Dev 2 · Depends on: D-xxx hasil rapat
+- Status: review (22 Nov) · migration `2026_11_21_171555_add_answers_photos_and_device_to_reports` · Ukuran: M · Owner: Dev 2 · Depends on: D-xxx hasil rapat
 - Spec: PRD Arsitektur 6.4, M4-02, F4-4; ENGINEERING 3 (migration baru, bukan edit)
 - Scope:
   - Migration baru (satu file): tabel `report_answers` (`report_id`, `measurement_id`, `answer`,
@@ -114,14 +116,28 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - Foto di disk privat; EXIF dibuang (resize + WebP, seperti `StoreProgressPhoto`).
   - Index unik laporan aktif per (project, cycle, user) lewat partial unique index
     (`WHERE superseded_by IS NULL`).
-  - Kolom hasil keputusan F25/F30/device_hash/consent bila disetujui.
+  - Kolom hasil rapat: `reports.device_hash` (D-010; cookie perangkat acak, disimpan sebagai HMAC-SHA256 dengan
+    kunci `APP_KEY`) + partial unique index aktif per (project, cycle, device_hash); hapus `reports.in_radius`
+    (D-009) dan ubah kueri yang memakainya (`ProjectResource`, `VillageProjectController`,
+    `CountValidMismatchReporters`). Tidak ada kolom `banjar` (D-011). Consent/retensi belum diputuskan.
   - Model `ReportAnswer`, `ReportPhoto` (`OwnedThroughParent` lewat `Report`), factory, dan tambahkan
     ke `VillageCloner::TABLES` (test F6-2 akan gagal kalau terlewat).
 - Files: `database/migrations/*`, `app/Modules/Report/Models/ReportAnswer.php`, `ReportPhoto.php`,
   `database/factories/*`, `app/Modules/Demo/Actions/VillageCloner.php`
 - Acceptance criteria
-  - [ ] Unique aktif per (project, cycle, user) ditegakkan di database, bukan hanya di kode.
-  - [ ] Test F6-2 (clone) tetap hijau.
+  - [x] Unique aktif per (project, cycle, user) dan per (project, cycle, device_hash) ditegakkan di database:
+        partial unique index `NULLS NOT DISTINCT` (Postgres 15+), jadi laporan sebelum ada siklus juga terjaga.
+  - [x] Test F6-2 (clone) tetap hijau.
+- Catatan (22 Nov):
+  - `report_answers.measurement_id` tanpa ON DELETE: ukuran yang sudah dijawab adalah bukti, hanya ikut terhapus
+    bersama proyeknya. `measured_value` decimal(14,3) sama dengan `project_measurements.value`.
+  - Foto: `Actions/StoreReportPhotos` (WebP, sisi terpanjang <= 1600 px, disk privat `reports/`). File ditulis
+    sebelum transaksi dan dihapus lagi bila transaksi gagal.
+  - Perangkat: `Http/Middleware/EnsureDeviceCookie` memberi cookie `sonar_device` (acak 40 karakter, HttpOnly,
+    terenkripsi, 2 tahun) di halaman checklist dan saat kirim. Disimpan hanya `hash_hmac('sha256', token, APP_KEY)`.
+  - `VillageCloner`: `report_answers` dan `report_photos` didaftarkan; kolom DEFERRED kini disisipkan dengan nilai
+    template lalu dipetakan ulang (bukan null), supaya salinan laporan yang sudah digantikan tidak dianggap aktif
+    dan tidak melanggar unique index. Perubahan kecil di kode M6 (Dev 1).
 
 ### M4-01 · Socialite Google, kembali ke checklist yang sama
 - Status: review · Ukuran: M · Owner: Dev 2 · Depends on: persetujuan dependency baru, Google OAuth client (26 Nov)
@@ -152,7 +168,7 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - Setelah login, halaman dimuat ulang: lokasi diminta lagi, tapi izin sudah diberikan sehingga cepat (M4-07).
 
 ### M4-06 · SubmitReport (Action + FormRequest + Policy + event)
-- Status: todo · Ukuran: L · Owner: Dev 2 · Depends on: M4-02, M4-03, M4-01
+- Status: review (22 Nov, termasuk simpan jawaban + foto dan 1 perangkat 1 pelapor) · Ukuran: L · Owner: Dev 2 · Depends on: M4-02, M4-03, M4-01
 - Spec: PRD Fitur Inti 5.1 langkah 8, 5.3, C5, C8-C10; PRD Arsitektur 6.8, 6.9, M4-06, F4-2, F4-4
 - Scope:
   - `POST /p/{slug}/reports` (auth warga). `SubmitReport` Action dalam **satu transaksi**:
@@ -176,9 +192,44 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - [ ] F4-4: dua kiriman bersamaan dari satu akun = satu laporan aktif.
   - [ ] C9, C10; 422 untuk validasi; 401/redirect belum login; 404 proyek draf/tidak ada.
   - [ ] Laporan lama menjadi "digantikan" dan tidak dihitung dua kali.
+  - [x] Jawaban (`report_answers`, hasil ukur + satuan RAB hanya untuk "Tidak") dan foto (`report_photos`) tersimpan.
+  - [x] D-010: perangkat yang sudah dipakai akun lain di siklus yang sama -> 422 `device`; akun yang sama di
+        perangkat yang sama menggantikan laporannya sendiri.
+- Progres (21 Nov, `tests/Feature/Report/SubmitReportTest.php`: 34 test hijau):
+  - `POST /p/{slug}/reports` (`reports.store`, middleware `auth`) -> `ReportController::store` -> `SubmitReport`.
+  - `SubmitReportRequest`: proyek tidak publik atau tanpa titik lokasi -> 404 (sebelum cek peran), selain warga -> 403
+    (`ReportPolicy::create`). Semua ukuran proyek wajib dijawab tepat sekali (`size`, `distinct`, `in`); jawaban
+    pakai enum `MeasurementAnswer`; "Tidak" wajib hasil ukur angka > 0 ("8,5" diterima), jawaban lain membuang
+    hasil ukur (C5). Satuan tidak dikirim klien: satuan selalu dari ukuran RAB. Foto 1-`max_photos`, jpeg/png/webp
+    <= 10 MB. Catatan <= `max_note_length`. lat/lng/accuracy_m wajib. Pesan validasi berbahasa Indonesia.
+  - DTO readonly `Domain/ReportSubmission` + `Domain/SubmittedAnswer` antara request dan Action.
+  - `SubmitReport`: jenis lewat `ReportClassifier::kind`; jarak dihitung ulang server dari posisi saat kirim (F4-2).
+    Satu transaksi dengan baris proyek di-`lockForUpdate`: cek limit harian, buat laporan, laporan aktif lama di
+    siklus yang sama diberi `superseded_by` (C10), lalu event. `cycle_id` = `projects.current_cycle_id`
+    (boleh null; membuka siklus adalah tugas M5).
+  - (22 Nov, D-009) Di luar radius -> 422 di field `location`, tidak tersimpan, event tidak dikirim. Ketelitian
+    > `max_accuracy_m` -> 422 di `accuracy_m` ("Sinyal lokasi lemah"). Laporan baru selalu `in_radius = true`
+    sampai kolom dihapus di M4-02. Edge "280 m, akurasi 90 m" tetap diterima.
+  - (22 Nov, D-010) Throttle `report-submit` per IP (`sonar.report.submits_per_minute`, 20, longgar karena
+    CGNAT). IP tidak disimpan dan tidak di-log. 1 perangkat 1 pelapor (`device_hash`) menunggu M4-02.
+  - Limit C10: `config('sonar.report.max_per_day')` (3), dihitung per akun per proyek sejak tengah malam WITA
+    (`sonar.display_timezone`), termasuk laporan yang sudah digantikan. Kiriman ke-4 -> 422 di field `report`.
+  - Event `ReportSubmitted(reportId, projectId)` dikirim **di dalam** transaksi, bukan setelah commit: PRD
+    Arsitektur 6.1 dan ENGINEERING 3 meminta listener M5 sync di transaksi yang sama (di bawah lock proyek).
+    Listener M5 tidak boleh di-queue.
+  - Log `report.submitted` hanya id, jenis, in_radius (tanpa koordinat, email, catatan).
+  - Setelah kirim sementara redirect ke halaman proyek (`TODO(M4-07)`: halaman terkirim).
+  - Sudah dites: happy path + event, jenis per jawaban (C9), di luar radius ditolak + klaim klien diabaikan
+    (D-009, F4-2), batas radius 299,9/300,2 m, akurasi buruk ditolak, edge 280 m/90 m, throttle per IP, laporan
+    lama digantikan (hanya akun + siklus
+    yang sama), limit ke-4 ditolak, reset tengah malam WITA, limit per proyek, tamu -> login, desa 403, 404
+    (tidak ada, draf, tanpa lokasi, demo lain), semua validasi + pesan.
+  - Laporan lama diberi `superseded_by` sebelum laporan baru disisipkan (id baru diambil dulu lewat `nextval`),
+    karena unique index aktif melarang dua laporan aktif sekaligus.
+  - Sisa: tidak ada untuk M4-06. Listener M5 (`ReportSubmitted`) dikerjakan di M5-03.
 
 ### M4-07 · Checklist Cek Spek + layar konfirmasi
-- Status: todo · Ukuran: L · Owner: Dev 2 · Depends on: M4-04, M4-05, M4-06
+- Status: doing (halaman, kirim, dan konfirmasi selesai; cek 360 px + uji HP belum) · Ukuran: L · Owner: Dev 2 · Depends on: M4-04, M4-05, M4-06
 - Spec: PRD Fitur Inti 5.1 langkah 5-9, 5.5, C4, C9, C11; PRD Arsitektur 6.8, M4-07
 - Scope:
   - `GET /p/{slug}/cek`: checklist semua ukuran wajib dari template + tambahan desa, dengan nilai RAB dan
@@ -192,18 +243,56 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - Semua teks dari `lib/labels.ts`; tanpa kata "korupsi", "mark-up", "curang", "penyelewengan".
 - Files: `resources/js/pages/report/Check.vue`, `Submitted.vue`, `resources/js/features/report/*`,
   `resources/js/types/report.ts`, `app/Modules/Report/Http/Controllers/*`, `Http/Resources/*`,
-  `tests/Feature/Report/CheckPageTest.php`
+  `tests/Feature/Report/CheckSpecPageTest.php`
 - Acceptance criteria
-  - [ ] C4, C9, C11 (wajib: nama, foto, hasil laporan tidak tampil di halaman publik).
+  - [x] C4: checklist berisi semua ukuran, nilai RAB, dan cara ukur (`CheckSpecResource`, test di `CheckSpecPageTest`).
+  - [x] C5 di layar: "Tidak" membuka isian hasil ukur dengan satuan RAB; Lanjut ditahan sampai terisi
+        (`checkSpecRules.ts`). Server tetap memvalidasi ulang di M4-06.
+  - [x] Tamu diarahkan ke Google lalu kembali ke `/p/{slug}/cek` (F11); desa/BPD 403; proyek tidak publik 404.
+  - [x] C9: konfirmasi menampilkan jenis laporan + "x dari 3" dari server (`SubmittedReportPageTest`).
+  - [x] C11 (wajib): setelah laporan terkirim, halaman proyek publik tidak memuat email, catatan, path foto, atau
+        hasil ukur pelapor (`SubmitReportTest`).
   - [ ] Layar 360 px tanpa scroll horizontal; `make lint` hijau.
-  - [ ] Teks "x dari 3" berasal dari props server.
+  - [x] Teks "x dari 3" berasal dari props server (`submitted.mismatch_count`).
+- Catatan (bagian halaman, 21 Nov):
+  - Tombol "Cek spek di lokasi" membuka dialog berisi penjelasan C1 (lokasi, laporan ke BPD, nama tidak tampil,
+    login Google), lalu "Mulai Cek Spek" menuju `/p/{slug}/cek`. Penjelasan muncul sebelum login dan izin apa pun.
+  - Urutan langkah di halaman: Lokasi -> Ukur -> Foto & catatan. Login Google terjadi sebelum halaman (route `auth`),
+    jadi lokasi tidak perlu diminta ulang setelah redirect Google. Tetap memenuhi F11 (login sebelum checklist).
+  - `FindPublicProject` (modul Project) dipakai `ProjectController`, `DistanceHintController`, `CheckSpecController`.
+  - Batas `max_photos` dan `max_note_length` ditambahkan ke `config/sonar.php` dan dikirim lewat props.
+  - (21 Nov) Tombol "Kirim laporan" tersambung ke `POST /p/{slug}/reports` (`checkSpec.urls.submit` dari server).
+    Aktif bila lokasi ada, checklist lengkap, dan minimal 1 foto (`MIN_PHOTOS`). Saat kirim lokasi dibaca ulang
+    (`readFresh`); bila gagal, posisi dari langkah Lokasi yang dikirim. Foto dikirim sebagai `File` JPEG
+    (`useForm` -> FormData). Error validasi server tampil sebagai daftar; jaringan putus atau error server ->
+    "Laporan belum terkirim" + tombol "Kirim lagi", isian tidak hilang. Setelah sukses ke halaman terkirim.
+  - (21 Nov) `GET /p/{slug}/reports/terkirim` (`reports.submitted`, auth; tamu ke Google seperti checklist):
+    laporan aktif terbaru akun ini di siklus berjalan; tanpa laporan -> kembali ke checklist; desa/BPD 403;
+    proyek tidak publik 404. Props (`SubmittedReportResource`): nama proyek, jenis, `counted` (in_radius) untuk
+    pesan "tidak dihitung", `mismatch_count {current, threshold}`, URL. Tanpa id, email, koordinat, catatan.
+  - "x" dihitung `Actions/CountValidMismatchReporters`: akun berbeda dengan laporan Selisih yang dihitung
+    (`in_radius`), tidak ditandai tidak valid, tidak digantikan, di `current_cycle_id`. Ini hanya hitungan;
+    status publik tetap milik M5 (`ReviewThreshold`, M5-02), yang boleh memakai Action ini.
+  - Celah demo: pengunjung demo peran warga belum login, jadi Cek Spek di mode demo mengarah ke Google.
+    Harus ditutup M6-05 (akun warga demo) sebelum branch ini dipakai juri (M8).
+
 
 ### M6-05 · Foto + lokasi contoh di Cek Spek (milik M6, bergantung ke M4)
-- Status: todo · Depends on: M4-06, M4-07
+- Status: review (22 Nov, bagian Cek Spek; batas 3 unggah AI tetap menunggu M2) · Depends on: M4-06, M4-07
 - Spec: PRD Fitur Inti 5.6, C12; tasks/m6-demo.md M6-05
 - Catatan: tombol "Pakai foto & lokasi contoh" melewati izin lokasi dan login Google; pengunjung demo dihitung
   satu akun per sesi. Kode M4 tidak boleh tahu sedang demo (ENGINEERING 2): bedanya ada di sumber lokasi/foto
   dan akun, bukan `if is_demo` di Action.
+- Selesai (22 Nov):
+  - Akun warga demo per klon (`VillageCloner::ACCOUNT_ROLES` + Warga); `DemoSession` login untuk semua peran,
+    jadi tidak ada Google di demo dan satu sesi = satu pelapor. Celah "warga demo diarahkan ke Google" tertutup.
+  - `GET /demo/lokasi-contoh/{slug}` (`demo.sample-location`): titik 20 m di utara proyek, akurasi 10 m
+    (`sonar.demo.sample_*`). Hanya untuk proyek desa demo sesi ini; proyek asli dan demo sesi lain 404.
+  - `Check.vue`: blok "Pakai foto & lokasi contoh" hanya bila prop bersama `demo` ada. Lokasi masuk lewat
+    `LocationGate.fixedPosition` (`useGeolocation.useFixed`), foto contoh digambar di canvas
+    (`features/demo/useDemoSample.ts`) dan masuk lewat `CameraCapture.extraPhoto` (`useCamera.add`).
+    Saat kirim lokasi tidak dibaca ulang dari GPS. Server memeriksa seperti laporan asli (radius, validasi).
+  - C12 penuh (status publik jadi "Dalam tinjauan BPD") menunggu listener M5-03.
 
 ## Definition of Done per task
 

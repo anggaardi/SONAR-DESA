@@ -155,7 +155,7 @@ Dibuat sendiri di `components/ui` (A13). Daftar dan aturan pakai:
 | `Radio` / `Checkbox` | Target sentuh minimal 44 px; seluruh baris pilihan bisa diklik. Dipakai untuk Sesuai / Tidak / Tidak bisa ukur. |
 | `Dialog` | `<dialog>` native, `rounded-lg shadow-sm`, judul + aksi di bawah, fokus terkunci. |
 | `Stepper` | Untuk alur Cek Spek: "Langkah 2 dari 5" + judul langkah. Satu hal per layar (GOV.UK). |
-| `EmptyState` | Komponen human-friendly dengan spot ilustrasi IDDS (line-art SVG: plang desa, peta arah arsip, pencarian kosong, segel sukses), judul bersahabat, deskripsi membimbing, dan tombol aksi. |
+| `EmptyState` | Komponen human-friendly dengan ilustrasi state resmi IDDS (figur IDDS Illustration Library, 4:3, `<img alt="">`): `search-empty`, `plang-empty`, `not-found`, `success-seal`. Aset di `components/ui/illustrations/`, dibuat lewat skill `idds-illustration`. Judul bersahabat, deskripsi membimbing, dan tombol aksi. |
 | `DemoBanner` | Bar penuh `bg-demo-subtle text-demo` di atas semua layar demo, dengan "Ganti peran" dan "Mulai ulang demo". |
 
 Ikon: SVG garis 1,5-2 px, `currentColor`, ukuran 16/20/24. Ikon selalu punya teks di sebelahnya atau

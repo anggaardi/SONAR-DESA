@@ -125,6 +125,11 @@ export const location = {
         body: (accuracyMeters: number) =>
             `Tunggu sebentar. Ketelitian saat ini sekitar ${accuracyMeters} m. Coba keluar ke tempat terbuka.`,
     },
+    tooWeak: {
+        title: 'Lokasi belum cukup teliti',
+        body: (accuracyMeters: number, maxAccuracyMeters: number) =>
+            `Ketelitian terbaik sekitar ${accuracyMeters} m, perlu ${maxAccuracyMeters} m atau kurang. Nyalakan GPS dan keluar ke tempat terbuka, lalu coba lagi.`,
+    },
     denied: {
         title: 'Lokasi belum diizinkan',
         body: 'Aktifkan izin lokasi untuk situs ini di pengaturan browser atau HP, lalu coba lagi. Cek Spek tidak bisa dilanjutkan tanpa lokasi.',
@@ -138,9 +143,11 @@ export const location = {
         body: 'Pastikan GPS aktif, lalu coba lagi.',
     },
     nearby: (distance: string) => `Lokasi aktif: ${distance} dari titik proyek`,
-    farAway: (distance: string) =>
-        `Kamu berada ${distance} dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.`,
-    farAwayUnknown: 'Kamu berada jauh dari titik proyek. Laporan tetap bisa dikirim, tetapi tidak akan dihitung.',
+    farAway: (distance: string, radiusMeters: number) =>
+        `Kamu berada ${distance} dari titik proyek. Cek Spek hanya bisa dikirim dalam ${radiusMeters} m dari proyek. Datangi lokasi proyek, lalu cek lokasi lagi.`,
+    farAwayUnknown: (radiusMeters: number) =>
+        `Kamu berada jauh dari titik proyek. Cek Spek hanya bisa dikirim dalam ${radiusMeters} m dari proyek. Datangi lokasi proyek, lalu cek lokasi lagi.`,
+    recheck: 'Cek lokasi lagi',
     checkingDistance: 'Menghitung jarak ke proyek...',
     distanceFailed: {
         title: 'Jarak belum bisa dihitung',
@@ -171,3 +178,85 @@ export const googleSignIn = {
 } as const;
 
 export type GoogleSignInFailure = keyof typeof googleSignIn.reasons;
+
+/** PRD Fitur Inti 5.1 steps 5-8, 5.5, C4-C6: the Cek Spek checklist page. */
+export const checkSpec = {
+    title: 'Cek Spek',
+    start: 'Mulai Cek Spek',
+    back: 'Kembali ke halaman proyek',
+    step: (current: number, total: number, name: string) => `Langkah ${current} dari ${total} · ${name}`,
+    steps: { location: 'Lokasi', measure: 'Ukur', photo: 'Foto & catatan' },
+    answers: { match: 'Sesuai', mismatch: 'Tidak', unmeasurable: 'Tidak bisa ukur' },
+    rabValue: (value: string, unit: string) => `RAB: ${value} ${unit}`,
+    measuredLabel: (unit: string) => `Hasil ukur dalam ${unit} (wajib diisi)`,
+    unanswered: 'Pilih salah satu jawaban.',
+    measuredInvalid: 'Isi hasil ukur dengan angka lebih dari 0.',
+    checklistIncomplete: 'Jawab semua ukuran dulu sebelum lanjut.',
+    noMeasurements: 'Proyek ini belum punya ukuran yang bisa dicek warga.',
+    next: 'Lanjut',
+    previous: 'Kembali',
+    noteLabel: (max: number) => `Catatan (opsional, maks ${max} huruf)`,
+    notePlaceholder: 'contoh: beton retak di 3 titik',
+    noteCounter: (count: number, max: number) => `${count}/${max}`,
+    submit: 'Kirim laporan',
+    submitNotice: 'Laporan masuk ke BPD, tidak langsung tampil di halaman publik.',
+    resend: 'Kirim lagi',
+    photoRequired: 'Ambil minimal 1 foto untuk mengirim laporan.',
+    sendRefused: 'Laporan belum bisa dikirim',
+    sendFailed: {
+        title: 'Laporan belum terkirim',
+        body: 'Periksa sinyal internetmu, lalu tekan Kirim lagi. Isianmu tidak hilang.',
+    },
+} as const;
+
+/** PRD Fitur Inti 5.6, C12, M6-05: demo visitors are not at the project, so they use a sample. */
+export const demoSample = {
+    hint: 'Mode demo: kamu tidak perlu berada di lokasi. Pakai lokasi dan foto contoh untuk mencoba Cek Spek.',
+    use: 'Pakai foto & lokasi contoh',
+    failed: 'Lokasi contoh belum bisa dimuat. Coba lagi.',
+    photoLabel: 'Foto contoh (demo)',
+} as const;
+
+/** PRD Fitur Inti 5.1 step 9, C9: confirmation after a Cek Spek report is saved. */
+export const reportSubmitted = {
+    title: 'Laporanmu masuk ke BPD',
+    body: 'Laporan tidak langsung tampil di halaman publik, dan namamu tidak pernah ditampilkan.',
+    kindLabel: 'Jenis laporan',
+    mismatchCount: (current: number, threshold: number) =>
+        `Laporan selisih di proyek ini: ${current} dari ${threshold}`,
+    mismatchHint: (threshold: number) =>
+        `Proyek masuk tinjauan BPD setelah ${threshold} warga berbeda mengirim laporan selisih dari lokasi.`,
+    replaceHint: 'Mengirim lagi akan menggantikan laporanmu sebelumnya.',
+    backToProject: 'Kembali ke halaman proyek',
+    sendAgain: 'Kirim laporan baru',
+} as const;
+
+/** PRD Fitur Inti 6: Ulasan warga yang diterbitkan BPD & catatan resmi BPD. */
+export const projectReviews = {
+    fabAriaLabel: (count: number) => `Lihat ulasan warga dan catatan BPD (${count} diterbitkan)`,
+    dialogTitle: 'Ulasan Warga & Catatan BPD',
+    dialogSubtitle: 'Diterbitkan resmi oleh Badan Permusyawaratan Desa (BPD)',
+    tabs: {
+        all: 'Semua',
+        bpd: 'Catatan BPD',
+        reports: 'Ulasan Warga',
+    },
+    bpdSection: {
+        title: 'Tinjauan Resmi BPD',
+        followUpTitle: 'Catatan Tindak Lanjut BPD',
+        officialLabel: 'Badan Permusyawaratan Desa',
+        verifiedBadge: 'Diterbitkan BPD',
+    },
+    citizenSection: {
+        title: 'Ulasan & Laporan Warga',
+        anonymousReporter: (index: number) => `Warga Pelapor ${index}`,
+        verifiedBadge: 'Diverifikasi BPD',
+    },
+    empty: {
+        title: 'Belum Ada Ulasan Diterbitkan',
+        body: 'BPD belum menerbitkan catatan pemeriksaan atau ulasan warga untuk proyek ini. Warga di sekitar lokasi proyek dapat berpartisipasi dengan Cek Spek.',
+        action: 'Cek Spek di Lokasi',
+    },
+    privacyNotice: 'Data pelapor dilindungi kerahasiaannya sesuai UU PDP dan UU No. 6/2014 tentang Desa.',
+    close: 'Tutup',
+} as const;

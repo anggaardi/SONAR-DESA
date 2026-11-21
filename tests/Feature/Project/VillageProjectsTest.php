@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Modules\Audit\Models\Audit;
+use App\Modules\Core\Auth\Role;
+use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\Village;
 use App\Modules\Project\Models\Project;
+use App\Modules\Report\Models\Report;
 use Inertia\Testing\AssertableInertia;
 
 it('renders published projects of a village on GET /d/{village}', function () {
@@ -54,4 +57,23 @@ it('renders published projects of a village on GET /d/{village}', function () {
 
 it('returns 404 for nonexistent village on GET /d/{village}', function () {
     $this->get('/d/desa-tidak-ada')->assertNotFound();
+});
+
+it('counts each citizen with a valid in-radius report once on GET /d/{village}', function () {
+    $village = Village::factory()->create(['slug' => 'desa-beraban']);
+    $first = Project::factory()->create(['village_id' => $village->id]);
+    $second = Project::factory()->create(['village_id' => $village->id]);
+    $citizen = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+
+    Report::factory()->create(['project_id' => $first->id, 'user_id' => $citizen->id]);
+    Report::factory()->create(['project_id' => $second->id, 'user_id' => $citizen->id]);
+    Report::factory()->create(['project_id' => $first->id]);
+    Report::factory()->create(['project_id' => $second->id, 'invalid_reason' => 'Foto tidak jelas']);
+
+    $otherVillageProject = Project::factory()->create(['village_id' => Village::factory()->create()->id]);
+    Report::factory()->create(['project_id' => $otherVillageProject->id]);
+
+    $this->get('/d/desa-beraban')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('citizen_reports_count', 2));
 });

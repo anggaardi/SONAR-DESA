@@ -26,7 +26,6 @@ final class ProjectResource extends JsonResource
 
         // PRD Fitur Inti 4.3 (P7): count distinct accounts in-radius not marked invalid.
         $distinctCitizens = $project->reports()
-            ->where('in_radius', true)
             ->whereNull('invalid_reason')
             ->distinct('user_id')
             ->count('user_id');
@@ -47,6 +46,19 @@ final class ProjectResource extends JsonResource
         }
 
         $currentCycle = $project->currentCycle;
+
+        $publishedReports = collect();
+        if ($project->public_status === PublicStatus::Reviewed) {
+            $reportsCollection = $project->relationLoaded('reports')
+                ? $project->reports
+                : $project->reports()->with(['answers.measurement'])->get();
+
+            $publishedReports = $reportsCollection
+                ->whereNull('invalid_reason')
+                ->whereNull('superseded_by')
+                ->sortByDesc('created_at')
+                ->values();
+        }
 
         return [
             'id' => $project->id,
@@ -74,6 +86,20 @@ final class ProjectResource extends JsonResource
                     'created_at' => $n->created_at->toIso8601String(),
                 ])->all(),
             ] : null,
+            'published_reports' => $publishedReports->map(fn ($r, $idx) => [
+                'id' => $r->id,
+                'reporter_label' => 'Warga Pelapor '.($idx + 1),
+                'kind' => $r->kind->value,
+                'note' => $r->note,
+                'created_at' => $r->created_at->toIso8601String(),
+                'answers' => $r->answers->map(fn ($a) => [
+                    'id' => $a->id,
+                    'measurement_name' => $a->measurement?->name,
+                    'answer' => $a->answer,
+                    'measured_value' => $a->measured_value !== null ? (string) (float) $a->measured_value : null,
+                    'measured_unit' => $a->measured_unit,
+                ])->all(),
+            ])->all(),
             'label_counts' => [
                 'within_standard' => $withinCount,
                 'above_standard' => $aboveCount,

@@ -71,7 +71,7 @@ function start(role: Role): void {
 
             <p class="text-sm text-content-secondary">
                 Pemerintah Desa atau BPD dengan akun asli?
-                <a href="/login" class="font-medium text-primary underline underline-offset-2">Masuk di sini</a>
+                <Link href="/login" class="font-medium text-primary underline underline-offset-2">Masuk di sini</Link>
             </p>
         </div>
 

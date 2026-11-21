@@ -13,15 +13,19 @@ import { useGeolocation, type GeoPosition } from './useGeolocation';
 import { useProjectDistance } from './useProjectDistance';
 
 interface Props {
+    /** Same as config('sonar.report.radius_m'); only for the text. Inside or not comes from the server. */
+    radiusMeters: number;
     maxAccuracyMeters: number;
+    /** A position given from outside (demo sample, M6-05); used instead of the GPS when set. */
+    fixedPosition?: GeoPosition | null;
     distanceUrl: string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { fixedPosition: null });
 
 const emit = defineEmits<{ position: [position: GeoPosition]; continue: [] }>();
 
-const { status, position, start } = useGeolocation({ maxAccuracyMeters: props.maxAccuracyMeters });
+const { status, position, start, useFixed } = useGeolocation({ maxAccuracyMeters: props.maxAccuracyMeters });
 const { status: distanceStatus, hint, check } = useProjectDistance(props.distanceUrl);
 
 watch(status, (current) => {
@@ -30,6 +34,24 @@ watch(status, (current) => {
         void check(position.value);
     }
 });
+
+watch(
+    () => props.fixedPosition,
+    (fixed) => {
+        if (!fixed) {
+            return;
+        }
+
+        // Already "ready" from the GPS: the status watcher will not fire, so check the new position here.
+        const wasReady = status.value === 'ready';
+        useFixed(fixed);
+
+        if (wasReady) {
+            emit('position', fixed);
+            void check(fixed);
+        }
+    },
+);
 
 const failureText = { denied: location.denied, unavailable: location.unavailable, failed: location.failed } as const;
 </script>
@@ -54,6 +76,13 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
             {{ location.weak.body(Math.round(position?.accuracyMeters ?? 0)) }}
         </Alert>
 
+        <template v-else-if="status === 'too_weak'">
+            <Alert color="warning" :title="location.tooWeak.title">
+                {{ location.tooWeak.body(Math.round(position?.accuracyMeters ?? 0), maxAccuracyMeters) }}
+            </Alert>
+            <Button variant="secondary" @click="start">{{ location.retry }}</Button>
+        </template>
+
         <template v-else-if="status === 'denied' || status === 'unavailable' || status === 'failed'">
             <Alert color="warning" :title="failureText[status].title">{{ failureText[status].body }}</Alert>
             <Button v-if="status !== 'unavailable'" variant="secondary" @click="start">{{ location.retry }}</Button>
@@ -73,16 +102,23 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
                 <Button variant="secondary" @click="position && check(position)">{{ location.retry }}</Button>
             </template>
 
-            <template v-else-if="hint">
-                <Alert v-if="hint.within_radius && hint.distance_m !== null" color="positive">
+            <!-- D-009: out of radius cannot go on; the server refuses such a send as well. -->
+            <template v-else-if="hint && hint.within_radius">
+                <Alert v-if="hint.distance_m !== null" color="positive">
                     {{ location.nearby(formatLength(hint.distance_m)) }}
                 </Alert>
-                <Alert v-else-if="hint.distance_m !== null" color="warning">
-                    {{ location.farAway(formatLength(hint.distance_m)) }}
-                </Alert>
-                <Alert v-else color="warning">{{ location.farAwayUnknown }}</Alert>
-
                 <Button variant="primary" @click="emit('continue')">{{ location.continue }}</Button>
+            </template>
+
+            <template v-else-if="hint">
+                <Alert color="warning">
+                    {{
+                        hint.distance_m !== null
+                            ? location.farAway(formatLength(hint.distance_m), radiusMeters)
+                            : location.farAwayUnknown(radiusMeters)
+                    }}
+                </Alert>
+                <Button variant="secondary" @click="start">{{ location.recheck }}</Button>
             </template>
         </template>
     </section>

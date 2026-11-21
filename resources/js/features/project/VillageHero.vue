@@ -8,23 +8,25 @@ interface Props {
 }
 
 withDefaults(defineProps<Props>(), {
-    description: 'Daftar pembangunan fisik yang dibiayai anggaran publik.',
+    description: 'Transparansi pembangunan fisik yang dibiayai anggaran publik.',
 });
 </script>
 
 <template>
-    <section class="bg-primary-subtle px-4 pt-5 pb-7 sm:px-6 sm:pt-6 md:px-8 md:py-8">
-        <div class="mx-auto flex max-w-md items-center justify-between gap-4 sm:max-w-xl md:max-w-3xl lg:max-w-7xl">
+    <section class="w-full bg-primary-subtle px-6 py-6 md:px-8 lg:px-10 lg:py-8">
+        <div class="mx-auto flex items-center justify-between gap-6">
             <div class="min-w-0 flex-1">
                 <p class="text-xs font-medium text-content-secondary sm:text-sm">Kab. {{ regency }}</p>
-                <h2 class="mt-1 text-2xl font-bold tracking-tight text-content sm:text-3xl">
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-content sm:text-3xl lg:text-4xl">
                     {{ name.startsWith('Desa ') ? name : `Desa ${name}` }}
                 </h2>
-                <p class="mt-1 text-sm leading-snug text-content-secondary sm:text-base">
+                <p class="mt-2 text-sm leading-relaxed text-content-secondary sm:text-base">
                     {{ description }}
                 </p>
             </div>
-            <BalaiIllustration :size="108" class="sm:scale-105" />
+            <div class="shrink-0">
+                <BalaiIllustration :size="120" />
+            </div>
         </div>
     </section>
 </template>

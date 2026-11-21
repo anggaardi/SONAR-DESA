@@ -9,6 +9,7 @@ use App\Modules\Core\Village\Village;
 use App\Modules\Core\Village\VillageVisibility;
 use App\Modules\Project\Http\Resources\VillageProjectResource;
 use App\Modules\Project\Models\Project;
+use App\Modules\Report\Models\Report;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,6 +32,11 @@ final class VillageProjectController
             ->latest('published_at')
             ->get();
 
+        $citizenReportsCount = Report::whereIn('project_id', $projects->pluck('id'))
+            ->whereNull('invalid_reason')
+            ->distinct('user_id')
+            ->count('user_id');
+
         return Inertia::render('project/Village', [
             'village' => [
                 'name' => $villageModel->name,
@@ -38,6 +44,7 @@ final class VillageProjectController
                 'regency' => $villageModel->regency,
             ],
             'projects' => VillageProjectResource::collection($projects)->resolve($request),
+            'citizen_reports_count' => $citizenReportsCount,
         ]);
     }
 }

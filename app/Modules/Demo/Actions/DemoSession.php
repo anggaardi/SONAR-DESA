@@ -70,10 +70,9 @@ final class DemoSession
         // Leave any account (real or demo) without dropping the session that holds the demo village.
         Auth::guard('web')->logout();
 
-        if ($role !== Role::Warga) {
-            $account = User::query()->where('village_id', $village->id)->where('role', $role)->firstOrFail();
-            Auth::guard('web')->login($account);
-        }
+        // Every role, warga included, uses the clone's own account: no Google sign-in in a demo (M6-05).
+        $account = User::query()->where('village_id', $village->id)->where('role', $role)->firstOrFail();
+        Auth::guard('web')->login($account);
 
         $request->session()->regenerate();
         $request->session()->put([

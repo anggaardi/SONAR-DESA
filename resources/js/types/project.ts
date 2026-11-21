@@ -46,6 +46,23 @@ export interface ProjectChangeItem {
     changed_at: string;
 }
 
+export interface ProjectPublishedReportAnswer {
+    id: number;
+    measurement_name?: string;
+    answer: string;
+    measured_value: string | null;
+    measured_unit: string | null;
+}
+
+export interface ProjectPublishedReport {
+    id: number;
+    reporter_label: string;
+    kind: 'match' | 'mismatch' | 'unmeasurable';
+    note: string | null;
+    created_at: string;
+    answers: ProjectPublishedReportAnswer[];
+}
+
 export interface ProjectDetail {
     id: number;
     slug: string;
@@ -65,6 +82,7 @@ export interface ProjectDetail {
         reviewed_at: string | null;
         notes: Array<{ note: string; created_at: string }>;
     } | null;
+    published_reports?: ProjectPublishedReport[];
     label_counts: {
         within_standard: number;
         above_standard: number;

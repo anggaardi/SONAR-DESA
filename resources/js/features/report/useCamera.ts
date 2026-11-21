@@ -114,6 +114,15 @@ export function useCamera(options: UseCameraOptions = {}) {
             return false;
         }
 
+        return add(blob);
+    }
+
+    /** Adds a ready-made JPEG, e.g. the demo sample photo (M6-05). Same limit as capture(). */
+    function add(blob: Blob): boolean {
+        if (photos.value.length >= maxPhotos) {
+            return false;
+        }
+
         photos.value.push({ id: nextId++, blob, previewUrl: URL.createObjectURL(blob) });
 
         return true;
@@ -136,5 +145,19 @@ export function useCamera(options: UseCameraOptions = {}) {
 
     onScopeDispose(release, true);
 
-    return { status, stream, photos, maxPhotos, canCapture, hasMinimum, isFull, start, stop, capture, remove, release };
+    return {
+        status,
+        stream,
+        photos,
+        maxPhotos,
+        canCapture,
+        hasMinimum,
+        isFull,
+        start,
+        stop,
+        capture,
+        add,
+        remove,
+        release,
+    };
 }
