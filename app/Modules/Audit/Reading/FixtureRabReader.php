@@ -17,6 +17,7 @@ final readonly class FixtureRabReader implements RabReader
     /**
      * Read pre-cached extraction result from JSON fixture.
      *
+     * @param  string  $filePath
      * @param  list<StandardRef>  $standards
      */
     public function read(string $filePath, array $standards): RabReadResult

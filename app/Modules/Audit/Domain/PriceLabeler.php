@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Audit\Domain;
 
 use App\Modules\Audit\Enums\PriceLabel;
-use BcMath\Number;
 
 /**
  * Pure PHP domain service to determine price comparison labels,
@@ -102,10 +101,10 @@ final readonly class PriceLabeler
         // PRD Fitur Inti 3.4: Round up so "+0%" never appears. Edge case: +0.3% -> +1%.
         $diffPerUnit = $unitPriceRp - $standardPriceRp;
 
-        if (class_exists(Number::class)) {
-            $numDiff = new Number((string) $diffPerUnit);
-            $num100 = new Number('100');
-            $numStd = new Number((string) $standardPriceRp);
+        if (class_exists(\BcMath\Number::class)) {
+            $numDiff = new \BcMath\Number((string) $diffPerUnit);
+            $num100 = new \BcMath\Number('100');
+            $numStd = new \BcMath\Number((string) $standardPriceRp);
             $pctRaw = (string) $numDiff->mul($num100)->div($numStd, 4);
         } else {
             $pctRaw = bcdiv((string) ($diffPerUnit * 100), (string) $standardPriceRp, 4);

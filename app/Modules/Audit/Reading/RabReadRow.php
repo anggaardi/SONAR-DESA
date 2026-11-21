@@ -10,7 +10,7 @@ namespace App\Modules\Audit\Reading;
 final readonly class RabReadRow
 {
     /**
-     * @param  list<string>  $doubtFields  Names of fields that are blurry, damaged, or hard to read (e.g. ['volume'])
+     * @param  list<string>  $doubtFields Names of fields that are blurry, damaged, or hard to read (e.g. ['volume'])
      */
     public function __construct(
         public int $position,

@@ -19,7 +19,7 @@ return [
             'provider' => env('AI_PROVIDER', 'databyte'),
             'base_url' => env('AI_BASE_URL', 'https://ai.databyte.co.id/gateway/v1'),
             'api_key' => env('AI_API_KEY'),
-            'model' => env('AI_MODEL', 'google/gemini-3.8-flash'),
+            'model' => env('AI_MODEL', 'google/gemini-1.5-flash'),
         ],
     ],
 

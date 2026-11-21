@@ -11,6 +11,7 @@ namespace App\Modules\Audit\Reading;
 interface RabReader
 {
     /**
+     * @param  string  $filePath
      * @param  list<StandardRef>  $standards
      */
     public function read(string $filePath, array $standards): RabReadResult;
