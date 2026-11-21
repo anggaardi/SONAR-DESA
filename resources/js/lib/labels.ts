@@ -198,5 +198,11 @@ export const checkSpec = {
     noteCounter: (count: number, max: number) => `${count}/${max}`,
     submit: 'Kirim laporan',
     submitNotice: 'Laporan masuk ke BPD, tidak langsung tampil di halaman publik.',
-    submitPending: 'Pengiriman laporan sedang disiapkan. Isianmu belum dikirim.',
+    resend: 'Kirim lagi',
+    photoRequired: 'Ambil minimal 1 foto untuk mengirim laporan.',
+    sendRefused: 'Laporan belum bisa dikirim',
+    sendFailed: {
+        title: 'Laporan belum terkirim',
+        body: 'Periksa sinyal internetmu, lalu tekan Kirim lagi. Isianmu tidak hilang.',
+    },
 } as const;

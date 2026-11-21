@@ -42,6 +42,7 @@ final class CheckSpecResource extends JsonResource
             'urls' => [
                 'project' => route('projects.show', $this->slug),
                 'distance' => route('reports.distance', $this->slug),
+                'submit' => route('reports.store', $this->slug),
             ],
         ];
     }

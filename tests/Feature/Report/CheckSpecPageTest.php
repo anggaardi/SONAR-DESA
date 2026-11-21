@@ -44,7 +44,8 @@ it('shows every measurement with its RAB value and how to measure it (C4)', func
         ->where('checkSpec.limits.max_accuracy_m', 100)
         ->where('checkSpec.limits.max_photos', 3)
         ->where('checkSpec.limits.max_note_length', 280)
-        ->where('checkSpec.urls.distance', route('reports.distance', 'rabat-beton-melati')));
+        ->where('checkSpec.urls.distance', route('reports.distance', 'rabat-beton-melati'))
+        ->where('checkSpec.urls.submit', route('reports.store', 'rabat-beton-melati')));
 });
 
 it('never sends the project coordinates to the page', function () {

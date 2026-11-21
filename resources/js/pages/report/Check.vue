@@ -3,7 +3,7 @@
 // Warga sudah masuk Google sebelum halaman ini (F11). Angka jarak dan batas datang dari server.
 
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
@@ -11,7 +11,8 @@ import { isChecklistComplete, emptyAnswers } from '@/features/report/checkSpecRu
 import CameraCapture from '@/features/report/CameraCapture.vue';
 import LocationGate from '@/features/report/LocationGate.vue';
 import MeasurementChecklist from '@/features/report/MeasurementChecklist.vue';
-import type { GeoPosition } from '@/features/report/useGeolocation';
+import { MIN_PHOTOS } from '@/features/report/useCamera';
+import { useGeolocation, type GeoPosition } from '@/features/report/useGeolocation';
 import PublicLayout from '@/layouts/PublicLayout.vue';
 import { checkSpec as text } from '@/lib/labels';
 import type { CheckSpecPage } from '@/types/report';
@@ -23,7 +24,7 @@ const steps: Step[] = ['location', 'measure', 'photo'];
 const step = ref<Step>('location');
 const showChecklistErrors = ref(false);
 
-// TODO(M4-06): submit to POST /p/{slug}/reports; the location is read again at submit time (useGeolocation.readFresh).
+// The server re-checks everything and recomputes the distance (SubmitReportRequest, SubmitReport).
 const form = useForm({
     answers: emptyAnswers(props.checkSpec.measurements.map((measurement) => measurement.id)),
     photos: [] as Blob[],
@@ -37,6 +38,53 @@ function rememberPosition(position: GeoPosition): void {
     form.lat = position.lat;
     form.lng = position.lng;
     form.accuracy_m = position.accuracyMeters;
+}
+
+// Only for the fresh reading at send time; LocationGate owns the watch on the first step.
+const { readFresh } = useGeolocation({ maxAccuracyMeters: props.checkSpec.limits.max_accuracy_m });
+const isReadingLocation = ref(false);
+const sendFailed = ref(false);
+
+const isSending = computed(() => isReadingLocation.value || form.processing);
+const canSend = computed(
+    () =>
+        !isSending.value && form.lat !== null && form.photos.length >= MIN_PHOTOS && isChecklistComplete(form.answers),
+);
+const serverErrors = computed(() => [...new Set(Object.values(form.errors))]);
+
+/** Network or server failure: the answers, photos, and note stay, and the button becomes "Kirim lagi". */
+function markSendFailed(): boolean {
+    sendFailed.value = true;
+
+    return false;
+}
+
+async function send(): Promise<void> {
+    if (!canSend.value) {
+        return;
+    }
+
+    sendFailed.value = false;
+    isReadingLocation.value = true;
+
+    // "Lokasi diambil ulang saat kirim" (PRD Fitur Inti 5.1). If this reading fails, the earlier fix is sent.
+    const fresh = await readFresh();
+    isReadingLocation.value = false;
+
+    if (fresh) {
+        rememberPosition(fresh);
+    }
+
+    form.transform((data) => ({
+        ...data,
+        photos: data.photos.map(
+            (blob, index) => new File([blob], `foto-${index + 1}.jpg`, { type: blob.type || 'image/jpeg' }),
+        ),
+    })).post(props.checkSpec.urls.submit, {
+        preserveScroll: true,
+        onNetworkError: markSendFailed,
+        onHttpException: markSendFailed,
+    });
 }
 
 function continueToPhotos(): void {
@@ -123,10 +171,26 @@ function continueToPhotos(): void {
                 </div>
 
                 <p class="text-sm text-content-secondary">{{ text.submitNotice }}</p>
-                <Alert color="info">{{ text.submitPending }}</Alert>
+                <p v-if="form.photos.length < MIN_PHOTOS" class="text-sm text-content-secondary">
+                    {{ text.photoRequired }}
+                </p>
+
+                <Alert v-if="sendFailed" color="warning" :title="text.sendFailed.title">
+                    {{ text.sendFailed.body }}
+                </Alert>
+                <Alert v-else-if="serverErrors.length > 0" color="warning" :title="text.sendRefused">
+                    <ul class="list-disc space-y-1 pl-5">
+                        <li v-for="message in serverErrors" :key="message">{{ message }}</li>
+                    </ul>
+                </Alert>
+
                 <div class="flex gap-3">
-                    <Button variant="secondary" @click="step = 'measure'">{{ text.previous }}</Button>
-                    <Button variant="primary" disabled>{{ text.submit }}</Button>
+                    <Button variant="secondary" :disabled="isSending" @click="step = 'measure'">
+                        {{ text.previous }}
+                    </Button>
+                    <Button variant="primary" :disabled="!canSend" :loading="isSending" @click="send">
+                        {{ sendFailed ? text.resend : text.submit }}
+                    </Button>
                 </div>
             </section>
         </div>
