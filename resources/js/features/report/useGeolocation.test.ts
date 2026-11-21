@@ -256,3 +256,17 @@ describe('readFresh', () => {
         expect(await geo.readFresh()).toBeNull();
     });
 });
+
+describe('useFixed', () => {
+    it('uses a given position instead of the GPS and stops a running watch', () => {
+        const geo = lowAccuracyThreshold();
+        geo.start();
+        onSuccess(fix(900));
+
+        geo.useFixed({ lat: -8.53, lng: 115.32, accuracyMeters: 10 });
+
+        expect(geo.status.value).toBe('ready');
+        expect(geo.position.value).toEqual({ lat: -8.53, lng: 115.32, accuracyMeters: 10 });
+        expect(clearWatch).toHaveBeenCalledWith(7);
+    });
+});

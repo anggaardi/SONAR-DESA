@@ -254,3 +254,16 @@ describe('remove and release', () => {
         expect(camera.photos.value).toHaveLength(0);
     });
 });
+
+describe('add', () => {
+    it('adds a ready-made photo without the camera, within the same limit', () => {
+        const camera = useCamera({ maxPhotos: 1 });
+
+        expect(camera.add(new Blob(['sample'], { type: 'image/jpeg' }))).toBe(true);
+        expect(camera.add(new Blob(['second'], { type: 'image/jpeg' }))).toBe(false);
+
+        expect(camera.photos.value).toHaveLength(1);
+        expect(camera.hasMinimum.value).toBe(true);
+        expect(camera.status.value).toBe('idle');
+    });
+});

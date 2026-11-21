@@ -50,8 +50,11 @@ final class VillageCloner
         'reports' => ['superseded_by' => 'reports'],
     ];
 
-    /** Roles that get a demo account per clone (PRD Arsitektur 6.7). Warga browse without login until M4. */
-    public const ACCOUNT_ROLES = [Role::Desa, Role::Bpd];
+    /**
+     * Roles that get a demo account per clone (PRD Arsitektur 6.7). The warga account stands in for Google sign-in,
+     * so one demo session counts as one reporter (PRD Fitur Inti 5.6, M6-05).
+     */
+    public const ACCOUNT_ROLES = [Role::Desa, Role::Bpd, Role::Warga];
 
     public function clone(Village $template): Village
     {
@@ -92,7 +95,11 @@ final class VillageCloner
         $accounts = [];
         foreach (self::ACCOUNT_ROLES as $role) {
             $accounts[$role->value] = User::query()->create([
-                'name' => $role === Role::Desa ? 'Pemerintah Desa (demo)' : 'BPD (demo)',
+                'name' => match ($role) {
+                    Role::Desa => 'Pemerintah Desa (demo)',
+                    Role::Bpd => 'BPD (demo)',
+                    Role::Warga => 'Warga (demo)',
+                },
                 'email' => "demo-{$role->value}-{$village->id}@demo.sonar-desa.test",
                 'role' => $role,
                 'village_id' => $village->id,

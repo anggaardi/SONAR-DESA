@@ -12,14 +12,16 @@ import { DEFAULT_MAX_PHOTOS, MIN_PHOTOS, useCamera } from './useCamera';
 
 interface Props {
     maxPhotos?: number;
+    /** A ready-made photo given from outside (demo sample, M6-05); added once when set. */
+    extraPhoto?: Blob | null;
 }
 
-const props = withDefaults(defineProps<Props>(), { maxPhotos: DEFAULT_MAX_PHOTOS });
+const props = withDefaults(defineProps<Props>(), { maxPhotos: DEFAULT_MAX_PHOTOS, extraPhoto: null });
 
 const emit = defineEmits<{ change: [blobs: Blob[]] }>();
 
 const video = ref<HTMLVideoElement | null>(null);
-const { status, stream, photos, canCapture, isFull, start, capture, remove } = useCamera({
+const { status, stream, photos, canCapture, isFull, start, capture, add, remove } = useCamera({
     maxPhotos: props.maxPhotos,
 });
 
@@ -41,6 +43,15 @@ watch(
             items.map((photo) => photo.blob),
         ),
     { deep: true },
+);
+
+watch(
+    () => props.extraPhoto,
+    (photo) => {
+        if (photo) {
+            add(photo);
+        }
+    },
 );
 
 async function takePhoto(): Promise<void> {

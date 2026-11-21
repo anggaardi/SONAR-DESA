@@ -16,14 +16,16 @@ interface Props {
     /** Same as config('sonar.report.radius_m'); only for the text. Inside or not comes from the server. */
     radiusMeters: number;
     maxAccuracyMeters: number;
+    /** A position given from outside (demo sample, M6-05); used instead of the GPS when set. */
+    fixedPosition?: GeoPosition | null;
     distanceUrl: string;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), { fixedPosition: null });
 
 const emit = defineEmits<{ position: [position: GeoPosition]; continue: [] }>();
 
-const { status, position, start } = useGeolocation({ maxAccuracyMeters: props.maxAccuracyMeters });
+const { status, position, start, useFixed } = useGeolocation({ maxAccuracyMeters: props.maxAccuracyMeters });
 const { status: distanceStatus, hint, check } = useProjectDistance(props.distanceUrl);
 
 watch(status, (current) => {
@@ -32,6 +34,24 @@ watch(status, (current) => {
         void check(position.value);
     }
 });
+
+watch(
+    () => props.fixedPosition,
+    (fixed) => {
+        if (!fixed) {
+            return;
+        }
+
+        // Already "ready" from the GPS: the status watcher will not fire, so check the new position here.
+        const wasReady = status.value === 'ready';
+        useFixed(fixed);
+
+        if (wasReady) {
+            emit('position', fixed);
+            void check(fixed);
+        }
+    },
+);
 
 const failureText = { denied: location.denied, unavailable: location.unavailable, failed: location.failed } as const;
 </script>

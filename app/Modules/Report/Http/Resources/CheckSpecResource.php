@@ -25,6 +25,7 @@ final class CheckSpecResource extends JsonResource
         return [
             'project' => [
                 'name' => $this->name,
+                'slug' => $this->slug,
                 'village_name' => $this->village->name,
             ],
             'measurements' => $this->measurements->map(fn (ProjectMeasurement $measurement): array => [

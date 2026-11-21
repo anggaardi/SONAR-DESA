@@ -2,11 +2,12 @@
 // Cek Spek (PRD Fitur Inti 5.1, 5.5): lokasi -> ukur -> foto & catatan. Hanya menyusun; logika di features/report.
 // Warga sudah masuk Google sebelum halaman ini (F11). Angka jarak dan batas datang dari server.
 
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
+import { useDemoSample } from '@/features/demo/useDemoSample';
 import { isChecklistComplete, emptyAnswers } from '@/features/report/checkSpecRules';
 import CameraCapture from '@/features/report/CameraCapture.vue';
 import LocationGate from '@/features/report/LocationGate.vue';
@@ -14,7 +15,7 @@ import MeasurementChecklist from '@/features/report/MeasurementChecklist.vue';
 import { MIN_PHOTOS } from '@/features/report/useCamera';
 import { useGeolocation, type GeoPosition } from '@/features/report/useGeolocation';
 import PublicLayout from '@/layouts/PublicLayout.vue';
-import { checkSpec as text } from '@/lib/labels';
+import { checkSpec as text, demoSample } from '@/lib/labels';
 import type { CheckSpecPage } from '@/types/report';
 
 const props = defineProps<{ checkSpec: CheckSpecPage }>();
@@ -39,6 +40,16 @@ function rememberPosition(position: GeoPosition): void {
     form.lng = position.lng;
     form.accuracy_m = position.accuracyMeters;
 }
+
+// Demo only (PRD Fitur Inti 5.6, M6-05): sample position + photo instead of the GPS and camera. The send is
+// the same request and the server checks it the same way.
+const isDemo = computed(() => usePage().props.demo !== null);
+const {
+    status: sampleStatus,
+    position: samplePosition,
+    photo: samplePhoto,
+    load: loadSample,
+} = useDemoSample(props.checkSpec.project.slug, demoSample.photoLabel);
 
 // Only for the fresh reading at send time; LocationGate owns the watch on the first step.
 const { readFresh } = useGeolocation({ maxAccuracyMeters: props.checkSpec.limits.max_accuracy_m });
@@ -68,7 +79,8 @@ async function send(): Promise<void> {
     isReadingLocation.value = true;
 
     // "Lokasi diambil ulang saat kirim" (PRD Fitur Inti 5.1). If this reading fails, the earlier fix is sent.
-    const fresh = await readFresh();
+    // Not with the demo sample: the visitor's real GPS is far from the demo project.
+    const fresh = sampleStatus.value === 'ready' ? null : await readFresh();
     isReadingLocation.value = false;
 
     if (fresh) {
@@ -122,11 +134,26 @@ function continueToPhotos(): void {
             <Alert v-if="checkSpec.measurements.length === 0" color="info">{{ text.noMeasurements }}</Alert>
 
             <!-- Kept mounted (v-show) so the position and camera state survive moving between steps. -->
-            <div v-show="step === 'location'">
+            <div v-show="step === 'location'" class="space-y-4">
+                <div v-if="isDemo" class="space-y-2 rounded-2xl bg-demo-subtle p-4">
+                    <p class="text-sm text-content">{{ demoSample.hint }}</p>
+                    <Button
+                        variant="secondary"
+                        :loading="sampleStatus === 'loading'"
+                        :disabled="sampleStatus === 'ready'"
+                        @click="loadSample"
+                    >
+                        {{ demoSample.use }}
+                    </Button>
+                    <p v-if="sampleStatus === 'failed'" class="text-sm text-warning" role="alert">
+                        {{ demoSample.failed }}
+                    </p>
+                </div>
                 <LocationGate
                     :radius-meters="checkSpec.limits.radius_m"
                     :max-accuracy-meters="checkSpec.limits.max_accuracy_m"
                     :distance-url="checkSpec.urls.distance"
+                    :fixed-position="samplePosition"
                     @position="rememberPosition"
                     @continue="step = 'measure'"
                 />
@@ -152,7 +179,11 @@ function continueToPhotos(): void {
 
             <section v-show="step === 'photo'" class="space-y-5" aria-labelledby="langkah-foto">
                 <h2 id="langkah-foto" class="sr-only">{{ text.steps.photo }}</h2>
-                <CameraCapture :max-photos="checkSpec.limits.max_photos" @change="(blobs) => (form.photos = blobs)" />
+                <CameraCapture
+                    :max-photos="checkSpec.limits.max_photos"
+                    :extra-photo="samplePhoto"
+                    @change="(blobs) => (form.photos = blobs)"
+                />
 
                 <div>
                     <label for="catatan" class="text-sm font-medium text-content">

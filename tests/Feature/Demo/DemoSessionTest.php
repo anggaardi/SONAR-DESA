@@ -127,7 +127,7 @@ it('points every cloned foreign key at the clone, never at the template', functi
         ->and($reports->pluck('cycle_id')->unique()->all())->toBe([$cycle->id])
         ->and($reports[1]->superseded_by)->toBe($reports[0]->id)
         ->and(User::query()->where('village_id', $clone->id)->pluck('role')->map->value->sort()->values()->all())
-        ->toBe(['bpd', 'desa']);
+        ->toBe(['bpd', 'desa', 'warga']);
 });
 
 it('enters the demo in one click as warga and lands on the village page (M1)', function () {
@@ -137,7 +137,8 @@ it('enters the demo in one click as warga and lands on the village page (M1)', f
 
     $village = Village::query()->where('is_demo', true)->sole();
     $response->assertRedirect(route('villages.projects', $village->slug));
-    $this->assertGuest();
+    // M6-05: the demo warga account stands in for Google sign-in.
+    expect(auth()->user()?->role)->toBe(Role::Warga);
 
     $this->get(route('villages.projects', $village->slug))
         ->assertOk()
@@ -155,7 +156,7 @@ it('logs in as the demo account of the chosen role', function (Role $role) {
     $village = Village::query()->where('is_demo', true)->sole();
     expect(auth()->user()?->role)->toBe($role)
         ->and(auth()->user()?->village_id)->toBe($village->id);
-})->with([Role::Desa, Role::Bpd]);
+})->with([Role::Desa, Role::Bpd, Role::Warga]);
 
 it('switches role inside the same demo village', function () {
     demoTemplate();

@@ -121,6 +121,16 @@ export function useGeolocation(options: UseGeolocationOptions) {
         }
     }
 
+    /**
+     * Uses a known position instead of the GPS, e.g. the demo sample location (M6-05). The server checks it the
+     * same way as a real reading.
+     */
+    function useFixed(fixed: GeoPosition): void {
+        clearWatch();
+        position.value = fixed;
+        status.value = 'ready';
+    }
+
     /** One fresh reading for submit time ("lokasi diambil ulang saat kirim"). Null when it cannot be read. */
     function readFresh(): Promise<GeoPosition | null> {
         if (!('geolocation' in navigator)) {
@@ -138,5 +148,5 @@ export function useGeolocation(options: UseGeolocationOptions) {
 
     onScopeDispose(stop, true);
 
-    return { status, position, isReady, start, stop, readFresh };
+    return { status, position, isReady, start, stop, useFixed, readFresh };
 }

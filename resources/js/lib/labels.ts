@@ -209,6 +209,14 @@ export const checkSpec = {
     },
 } as const;
 
+/** PRD Fitur Inti 5.6, C12, M6-05: demo visitors are not at the project, so they use a sample. */
+export const demoSample = {
+    hint: 'Mode demo: kamu tidak perlu berada di lokasi. Pakai lokasi dan foto contoh untuk mencoba Cek Spek.',
+    use: 'Pakai foto & lokasi contoh',
+    failed: 'Lokasi contoh belum bisa dimuat. Coba lagi.',
+    photoLabel: 'Foto contoh (demo)',
+} as const;
+
 /** PRD Fitur Inti 5.1 step 9, C9: confirmation after a Cek Spek report is saved. */
 export const reportSubmitted = {
     title: 'Laporanmu masuk ke BPD',

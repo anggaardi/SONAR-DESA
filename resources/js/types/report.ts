@@ -18,7 +18,7 @@ export interface SubmittedReportPage {
 }
 
 export interface CheckSpecPage {
-    project: { name: string; village_name: string };
+    project: { name: string; slug: string; village_name: string };
     measurements: CheckSpecMeasurement[];
     limits: { radius_m: number; max_accuracy_m: number; max_photos: number; max_note_length: number };
     urls: { project: string; distance: string; submit: string };

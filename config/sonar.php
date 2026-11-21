@@ -58,6 +58,9 @@ return [
         'template_slug' => env('DEMO_TEMPLATE_SLUG', 'desa-contoh-template'),
         'upload_limit' => (int) env('DEMO_UPLOAD_LIMIT', 3),
         'ttl_hours' => (int) env('DEMO_TTL_HOURS', 24),
+        // M6-05: "Pakai foto & lokasi contoh" puts the visitor this far from the project, well inside the radius.
+        'sample_distance_m' => (int) env('DEMO_SAMPLE_DISTANCE_M', 20),
+        'sample_accuracy_m' => (int) env('DEMO_SAMPLE_ACCURACY_M', 10),
     ],
 
 ];
