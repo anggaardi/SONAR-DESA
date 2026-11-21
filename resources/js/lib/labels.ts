@@ -78,3 +78,29 @@ export const demo = {
 } as const;
 
 export const priceStandardSource = (year: number) => `Standar harga Kab. Gianyar ${year}`;
+
+/** PRD Fitur Inti 5.1 step 6 and 8.3: live camera only, with a reminder not to photograph people. */
+export const camera = {
+    title: 'Foto lokasi',
+    hint: (min: number, max: number) => `Ambil ${min}-${max} foto langsung dari kamera.`,
+    faceReminder: 'Jangan memotret wajah orang.',
+    open: 'Buka kamera',
+    capture: 'Ambil foto',
+    retry: 'Coba lagi',
+    counter: (count: number, max: number) => `${count} dari ${max} foto`,
+    limitReached: 'Batas foto tercapai. Hapus satu foto untuk mengambil ulang.',
+    removePhoto: (position: number) => `Hapus foto ${position}`,
+    photoAlt: (position: number) => `Foto ${position}`,
+    denied: {
+        title: 'Kamera belum diizinkan',
+        body: 'Aktifkan izin kamera untuk situs ini di pengaturan browser, lalu coba lagi. Isian lainnya tidak hilang.',
+    },
+    unavailable: {
+        title: 'Kamera tidak tersedia',
+        body: 'Buka halaman ini di HP yang memiliki kamera dan pastikan alamatnya diawali https.',
+    },
+    failed: {
+        title: 'Kamera belum bisa dibuka',
+        body: 'Tutup aplikasi lain yang memakai kamera, lalu coba lagi.',
+    },
+} as const;
