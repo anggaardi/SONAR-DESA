@@ -125,6 +125,11 @@ export const location = {
         body: (accuracyMeters: number) =>
             `Tunggu sebentar. Ketelitian saat ini sekitar ${accuracyMeters} m. Coba keluar ke tempat terbuka.`,
     },
+    tooWeak: {
+        title: 'Lokasi belum cukup teliti',
+        body: (accuracyMeters: number, maxAccuracyMeters: number) =>
+            `Ketelitian terbaik sekitar ${accuracyMeters} m, perlu ${maxAccuracyMeters} m atau kurang. Nyalakan GPS dan keluar ke tempat terbuka, lalu coba lagi.`,
+    },
     denied: {
         title: 'Lokasi belum diizinkan',
         body: 'Aktifkan izin lokasi untuk situs ini di pengaturan browser atau HP, lalu coba lagi. Cek Spek tidak bisa dilanjutkan tanpa lokasi.',

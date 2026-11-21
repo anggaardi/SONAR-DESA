@@ -54,6 +54,13 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
             {{ location.weak.body(Math.round(position?.accuracyMeters ?? 0)) }}
         </Alert>
 
+        <template v-else-if="status === 'too_weak'">
+            <Alert color="warning" :title="location.tooWeak.title">
+                {{ location.tooWeak.body(Math.round(position?.accuracyMeters ?? 0), maxAccuracyMeters) }}
+            </Alert>
+            <Button variant="secondary" @click="start">{{ location.retry }}</Button>
+        </template>
+
         <template v-else-if="status === 'denied' || status === 'unavailable' || status === 'failed'">
             <Alert color="warning" :title="failureText[status].title">{{ failureText[status].body }}</Alert>
             <Button v-if="status !== 'unavailable'" variant="secondary" @click="start">{{ location.retry }}</Button>
