@@ -1,12 +1,6 @@
 <script setup lang="ts">
-// Card: content container. docs/DESIGN.md §6.
-// rounded-lg border border-stroke bg-surface.
-// Padding p-4 (mobile / citizen) or p-6 (desktop / app). No shadow. No nested cards.
-
 interface Props {
-    // 'base' = p-4 for citizen screens; 'app' = p-6 for desktop app screens
     padding?: 'base' | 'app';
-    // 'default' = white card; 'subtle' = slightly grey background
     surface?: 'default' | 'subtle';
 }
 

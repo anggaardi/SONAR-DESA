@@ -1,7 +1,3 @@
-// UI text that must match PRD Fitur Inti 8.2 exactly. All screens read from here (PRD Arsitektur 9.2).
-// Neutral language only (D9): the banned word list lives in docs/ENGINEERING.md and is grepped in CI.
-// Keys mirror the backend enum values so Resources can send the value and Vue picks the text.
-
 import { formatDate, formatPercentAbove } from './format';
 
 export const priceLabel = {

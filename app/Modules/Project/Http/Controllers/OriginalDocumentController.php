@@ -15,9 +15,6 @@ final class OriginalDocumentController
 {
     public function __construct(private readonly VillageVisibility $visibility) {}
 
-    /**
-     * PRD Fitur Inti 4.2 Step 7 (P11, F20): stream original RAB document lazily.
-     */
     public function show(Request $request, string $slug): Response
     {
         $project = Project::withoutGlobalScope('village')
