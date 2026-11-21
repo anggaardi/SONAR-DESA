@@ -124,7 +124,7 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - [ ] Test F6-2 (clone) tetap hijau.
 
 ### M4-01 · Socialite Google, kembali ke checklist yang sama
-- Status: todo · Ukuran: M · Owner: Dev 2 · Depends on: persetujuan dependency baru, Google OAuth client (26 Nov)
+- Status: review · Ukuran: M · Owner: Dev 2 · Depends on: persetujuan dependency baru, Google OAuth client (26 Nov)
 - Spec: PRD Fitur Inti 5.1 langkah 4, F11, C3; PRD Arsitektur 6.8, A4, M4-01
 - Scope:
   - Tambah `laravel/socialite` (butuh persetujuan; alasan di pesan commit: login Google warga, A4).
@@ -134,12 +134,22 @@ Sampai ada keputusan, kerjakan hanya task yang tidak menyentuh skema: M4-03, M4-
   - Tidak pernah meminta NIK/KTP (C3). Email hanya untuk membedakan akun, tidak tampil ke publik maupun BPD.
   - Batas waktu pada panggilan Google dan jalur gagal (ENGINEERING 2).
   - Di mode demo tidak dipakai: akun demo + lokasi contoh (M6-05).
-- Files: `app/Modules/Report/Http/Controllers/GoogleAuthController.php` (atau di Core/Auth bila tim sepakat),
-  `config/services.php`, `.env.example` (nama variabel saja), `tests/Feature/Report/GoogleLoginTest.php`
+- Files: `app/Modules/Report/Http/Controllers/GoogleAuthController.php`, `Actions/SignInCitizenWithGoogle.php`,
+  `Enums/GoogleSignInFailure.php`, `routes.php`, `config/services.php`, `resources/js/pages/report/GoogleSignInFailed.vue`,
+  `tests/Feature/Report/GoogleSignInTest.php`
 - Acceptance criteria
-  - [ ] C3 (wajib): diminta masuk Google sebelum checklist; tidak ada NIK/KTP.
-  - [ ] Test memakai Socialite fake; tidak ada request jaringan (`Http::preventStrayRequests()`).
-  - [ ] Tidak ada secret di repo.
+  - [x] C3 (wajib): login Google tanpa NIK/KTP; kembali ke `url.intended`. Pengalihan tamu dari checklist ke Google
+        dipasang bersama route `/p/{slug}/cek` di M4-07.
+  - [x] Test memakai Socialite fake; tidak ada request jaringan (`Http::preventStrayRequests()`).
+  - [x] Tidak ada secret di repo (`.env.example` hanya nama variabel).
+  - [ ] Dicoba dengan OAuth client Google asli di lokal dan staging.
+- Catatan:
+  - Nama tampilan Google tidak disimpan (nama akun = "Warga"); hanya `google_id` dan email (PRD Fitur 8.3).
+  - Email yang sudah dipakai akun lain (desa, BPD, atau warga dengan Google id lain) ditolak, tidak ditautkan.
+    Ini mencegah login Google membuka akun desa/BPD.
+  - Batal di Google (`?error=`), state tidak cocok, Google tidak terjangkau, atau `.env` kosong menampilkan halaman
+    "Coba lagi"; `url.intended` tetap di sesi. Guzzle timeout 10 dtk (`config/services.php`).
+  - Setelah login, halaman dimuat ulang: lokasi diminta lagi, tapi izin sudah diberikan sehingga cepat (M4-07).
 
 ### M4-06 · SubmitReport (Action + FormRequest + Policy + event)
 - Status: todo · Ukuran: L · Owner: Dev 2 · Depends on: M4-02, M4-03, M4-01

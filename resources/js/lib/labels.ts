@@ -147,3 +147,27 @@ export const location = {
         body: 'Periksa sinyal internetmu, lalu coba lagi. Isianmu tidak hilang.',
     },
 } as const;
+
+/** PRD Fitur Inti 5.1 step 4, C3, 8.3: Google sign-in for warga. Keys match the GoogleSignInFailure enum. */
+export const googleSignIn = {
+    heading: 'Masuk dengan Google',
+    retry: 'Coba lagi',
+    backHome: 'Kembali ke beranda',
+    privacy: 'Email hanya dipakai untuk membedakan akun, tidak tampil ke publik maupun BPD. Tidak perlu NIK atau KTP.',
+    reasons: {
+        cancelled: {
+            title: 'Kamu batal masuk',
+            body: 'Cek Spek butuh akun Google supaya satu orang dihitung satu kali. Coba lagi bila ingin melanjutkan.',
+        },
+        failed: {
+            title: 'Masuk dengan Google gagal',
+            body: 'Periksa sinyal internetmu, lalu coba lagi.',
+        },
+        not_allowed: {
+            title: 'Akun ini tidak bisa dipakai untuk Cek Spek',
+            body: 'Email ini sudah terdaftar untuk akun lain, misalnya akun Pemerintah Desa atau BPD. Pakai akun Google pribadi.',
+        },
+    },
+} as const;
+
+export type GoogleSignInFailure = keyof typeof googleSignIn.reasons;
