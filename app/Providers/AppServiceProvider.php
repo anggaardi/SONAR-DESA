@@ -56,10 +56,13 @@ final class AppServiceProvider extends ServiceProvider
 
     /**
      * Fail fast at boot with the list of missing keys (pattern from margi validateEnv).
+     *
+     * key:generate creates the key, and package:discover runs inside `docker build`
+     * (composer dump-autoload), before any production secret exists.
      */
     private function assertRequiredEnv(): void
     {
-        if (! $this->app->isProduction() || $this->app->runningConsoleCommand('key:generate')) {
+        if (! $this->app->isProduction() || $this->app->runningConsoleCommand('key:generate', 'package:discover')) {
             return;
         }
 
