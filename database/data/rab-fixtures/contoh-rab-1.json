@@ -1,0 +1,65 @@
+{
+  "written_total_rp": 105000000,
+  "rows": [
+    {
+      "position": 1,
+      "raw_name": "Semen Portland 50 kg",
+      "volume": "380",
+      "unit": "sak",
+      "unit_price_rp": 85000,
+      "amount_rp": 32300000,
+      "standard_code": "MAT-001",
+      "doubt_fields": []
+    },
+    {
+      "position": 2,
+      "raw_name": "Pasir Beton",
+      "volume": "40",
+      "unit": "m3",
+      "unit_price_rp": 250000,
+      "amount_rp": 10000000,
+      "standard_code": "MAT-002",
+      "doubt_fields": []
+    },
+    {
+      "position": 3,
+      "raw_name": "Besi Beton 10 mm",
+      "volume": "120",
+      "unit": "btg",
+      "unit_price_rp": 98000,
+      "amount_rp": 11760000,
+      "standard_code": "MAT-003",
+      "doubt_fields": []
+    },
+    {
+      "position": 4,
+      "raw_name": "Kayu Bekisting",
+      "volume": "1.5",
+      "unit": "m3",
+      "unit_price_rp": 2400000,
+      "amount_rp": 3600000,
+      "standard_code": null,
+      "doubt_fields": ["volume"]
+    },
+    {
+      "position": 5,
+      "raw_name": "Batu Split",
+      "volume": "35",
+      "unit": "m3",
+      "unit_price_rp": 310000,
+      "amount_rp": 10850000,
+      "standard_code": "MAT-004",
+      "doubt_fields": []
+    },
+    {
+      "position": 6,
+      "raw_name": "Upah Tukang",
+      "volume": "60",
+      "unit": "OH",
+      "unit_price_rp": 120000,
+      "amount_rp": 7200000,
+      "standard_code": null,
+      "doubt_fields": []
+    }
+  ]
+}
