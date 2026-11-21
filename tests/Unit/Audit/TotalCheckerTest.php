@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Modules\Audit\Domain\TotalChecker;
-use App\Modules\Audit\Models\AuditItem;
 
 beforeEach(function () {
     $this->checker = new TotalChecker;

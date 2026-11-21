@@ -71,7 +71,6 @@ PROMPT;
     /**
      * Read and extract structured rows from an RAB document using AI Vision.
      *
-     * @param  string  $filePath
      * @param  list<StandardRef>  $standards
      */
     public function read(string $filePath, array $standards): RabReadResult
@@ -233,7 +232,7 @@ PROMPT;
             return "Silakan baca dokumen RAB terlampir dan ekstrak datanya sesuai instruksi JSON.\nTidak ada daftar kode standar acuan yang aktif.";
         }
 
-        $lines = ["Daftar Katalog Standar Acuan Resmi (Kode, Nama, Satuan - Tanpa Harga):"];
+        $lines = ['Daftar Katalog Standar Acuan Resmi (Kode, Nama, Satuan - Tanpa Harga):'];
         foreach ($standards as $standard) {
             $lines[] = "- Kode: {$standard->code} | Nama: {$standard->name} | Satuan: {$standard->unit}";
         }

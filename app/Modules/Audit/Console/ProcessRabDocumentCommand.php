@@ -43,10 +43,12 @@ final class ProcessRabDocumentCommand extends Command
 
                     return self::FAILURE;
                 }
-                $data = $response->json('data') ?? [];
-                $modelIds = collect($data)->pluck('id')->sort()->values();
-                $this->info("Ditemukan {$modelIds->count()} model di DataByte:");
-                $this->table(['Model ID Tersedia di Gateway'], $modelIds->map(static fn ($id): array => [$id])->all());
+                $rawData = $response->json('data');
+                $data = is_array($rawData) ? $rawData : [];
+                $modelIds = array_column($data, 'id');
+                sort($modelIds);
+                $this->info('Ditemukan '.count($modelIds).' model di DataByte:');
+                $this->table(['Model ID Tersedia di Gateway'], array_map(static fn (string $id): array => [$id], $modelIds));
 
                 return self::SUCCESS;
             } catch (\Throwable $e) {
@@ -89,7 +91,7 @@ final class ProcessRabDocumentCommand extends Command
         $this->info('  SONAR DESA: PEMROSESAN DOKUMEN RAB BERBASIS AI VISION');
         $this->info('===========================================================');
         $this->line("File      : <comment>{$filePath}</comment>");
-        $this->line("Ukuran    : <comment>".round(filesize($filePath) / 1024, 2).' KB</comment>');
+        $this->line('Ukuran    : <comment>'.round(filesize($filePath) / 1024, 2).' KB</comment>');
         $this->line("Driver    : <comment>{$driver}</comment>");
         if ($driver === 'ai') {
             $this->line("Gateway   : <comment>{$baseUrl}</comment>");
