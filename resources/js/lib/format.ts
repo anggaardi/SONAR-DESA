@@ -63,3 +63,11 @@ export function formatDateTime(iso: string): string {
     const p = witaParts(iso);
     return `${formatDate(iso)}, ${p.hour}.${p.minute} WITA`;
 }
+
+/** Panjang dalam meter untuk warga: "350 m", "2,5 m"; di bawah 1 meter memakai cm ("15 cm"). */
+export function formatLength(meters: number): string {
+    if (meters > 0 && meters < 1) {
+        return `${Math.round(meters * 100)} cm`;
+    }
+    return `${decimalOne.format(meters)} m`;
+}

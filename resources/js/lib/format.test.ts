@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatDate, formatDateTime, formatPercentAbove, formatRupiah, formatRupiahShort } from './format';
+import {
+    formatDate,
+    formatDateTime,
+    formatLength,
+    formatPercentAbove,
+    formatRupiah,
+    formatRupiahShort,
+} from './format';
 
 describe('formatRupiah', () => {
     it.each([
@@ -45,5 +52,16 @@ describe('WITA dates (UTC+8)', () => {
 
     it('rejects invalid input instead of printing "Invalid Date"', () => {
         expect(() => formatDate('not-a-date')).toThrow(RangeError);
+    });
+});
+
+describe('formatLength', () => {
+    it.each([
+        [350, '350 m'],
+        [2.5, '2,5 m'],
+        [0.15, '15 cm'],
+        [0, '0 m'],
+    ])('%d -> %s', (meters, expected) => {
+        expect(formatLength(meters)).toBe(expected);
     });
 });
