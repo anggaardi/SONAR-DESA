@@ -16,7 +16,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <header class="sticky top-0 z-20 border-b border-stroke bg-surface">
+    <header class="border-b border-stroke bg-surface/95 backdrop-blur-sm">
         <div class="mx-auto flex max-w-md items-center justify-between px-4 py-3 sm:max-w-xl md:max-w-2xl">
             <Link
                 :href="backHref"

@@ -103,8 +103,8 @@ function handleTabClick(tabId: string): void {
 
             <!-- Main Content Area -->
             <div class="min-w-0 flex-1 pb-32 lg:pb-16">
-                <!-- Mobile Header -->
-                <div class="md:hidden">
+                <!-- Mobile Header (Sticky agar warga mudah keluar / kembali ke desa) -->
+                <div class="sticky top-0 z-20 md:hidden">
                     <ProjectHeader
                         :village-name="project.village.name"
                         :village-slug="project.village.slug"
@@ -165,7 +165,7 @@ function handleTabClick(tabId: string): void {
 
                             <nav
                                 aria-label="Bagian halaman"
-                                class="no-scrollbar -mx-4 -mt-2 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0"
+                                class="-mx-4 -mt-2 no-scrollbar flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0"
                             >
                                 <a
                                     v-for="link in sectionLinks"
@@ -248,76 +248,6 @@ function handleTabClick(tabId: string): void {
                                     </svg>
                                     Lihat Dokumen Asli
                                 </a>
-                            </div>
-
-                            <!-- 3. Pengaduan & Aspirasi BPD Card -->
-                            <div class="rounded-2xl border border-stroke bg-surface p-5 shadow-xs">
-                                <div class="flex items-start gap-3">
-                                    <div
-                                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-warning-subtle text-warning"
-                                    >
-                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-sm font-bold text-content">Ada Temuan Lapangan?</h3>
-                                        <p class="text-xs text-content-tertiary">Saluran aspirasi warga ke BPD</p>
-                                    </div>
-                                </div>
-                                <p class="mt-3 text-xs leading-relaxed text-content-secondary">
-                                    Menemukan perbedaan volume atau spesifikasi? BPD siap menerima catatan dan
-                                    klarifikasi warga.
-                                </p>
-                                <button
-                                    type="button"
-                                    class="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-stroke bg-surface px-4 text-sm font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                    @click="showHelpDialog = true"
-                                >
-                                    <svg
-                                        class="h-4 w-4 text-content-secondary"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                    Kirim Catatan ke BPD
-                                </button>
-                            </div>
-
-                            <!-- 4. Dasar Keterbukaan Publik Card -->
-                            <div class="rounded-2xl border border-stroke bg-surface-muted/50 p-4">
-                                <div class="flex items-center gap-2 text-xs font-bold text-content">
-                                    <svg
-                                        class="h-4 w-4 shrink-0 text-content-secondary"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                    >
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                        />
-                                    </svg>
-                                    <span>Dasar Keterbukaan Publik</span>
-                                </div>
-                                <p class="mt-2 text-xs leading-relaxed text-content-secondary">
-                                    Setiap warga desa berhak mengetahui rencana, anggaran, dan pelaksanaan kegiatan
-                                    fisik sesuai amanat Pasal 82 UU No. 6/2014 tentang Desa.
-                                </p>
                             </div>
                         </aside>
                     </div>

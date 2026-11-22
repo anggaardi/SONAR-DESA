@@ -274,7 +274,8 @@ it('exposes published citizen reports and BPD review notes only when project is 
             ->where('project.published_reports.0.kind', 'match')
             ->where('project.published_reports.0.note', 'Dimensi bangunan dan lantai keramik rapi sesuai rencana.')
             ->has('project.published_reports.0.answers', 1)
-            ->where('project.published_reports.0.answers.0.measurement_name', 'Luas bangunan'));
+            ->where('project.published_reports.0.answers.0.measurement_name', 'Luas bangunan')
+            ->where('project.published_report_counts', ['mismatch' => 0, 'match' => 1, 'unmeasurable' => 0]));
 
     // Check privacy: citizen email, raw coordinates must NOT be in the HTML content
     $content = $response->getContent();

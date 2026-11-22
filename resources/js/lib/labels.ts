@@ -241,6 +241,26 @@ export const projectReviews = {
         bpd: 'Catatan BPD',
         reports: 'Ulasan Warga',
     },
+    /** Village names are stored with their "Desa" prefix ("Desa Contoh"), so it is not added twice. */
+    bpdName: (villageName: string | null | undefined) => {
+        if (!villageName) {
+            return 'BPD';
+        }
+
+        return /^desa\s/i.test(villageName) ? `BPD ${villageName}` : `BPD Desa ${villageName}`;
+    },
+    outcomePrefix: 'Hasil:',
+    photos: {
+        open: (title: string) => `Buka foto ${title}`,
+        viewerCaption: 'Dokumentasi Cek Spek di lokasi',
+        close: 'Tutup foto',
+    },
+    answer: {
+        fallbackName: 'Ukuran fisik',
+        match: 'Sesuai RAB',
+        mismatch: 'Ada selisih',
+        notMeasured: 'Tidak diukur',
+    },
     bpdSection: {
         title: 'Tinjauan Resmi BPD',
         followUpTitle: 'Catatan Tindak Lanjut BPD',
@@ -250,12 +270,33 @@ export const projectReviews = {
     citizenSection: {
         title: 'Ulasan & Laporan Warga',
         anonymousReporter: (index: number) => `Warga Pelapor ${index}`,
+        meta: 'Laporan Cek Spek di lokasi',
         verifiedBadge: 'Diverifikasi BPD',
     },
     empty: {
         title: 'Belum Ada Ulasan Diterbitkan',
         body: 'BPD belum menerbitkan catatan pemeriksaan atau ulasan warga untuk proyek ini. Warga di sekitar lokasi proyek dapat berpartisipasi dengan Cek Spek.',
         action: 'Cek Spek di Lokasi',
+    },
+    emptyBpd: {
+        title: 'Belum Ada Catatan BPD',
+        body: 'BPD belum menerbitkan catatan pemeriksaan atau hasil musyawarah untuk proyek ini. Warga diajak aktif membantu pengawasan dengan Cek Spek.',
+        action: 'Cek Spek di Lokasi',
+    },
+    emptyReports: {
+        title: 'Belum Ada Laporan dari Warga',
+        body: 'Belum ada warga yang mengirimkan laporan hasil cek spek lapangan. Warga diajak aktif memeriksa kesesuaian fisik proyek.',
+        action: 'Mulai Cek Spek Sekarang',
+    },
+    callout: {
+        title: 'Melihat Kejanggalan di Proyek Ini?',
+        body: 'Bantu desa mengawasi volume & spesifikasi di lapangan. Laporan warga diverifikasi langsung oleh BPD untuk transparansi anggaran desa.',
+        action: 'Mulai Cek Spek di Lokasi',
+    },
+    error: {
+        title: 'Gagal Memuat Data Ulasan',
+        body: 'Terjadi gangguan saat memuat data catatan BPD dan ulasan warga. Silakan coba beberapa saat lagi.',
+        action: 'Coba Muat Ulang',
     },
     privacyNotice: 'Data pelapor dilindungi kerahasiaannya sesuai UU PDP dan UU No. 6/2014 tentang Desa.',
     close: 'Tutup',

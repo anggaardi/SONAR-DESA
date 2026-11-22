@@ -18,8 +18,8 @@ return new class extends Migration
         Schema::create('report_answers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('report_id')->constrained()->cascadeOnDelete();
-            // No ON DELETE: a measurement with answers is evidence and is removed only together with its project.
-            $table->foreignId('measurement_id')->constrained('project_measurements');
+            // Cascade on delete: answers are removed together with their project and measurements.
+            $table->foreignId('measurement_id')->constrained('project_measurements')->cascadeOnDelete();
             $table->string('answer', 32);
             // C5: only for "Tidak"; same precision as project_measurements.value, unit copied from the RAB.
             $table->decimal('measured_value', 14, 3)->nullable();

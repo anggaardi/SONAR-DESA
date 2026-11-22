@@ -56,6 +56,13 @@
     --color-demo: #3b1fc6;
     --color-demo-subtle: #e2ddfd;
 }
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
 
 @layer base {
     html {

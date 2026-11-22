@@ -142,8 +142,8 @@ const filteredProjects = computed(() => {
 
             <!-- Main Content Area -->
             <div class="min-w-0 flex-1 pb-20 md:pb-12">
-                <!-- Mobile App Bar / Header -->
-                <div class="md:hidden">
+                <!-- Mobile App Bar / Header (Sticky) -->
+                <div class="sticky top-0 z-20 md:hidden">
                     <VillageHeader :village-name="village.name" @share="handleShare" />
                 </div>
 

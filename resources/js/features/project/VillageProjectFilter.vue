@@ -46,7 +46,7 @@ const emit = defineEmits<{
         <!-- Category filter chips -->
         <div
             v-if="categories.length > 1"
-            class="no-scrollbar -mx-4 flex items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0"
+            class="-mx-4 no-scrollbar flex items-center gap-2 overflow-x-auto px-4 py-1 sm:mx-0 sm:flex-wrap sm:px-0"
             role="tablist"
             aria-label="Filter kategori proyek"
         >
