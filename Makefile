@@ -33,8 +33,8 @@ up: ## Start all dev services
 down: ## Stop all dev services
 	$(DC) down
 
-restart: ## Restart PHP services (after .env changes)
-	$(DC) restart app queue scheduler
+restart: ## Recreate PHP services (after .env changes)
+	$(DC) up -d --no-deps --force-recreate app queue scheduler
 
 logs: ## Follow logs of all services
 	$(DC) logs -f --tail=100

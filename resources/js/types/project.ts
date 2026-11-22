@@ -83,6 +83,7 @@ export interface ProjectDetail {
         notes: Array<{ note: string; created_at: string }>;
     } | null;
     published_reports?: ProjectPublishedReport[];
+    published_report_counts: Record<ProjectPublishedReport['kind'], number>;
     label_counts: {
         within_standard: number;
         above_standard: number;

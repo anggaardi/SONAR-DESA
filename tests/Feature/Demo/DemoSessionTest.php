@@ -12,6 +12,8 @@ use App\Modules\Project\Models\ProgressPhoto;
 use App\Modules\Project\Models\Project;
 use App\Modules\Project\Models\ProjectMeasurement;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Models\ReviewCycle;
 use App\Modules\Review\Models\ReviewNote;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +36,7 @@ function demoTemplate(): Village
         'slug' => 'rabat-beton-jl-melati',
         'name' => 'Rabat beton Jl. Melati',
     ]);
-    ProjectMeasurement::factory()->create(['project_id' => $project->id]);
+    $measurement = ProjectMeasurement::factory()->create(['project_id' => $project->id]);
     ProgressPhoto::factory()->create(['project_id' => $project->id]);
 
     $cycle = ReviewCycle::query()->create(['project_id' => $project->id, 'opened_at' => now()]);
@@ -43,6 +45,8 @@ function demoTemplate(): Village
 
     $first = Report::factory()->create(['project_id' => $project->id, 'cycle_id' => $cycle->id]);
     Report::factory()->create(['project_id' => $project->id, 'cycle_id' => $cycle->id, 'superseded_by' => $first->id]);
+    ReportAnswer::factory()->create(['report_id' => $first->id, 'measurement_id' => $measurement->id]);
+    ReportPhoto::factory()->create(['report_id' => $first->id]);
 
     return $template;
 }

@@ -7,6 +7,7 @@ namespace App\Modules\Project\Http\Resources;
 use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
+use App\Modules\Report\Enums\ReportKind;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -60,6 +61,11 @@ final class ProjectResource extends JsonResource
                 ->values();
         }
 
+        $publishedReportCounts = array_fill_keys(array_column(ReportKind::cases(), 'value'), 0);
+        foreach ($publishedReports as $report) {
+            $publishedReportCounts[$report->kind->value]++;
+        }
+
         return [
             'id' => $project->id,
             'slug' => $project->slug,
@@ -100,6 +106,7 @@ final class ProjectResource extends JsonResource
                     'measured_unit' => $a->measured_unit,
                 ])->all(),
             ])->all(),
+            'published_report_counts' => $publishedReportCounts,
             'label_counts' => [
                 'within_standard' => $withinCount,
                 'above_standard' => $aboveCount,
