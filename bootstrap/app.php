@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Core\Http\Middleware\EnsureRole;
 use App\Modules\Core\Http\Middleware\HandleInertiaRequests;
 use App\Modules\Core\Http\Middleware\SetCurrentVillage;
 use Illuminate\Auth\Middleware\Authorize;
@@ -26,7 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [HandleInertiaRequests::class]);
-        $middleware->alias(['village' => SetCurrentVillage::class]);
+        $middleware->alias([
+            'village' => SetCurrentVillage::class,
+            'role' => EnsureRole::class,
+        ]);
         // Warga sign in with Google before Cek Spek (F11); desa and BPD use the email login form.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->routeIs('reports.check', 'reports.submitted')
             ? route('auth.google')

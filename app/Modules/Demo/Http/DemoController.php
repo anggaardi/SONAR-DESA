@@ -30,19 +30,21 @@ final class DemoController
 
     public function start(Request $request, Role $role): RedirectResponse
     {
-        return $this->landing($this->demo->start($request, $role));
+        return $this->landing($this->demo->start($request, $role), $role);
     }
 
     public function switch(Request $request, Role $role): RedirectResponse
     {
         $village = $this->demo->switch($request, $role);
 
-        return $village === null ? redirect()->route('home') : $this->landing($village);
+        return $village === null ? redirect()->route('home') : $this->landing($village, $role);
     }
 
     public function reset(Request $request): RedirectResponse
     {
-        return $this->landing($this->demo->reset($request));
+        $role = Role::tryFrom((string) $request->session()->get(SetCurrentVillage::DEMO_ROLE_SESSION_KEY)) ?? Role::Warga;
+
+        return $this->landing($this->demo->reset($request), $role);
     }
 
     /**
@@ -67,11 +69,15 @@ final class DemoController
     }
 
     /**
-     * Every role lands on the village page for now.
-     * TODO(M2-06): desa -> /audits. TODO(M5-04): bpd -> /bpd.
+     * Desa lands on dashboard; BPD and warga on the village page.
+     * TODO(M5-04): bpd -> /bpd.
      */
-    private function landing(Village $village): RedirectResponse
+    private function landing(Village $village, ?Role $role = null): RedirectResponse
     {
+        if ($role === Role::Desa) {
+            return redirect()->route('desa.dashboard');
+        }
+
         return redirect()->route('villages.projects', $village->slug);
     }
 }

@@ -26,9 +26,10 @@ it('shows the login page to guests', function () {
 
 it('logs in desa and bpd accounts with the right password', function (Role $role) {
     $user = villageAccount($role);
+    $expected = $role === Role::Desa ? route('desa.dashboard') : route('home');
 
     $this->post('/login', ['email' => $user->email, 'password' => 'rahasia-benar'])
-        ->assertRedirect(route('home'));
+        ->assertRedirect($expected);
 
     $this->assertAuthenticatedAs($user);
 })->with([Role::Desa, Role::Bpd]);
@@ -80,7 +81,7 @@ it('drops the demo village from the session when a real account logs in', functi
         SetCurrentVillage::DEMO_SESSION_KEY => $demoVillage->id,
         SetCurrentVillage::DEMO_ROLE_SESSION_KEY => 'warga',
     ])->post('/login', ['email' => $user->email, 'password' => 'rahasia-benar'])
-        ->assertRedirect(route('home'))
+        ->assertRedirect(route('desa.dashboard'))
         ->assertSessionMissing(SetCurrentVillage::DEMO_SESSION_KEY)
         ->assertSessionMissing(SetCurrentVillage::DEMO_ROLE_SESSION_KEY);
 
