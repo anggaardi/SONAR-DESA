@@ -136,6 +136,29 @@ ditemukan mendapat test di level terendah yang bisa mereproduksinya.
 
 Semua perintah dijalankan lewat Docker (`make ...`), bukan PHP/Node di host.
 
+### Alur Kolaborasi & Standar CI (Dev 1 & Dev 2 / AI)
+
+Untuk menjaga `main` dan PR selalu hijau tanpa kegagalan di GitHub Actions, alur kerja commit–push–PR mengikuti protokol berikut:
+
+1. **Pre-Commit Gate Lokal (Dev 2 / AI):**
+   - Sebelum membuat commit Git, Dev 2 **wajib** menjalankan seluruh rangkaian pengujian CI lokal yang identik dengan GitHub Actions:
+     - **PHP:** `docker exec -t sonar-desa-dev-app-1 vendor/bin/pint --test && docker exec -t sonar-desa-dev-app-1 vendor/bin/phpstan analyse --memory-limit=1G --no-progress && docker exec -t sonar-desa-dev-app-1 php artisan test --compact`
+     - **JS:** `sh scripts/check-neutral-language.sh && npm run lint && npm run typecheck && npm run test && npm run build`
+   - **Pantangan keras:** Dilarang membuat commit jika ada salah satu cek yang gagal/merah.
+   - **Filter berkas:** Berkas `.md` (dokumentasi/skills) tidak di-stage/di-push bersamaan dengan kode fitur kecuali diminta eksplisit.
+
+2. **Commit Lokal & Serah Terima (Dev 2):**
+   - Dev 2 membuat commit bersih dengan format Conventional Commits di branch kerja lokal.
+   - Dev 2 mengabari Dev 1 bahwa seluruh cek lokal lulus dan kode siap di-push.
+
+3. **Push Remote (Dev 1 / User):**
+   - Dev 1 menjalankan `git push origin <branch>` dari terminal atau IDE menggunakan kredensial akun pribadinya.
+   - Dev 1 mengonfirmasi ke Dev 2 bahwa push telah selesai.
+
+4. **Pembuatan PR & Pemantauan CI Otomatis (Dev 2):**
+   - Dev 2 langsung menyediakan tautan 1-klik untuk membuka Pull Request di GitHub (judul dan deskripsi terisi otomatis).
+   - Dev 2 otomatis memeriksa status API GitHub Actions hingga seluruh job CI (PHP, JS, Secrets) selesai dan terverifikasi berstatus hijau (`success`).
+
 ## 8. Definition of Done (per task)
 
 - [ ] AC fondasi task dan AC fitur yang dirujuk sudah dicek sendiri, bukan diasumsikan.
