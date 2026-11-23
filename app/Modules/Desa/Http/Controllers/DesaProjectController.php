@@ -83,7 +83,7 @@ final class DesaProjectController
                 ->with('success', 'Proyek berhasil diterbitkan dan langsung dapat diakses warga.');
         }
 
-        if ($validated['is_published'] ?? false) {
+        if ($validated['is_published']) {
             return redirect()
                 ->route('audits.show', $project->audit_id)
                 ->with('warning', 'Draf proyek berhasil disimpan. Terdapat baris belanja yang perlu dikonfirmasi sebelum proyek dapat diterbitkan.');

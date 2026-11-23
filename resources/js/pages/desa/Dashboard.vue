@@ -297,7 +297,13 @@ const tableColumns = [
                                                 title="Review &amp; Terbitkan RAB"
                                                 aria-label="Review &amp; Terbitkan RAB"
                                             >
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <svg
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    aria-hidden="true"
+                                                >
                                                     <path
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
@@ -314,7 +320,13 @@ const tableColumns = [
                                                 title="Kelola &amp; CCO"
                                                 aria-label="Kelola &amp; CCO"
                                             >
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <svg
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    aria-hidden="true"
+                                                >
                                                     <path
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
@@ -332,7 +344,13 @@ const tableColumns = [
                                                 title="Lihat Halaman Publik"
                                                 aria-label="Lihat Halaman Publik"
                                             >
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <svg
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    aria-hidden="true"
+                                                >
                                                     <path
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
@@ -356,7 +374,13 @@ const tableColumns = [
                                                 title="Cetak Poster QR"
                                                 aria-label="Cetak Poster QR"
                                             >
-                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <svg
+                                                    class="h-4 w-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    aria-hidden="true"
+                                                >
                                                     <path
                                                         stroke-linecap="round"
                                                         stroke-linejoin="round"
@@ -403,9 +427,7 @@ const tableColumns = [
                                     </div>
                                 </div>
 
-                                <div
-                                    class="mt-3 flex items-center justify-between gap-2 border-t border-stroke pt-2.5"
-                                >
+                                <div class="mt-3 flex items-center justify-between gap-2 border-t border-stroke pt-2.5">
                                     <span class="text-xs font-medium text-content-secondary">Aksi:</span>
                                     <div class="flex items-center gap-1.5">
                                         <Link
@@ -415,7 +437,13 @@ const tableColumns = [
                                             title="Review &amp; Terbitkan RAB"
                                             aria-label="Review &amp; Terbitkan RAB"
                                         >
-                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <svg
+                                                class="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                aria-hidden="true"
+                                            >
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
@@ -430,7 +458,13 @@ const tableColumns = [
                                             title="Kelola &amp; CCO"
                                             aria-label="Kelola &amp; CCO"
                                         >
-                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <svg
+                                                class="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                aria-hidden="true"
+                                            >
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
@@ -446,7 +480,13 @@ const tableColumns = [
                                             title="Lihat Halaman Publik"
                                             aria-label="Lihat Halaman Publik"
                                         >
-                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <svg
+                                                class="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                aria-hidden="true"
+                                            >
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
@@ -468,7 +508,13 @@ const tableColumns = [
                                             title="Cetak Poster QR"
                                             aria-label="Cetak Poster QR"
                                         >
-                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                            <svg
+                                                class="h-4 w-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                aria-hidden="true"
+                                            >
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"

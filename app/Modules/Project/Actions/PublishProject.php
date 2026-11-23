@@ -29,6 +29,7 @@ final class PublishProject
      *     year: int,
      *     lat?: float|numeric-string|string|null,
      *     lng?: float|numeric-string|string|null,
+     *     total_ack?: bool|null,
      *     measurements?: list<array{
      *         name: string,
      *         value: numeric-string|float|int|string,

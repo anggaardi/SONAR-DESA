@@ -28,7 +28,7 @@ final class DesaProjectManageController
             'audit.items.standard',
             'measurements',
             'progressPhotos' => fn ($query) => $query->latest('id'),
-            'changes' => fn ($query) => $query->latest('changed_at'),
+            'projectChanges' => fn ($query) => $query->latest('changed_at'),
         ]);
 
         $standards = PriceStandard::where('regency', $project->village->regency)
@@ -88,13 +88,13 @@ final class DesaProjectManageController
                     'url' => route('media.progress', $p),
                     'created_at' => $p->created_at?->toIso8601String(),
                 ]),
-                'changes' => $project->changes->map(fn ($c) => [
+                'changes' => $project->projectChanges->map(fn ($c) => [
                     'id' => $c->id,
                     'field' => $c->field,
                     'item_label' => $c->item_label,
                     'old_value' => $c->old_value,
                     'new_value' => $c->new_value,
-                    'changed_at' => $c->changed_at?->toIso8601String(),
+                    'changed_at' => $c->changed_at->toIso8601String(),
                 ]),
                 'village' => [
                     'id' => $project->village->id,

@@ -100,7 +100,7 @@ final class AuditReviewController
             ];
         })->values()->all();
 
-        $year = $audit->project?->year ?? (int) date('Y');
+        $year = $audit->project->year ?? (int) date('Y');
         $priceStandards = PriceStandard::query()
             ->select(['id', 'code', 'name', 'unit', 'price_rp'])
             ->where('regency', $village->regency)

@@ -212,7 +212,7 @@ final class CreateDesaProject
                 return $project;
             });
         } catch (\Throwable $e) {
-            if ($storedNewFile && $filePath !== null && Storage::disk('local')->exists($filePath)) {
+            if ($storedNewFile && is_string($filePath) && Storage::disk('local')->exists($filePath)) {
                 Storage::disk('local')->delete($filePath);
             }
 

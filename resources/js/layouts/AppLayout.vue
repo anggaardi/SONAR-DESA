@@ -20,7 +20,7 @@ function toggleSidebar(): void {
             <nav
                 id="app-sidebar"
                 :class="[
-                    'fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-stroke bg-surface transition-transform overflow-y-auto md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0',
+                    'fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col overflow-y-auto border-r border-stroke bg-surface transition-transform md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full',
                 ]"
                 aria-label="Navigasi aplikasi"
@@ -28,19 +28,42 @@ function toggleSidebar(): void {
                 <!-- Sidebar Header / Logo -->
                 <div class="flex items-center gap-3 border-b border-stroke px-5 py-4">
                     <slot name="logo">
-                        <Link href="/desa" class="flex items-center gap-3 text-content transition-colors hover:text-primary">
+                        <Link
+                            href="/desa"
+                            class="flex items-center gap-3 text-content transition-colors hover:text-primary"
+                        >
                             <div
                                 class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-content-inverse shadow-xs"
                                 aria-hidden="true"
                             >
-                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3m9-9h-3M6 12H3" />
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M12 21a9 9 0 100-18 9 9 0 000 18z"
+                                    />
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                                    />
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M12 3v3m0 12v3m9-9h-3M6 12H3"
+                                    />
                                 </svg>
                             </div>
                             <div>
-                                <span class="block text-[17px] leading-tight font-bold tracking-tight text-content">Sonar Desa</span>
+                                <span class="block text-[17px] leading-tight font-bold tracking-tight text-content"
+                                    >Sonar Desa</span
+                                >
                                 <span class="block text-[11px] text-content-tertiary">Pemerintah Desa</span>
                             </div>
                         </Link>
@@ -70,17 +93,27 @@ function toggleSidebar(): void {
             />
 
             <!-- Main Content Area -->
-            <div class="min-w-0 flex-1 flex flex-col pb-20 md:pb-12">
+            <div class="flex min-w-0 flex-1 flex-col pb-20 md:pb-12">
                 <!-- Mobile header (Sticky) -->
-                <header class="sticky top-0 z-20 flex items-center justify-between border-b border-stroke bg-surface px-4 py-3 md:hidden">
+                <header
+                    class="sticky top-0 z-20 flex items-center justify-between border-b border-stroke bg-surface px-4 py-3 md:hidden"
+                >
                     <div class="flex items-center gap-2.5">
                         <div
                             class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-content-inverse shadow-xs"
                             aria-hidden="true"
                         >
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M12 21a9 9 0 100-18 9 9 0 000 18z"
+                                />
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                                />
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3m9-9h-3M6 12H3" />
                             </svg>
                         </div>
@@ -112,8 +145,20 @@ function toggleSidebar(): void {
                                 d="M4 6h16M4 12h16M4 18h16"
                             />
                         </svg>
-                        <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                            v-else
+                            class="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden="true"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
                         </svg>
                     </button>
                 </header>
