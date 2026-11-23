@@ -14,7 +14,7 @@ use Illuminate\Support\ServiceProvider;
 final class ModuleServiceProvider extends ServiceProvider
 {
     /** Order matters only for readability; modules do not depend on load order. */
-    public const MODULES = ['Core', 'Standard', 'Audit', 'Project', 'Report', 'Review', 'Demo'];
+    public const MODULES = ['Core', 'Standard', 'Audit', 'Project', 'Report', 'Review', 'Demo', 'Desa'];
 
     public function boot(): void
     {

@@ -24,6 +24,7 @@ final class ProjectChangeFactory extends Factory
             'item_label' => 'Semen 50 kg',
             'old_value' => 'Rp85.000',
             'new_value' => 'Rp65.000',
+            'reason' => 'Penyesuaian spesifikasi di lapangan',
             'changed_at' => Carbon::now(),
         ];
     }

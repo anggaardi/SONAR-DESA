@@ -9,9 +9,12 @@ use App\Modules\Audit\Reading\FixtureRabReader;
 use App\Modules\Audit\Reading\RabReader;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Report\Domain\ReportClassifier;
+use App\Modules\Report\Events\ReportSubmitted;
+use App\Modules\Review\Listeners\TriggerReviewCycleOnThreshold;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
@@ -68,6 +71,9 @@ final class AppServiceProvider extends ServiceProvider
         RateLimiter::for('report-distance', static fn (Request $request): Limit => Limit::perMinute(
             (int) config('sonar.report.distance_hints_per_minute'),
         )->by((string) $request->ip()));
+
+        // S5 / D16: Automatic trigger for review cycle on report threshold
+        Event::listen(ReportSubmitted::class, TriggerReviewCycleOnThreshold::class);
     }
 
     /**

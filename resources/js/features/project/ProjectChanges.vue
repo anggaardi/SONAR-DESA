@@ -52,6 +52,9 @@ const showHistory = ref(false);
                     <span class="text-content-tertiary" aria-hidden="true">&rarr;</span>
                     <span class="font-semibold text-content">{{ change.new_value }}</span>
                 </div>
+                <p v-if="change.reason" class="mt-1.5 text-xs text-content-secondary italic">
+                    Alasan: {{ change.reason }}
+                </p>
             </div>
         </div>
     </section>

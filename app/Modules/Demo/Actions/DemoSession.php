@@ -71,7 +71,8 @@ final class DemoSession
         Auth::guard('web')->logout();
 
         // Every role, warga included, uses the clone's own account: no Google sign-in in a demo (M6-05).
-        $account = User::query()->where('village_id', $village->id)->where('role', $role)->firstOrFail();
+        $account = User::query()->where('village_id', $village->id)->where('role', $role)->first()
+            ?? VillageCloner::createAccount($village, $role);
         Auth::guard('web')->login($account);
 
         $request->session()->regenerate();
@@ -89,7 +90,11 @@ final class DemoSession
         $id = $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY);
 
         return is_numeric($id)
-            ? Village::query()->whereKey((int) $id)->where('is_demo', true)->first()
+            ? Village::query()
+                ->whereKey((int) $id)
+                ->where('is_demo', true)
+                ->where(fn ($query) => $query->whereNull('demo_expires_at')->orWhere('demo_expires_at', '>', now()))
+                ->first()
             : null;
     }
 

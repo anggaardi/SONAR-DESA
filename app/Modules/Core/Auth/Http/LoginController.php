@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Core\Auth\Http;
 
+use App\Modules\Core\Auth\Role;
 use App\Modules\Core\Auth\User;
 use App\Modules\Core\Http\Middleware\SetCurrentVillage;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ final class LoginController
     public function create(Request $request): Response|RedirectResponse
     {
         if ($this->hasRealAccount($request)) {
-            return redirect()->route('home');
+            return $this->redirectUser($request->user());
         }
 
         return Inertia::render('core/Login');
@@ -32,7 +33,7 @@ final class LoginController
     public function store(LoginRequest $request): RedirectResponse
     {
         if ($this->hasRealAccount($request)) {
-            return redirect()->route('home');
+            return $this->redirectUser($request->user());
         }
 
         $request->authenticate();
@@ -41,7 +42,7 @@ final class LoginController
         // A real account never keeps the demo village of an earlier demo visit.
         $request->session()->forget([SetCurrentVillage::DEMO_SESSION_KEY, SetCurrentVillage::DEMO_ROLE_SESSION_KEY]);
 
-        return redirect()->intended(route('home'));
+        return redirect()->intended($this->defaultLanding($request->user()));
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -59,5 +60,15 @@ final class LoginController
         $user = $request->user();
 
         return $user instanceof User && $user->village?->is_demo !== true;
+    }
+
+    private function redirectUser(?User $user): RedirectResponse
+    {
+        return redirect()->to($this->defaultLanding($user));
+    }
+
+    private function defaultLanding(?User $user): string
+    {
+        return route($user?->hasRole(Role::Desa) ? 'desa.dashboard' : 'home');
     }
 }

@@ -38,7 +38,19 @@ final class ProjectResource extends JsonResource
         $noRefCount = 0;
 
         foreach ($items as $item) {
-            match ($item->label) {
+            $lbl = $item->label;
+            if ($lbl === PriceLabel::NeedsCheck) {
+                $std = $item->standard;
+                if ($std && $std->price_rp > 0) {
+                    $lbl = $item->unit_price_rp > $std->price_rp
+                        ? PriceLabel::AboveStandard
+                        : PriceLabel::WithinStandard;
+                } else {
+                    $lbl = PriceLabel::NoReference;
+                }
+            }
+
+            match ($lbl) {
                 PriceLabel::WithinStandard => $withinCount++,
                 PriceLabel::AboveStandard => $aboveCount++,
                 PriceLabel::NoReference => $noRefCount++,
@@ -124,7 +136,19 @@ final class ProjectResource extends JsonResource
             ])->all(),
             'items' => $items->map(function ($item) use ($project) {
                 $standard = $item->standard;
-                $explanation = match ($item->label) {
+                $label = $item->label;
+
+                if ($label === PriceLabel::NeedsCheck) {
+                    if ($standard && $standard->price_rp > 0) {
+                        $label = $item->unit_price_rp > $standard->price_rp
+                            ? PriceLabel::AboveStandard
+                            : PriceLabel::WithinStandard;
+                    } else {
+                        $label = PriceLabel::NoReference;
+                    }
+                }
+
+                $explanation = match ($label) {
                     PriceLabel::AboveStandard => "Harga di RAB {$item->over_pct}% di atas standar harga Kabupaten Gianyar {$project->year}. Belum tentu salah: BPD bisa meminta penjelasan desa.",
                     PriceLabel::NoReference => "Item ini tidak ada di daftar standar Gianyar {$project->year}, jadi tidak dinilai",
                     default => null,
@@ -142,7 +166,7 @@ final class ProjectResource extends JsonResource
                     'unit_diff_rp' => $item->unit_price_rp && $standard?->price_rp ? max(0, $item->unit_price_rp - $standard->price_rp) : null,
                     'total_diff_rp' => $item->diff_rp,
                     'over_pct' => $item->over_pct,
-                    'label' => $item->label->value,
+                    'label' => $label->value,
                     'standard_source' => $standard ? "Standar harga Kab. Gianyar {$standard->year}" : null,
                     'explanation' => $explanation,
                 ];
@@ -159,6 +183,7 @@ final class ProjectResource extends JsonResource
                 'field' => $c->field,
                 'old_value' => $c->old_value,
                 'new_value' => $c->new_value,
+                'reason' => $c->reason,
                 'changed_at' => $c->changed_at->toIso8601String(),
             ])->all(),
             'document_url' => $audit?->file_path ? route('projects.document', $project->slug) : null,

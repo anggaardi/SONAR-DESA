@@ -10,7 +10,6 @@ type Label = 'within_standard' | 'above_standard' | 'needs_check' | 'no_referenc
 
 interface Props {
     label: Label;
-    // Optional percentage shown for above_standard (e.g. "+12%")
     percentAbove?: string | null;
 }
 
