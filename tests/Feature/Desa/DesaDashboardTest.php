@@ -69,7 +69,7 @@ it('renders the dashboard with village data and statistics for desa users', func
         );
 });
 
-it('redirects /desa/dashboard and /audits to /desa', function () {
+it('redirects /desa/dashboard to /desa and /audits to /audits/create when no audit exists', function () {
     $village = Village::factory()->create();
     $desa = User::factory()->desa($village)->create();
 
@@ -79,7 +79,7 @@ it('redirects /desa/dashboard and /audits to /desa', function () {
 
     $this->actingAs($desa)
         ->get('/audits')
-        ->assertRedirect(route('desa.dashboard'));
+        ->assertRedirect(route('audits.create'));
 });
 
 it('lands on desa dashboard when starting demo as desa', function () {

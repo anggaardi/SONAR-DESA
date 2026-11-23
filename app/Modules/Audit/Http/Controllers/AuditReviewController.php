@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Audit\Http\Controllers;
 
 use App\Modules\Audit\Domain\TotalChecker;
+use App\Modules\Audit\Enums\AuditStatus;
 use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Audit\Models\Audit;
 use App\Modules\Audit\Models\AuditItem;
@@ -126,12 +127,27 @@ final class AuditReviewController
 
         $hasFile = ! empty($audit->file_path);
         $isTotalOk = $totalCheck->isMatch || (bool) $audit->total_ack;
-        $canPublish = $needsCheckCount === 0 && count($items) > 0 && $hasFile && $audit->status->value !== 'published' && $isTotalOk;
+
+        $project = $audit->project;
+        $isPublished = $audit->status === AuditStatus::Published
+            || ($project !== null && $project->isPublished());
+
+        $publishBlockReason = match (true) {
+            $isPublished => 'already_published',
+            $audit->status === AuditStatus::Reading => 'reading',
+            $audit->status === AuditStatus::ReadFailed => 'read_failed',
+            ! $hasFile => 'missing_file',
+            count($items) === 0 => 'no_items',
+            $needsCheckCount > 0 => 'has_yellow_rows',
+            ! $isTotalOk => 'unacknowledged_diff',
+            default => null,
+        };
+
+        $canPublish = $publishBlockReason === null;
 
         $fileName = $audit->file_path ? basename($audit->file_path) : 'Dokumen_RAB.pdf';
         $fileUrl = $audit->file_path ? route('audits.document', $audit->id) : null;
 
-        $project = $audit->project;
         $projectData = $project !== null ? [
             'id' => $project->id,
             'slug' => $project->slug,
@@ -161,6 +177,8 @@ final class AuditReviewController
                 'file_url' => $fileUrl,
                 'written_total_rp' => $audit->written_total_rp,
                 'total_ack' => (bool) $audit->total_ack,
+                'read_ms' => $audit->read_ms,
+                'error_code' => $audit->error_code,
                 'created_at' => $audit->created_at?->toIso8601String(),
             ],
             'items' => $itemsData,
@@ -174,6 +192,7 @@ final class AuditReviewController
                 'is_total_match' => $totalCheck->isMatch,
                 'total_diff_rp' => $totalCheck->diffRp,
                 'can_publish' => $canPublish,
+                'publish_block_reason' => $publishBlockReason,
             ],
             'project' => $projectData,
             'village' => [

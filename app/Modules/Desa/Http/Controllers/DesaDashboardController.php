@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Desa\Http\Controllers;
 
 use App\Modules\Audit\Enums\AuditStatus;
+use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Audit\Models\Audit;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
@@ -41,6 +42,23 @@ final class DesaDashboardController
             ->whereNull('invalid_reason')
             ->count();
 
+        $inProgressAudits = Audit::where('village_id', $villageId)
+            ->where('status', '!=', AuditStatus::Published)
+            ->with('items')
+            ->latest('id')
+            ->get()
+            ->map(fn (Audit $a) => [
+                'id' => $a->id,
+                'status' => $a->status->value,
+                'source' => $a->source,
+                'file_name' => $a->file_path ? basename($a->file_path) : 'Dokumen_RAB.pdf',
+                'written_total_rp' => $a->written_total_rp,
+                'items_count' => $a->items->count(),
+                'needs_check_count' => $a->items->filter(fn ($item) => $item->label === PriceLabel::NeedsCheck && ! $item->corrected)->count(),
+                'created_at' => $a->created_at?->toIso8601String(),
+            ])
+            ->values();
+
         return Inertia::render('desa/Dashboard', [
             'village' => [
                 'id' => $village->id,
@@ -53,9 +71,12 @@ final class DesaDashboardController
                 'published_projects' => $projects->whereNotNull('published_at')->count(),
                 'draft_projects' => $projects->whereNull('published_at')->count(),
                 'pending_reports' => $pendingReportsCount,
+                'audits_reading' => (int) ($auditCounts[AuditStatus::Reading->value] ?? 0),
                 'audits_needs_review' => (int) ($auditCounts[AuditStatus::NeedsReview->value] ?? 0),
+                'audits_ready' => (int) ($auditCounts[AuditStatus::Ready->value] ?? 0),
                 'audits_read_failed' => (int) ($auditCounts[AuditStatus::ReadFailed->value] ?? 0),
             ],
+            'in_progress_audits' => $inProgressAudits,
             'projects' => $projects->map(fn (Project $p) => [
                 'id' => $p->id,
                 'slug' => $p->slug,

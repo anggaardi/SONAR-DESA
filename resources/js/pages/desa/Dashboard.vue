@@ -7,7 +7,19 @@ import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import Table from '@/components/ui/Table.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate, formatRupiah } from '@/lib/format';
 import { projectType } from '@/lib/labels';
+
+interface InProgressAuditItem {
+    id: number;
+    status: string;
+    source: string;
+    file_name: string;
+    written_total_rp: number | null;
+    items_count: number;
+    needs_check_count: number;
+    created_at: string | null;
+}
 
 interface ProjectItem {
     id: number;
@@ -37,9 +49,13 @@ interface Props {
         published_projects: number;
         draft_projects: number;
         pending_reports: number;
+        audits_reading?: number;
         audits_needs_review: number;
+        audits_ready?: number;
         audits_read_failed: number;
     };
+    // eslint-disable-next-line vue/prop-name-casing
+    in_progress_audits?: InProgressAuditItem[];
     projects: ProjectItem[];
 }
 
@@ -65,7 +81,7 @@ const tableColumns = [
         </template>
 
         <template #headerActions>
-            <Button variant="secondary" href="/audits" size="sm">
+            <Button variant="primary" href="/audits/create" size="sm">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
                         stroke-linecap="round"
@@ -74,13 +90,7 @@ const tableColumns = [
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                 </svg>
-                Unggah RAB
-            </Button>
-            <Button variant="primary" href="/desa/projects/create" size="sm">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Tambah Proyek Fisik
+                Unggah Dokumen RAB
             </Button>
         </template>
 
@@ -89,40 +99,59 @@ const tableColumns = [
                 href="/desa"
                 class="flex items-center gap-3 rounded-xl bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
-                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="2"
+                        stroke-width="1.5"
                         d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                     />
                 </svg>
                 <span>Dashboard</span>
             </Link>
             <Link
-                href="/desa/projects/create"
+                href="/audits/create"
                 class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
-                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                 </svg>
-                <span>Tambah Proyek Fisik</span>
+                <span>Audit &amp; Ingesti RAB</span>
+            </Link>
+            <Link
+                href="/desa#daftar-proyek"
+                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                </svg>
+                <span>Proyek Fisik</span>
             </Link>
             <Link
                 :href="`/d/${village.slug}`"
                 class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
-                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="2"
+                        stroke-width="1.5"
                         d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="2"
+                        stroke-width="1.5"
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                 </svg>
@@ -162,7 +191,7 @@ const tableColumns = [
                 </div>
                 <!-- Tombol aksi hanya untuk mobile (di desktop sudah ada di sticky header) -->
                 <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 md:hidden">
-                    <Button variant="secondary" href="/audits">
+                    <Button variant="primary" href="/audits/create">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path
                                 stroke-linecap="round"
@@ -171,13 +200,7 @@ const tableColumns = [
                                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                             />
                         </svg>
-                        Unggah RAB
-                    </Button>
-                    <Button variant="primary" href="/desa/projects/create">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Tambah Proyek Fisik
+                        Unggah Dokumen RAB
                     </Button>
                 </div>
             </div>
@@ -193,6 +216,107 @@ const tableColumns = [
                     ini.
                 </Alert>
             </div>
+
+            <!-- Dokumen RAB Dalam Proses (Ingesti & Audit) -->
+            <section
+                v-if="in_progress_audits && in_progress_audits.length > 0"
+                aria-labelledby="heading-dokumen-proses"
+            >
+                <div class="rounded-lg border border-primary/30 bg-primary-subtle/10 p-4 sm:p-6">
+                    <div class="mb-4 flex items-center justify-between">
+                        <div>
+                            <h2
+                                id="heading-dokumen-proses"
+                                class="flex items-center gap-2 text-base font-bold text-content sm:text-lg"
+                            >
+                                <svg class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                </svg>
+                                Dokumen RAB Dalam Proses
+                            </h2>
+                            <p class="mt-0.5 text-xs text-content-secondary">
+                                Berkas RAB fisik yang sedang diekstrak AI atau menunggu verifikasi Gatekeeper sebelum
+                                diterbitkan.
+                            </p>
+                        </div>
+                        <Badge color="info"> {{ in_progress_audits.length }} Dokumen </Badge>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div
+                            v-for="auditItem in in_progress_audits"
+                            :key="auditItem.id"
+                            class="flex flex-col justify-between rounded-xl border border-stroke bg-surface p-4 shadow-xs transition-shadow hover:shadow-md"
+                        >
+                            <div>
+                                <div class="flex items-start justify-between gap-2">
+                                    <h3
+                                        class="truncate text-xs font-bold text-content sm:text-sm"
+                                        :title="auditItem.file_name"
+                                    >
+                                        {{ auditItem.file_name }}
+                                    </h3>
+                                    <Badge
+                                        :color="
+                                            auditItem.status === 'reading'
+                                                ? 'info'
+                                                : auditItem.status === 'needs_review'
+                                                  ? 'warning'
+                                                  : auditItem.status === 'ready'
+                                                    ? 'positive'
+                                                    : 'negative'
+                                        "
+                                    >
+                                        {{
+                                            auditItem.status === 'reading'
+                                                ? 'Sedang Dibaca AI'
+                                                : auditItem.status === 'needs_review'
+                                                  ? `${auditItem.needs_check_count} Perlu Dicek`
+                                                  : auditItem.status === 'ready'
+                                                    ? 'Siap Terbit'
+                                                    : 'Gagal Ekstraksi'
+                                        }}
+                                    </Badge>
+                                </div>
+
+                                <p class="mt-1 text-[11px] text-content-tertiary">
+                                    {{ auditItem.items_count }} item rincian &middot;
+                                    {{
+                                        auditItem.written_total_rp
+                                            ? formatRupiah(auditItem.written_total_rp)
+                                            : 'Total belum terhitung'
+                                    }}
+                                </p>
+                            </div>
+
+                            <div class="mt-4 flex items-center justify-between border-t border-stroke pt-3">
+                                <span class="text-[11px] text-content-tertiary">
+                                    {{ auditItem.created_at ? formatDate(auditItem.created_at) : '' }}
+                                </span>
+                                <Link
+                                    :href="`/audits/${auditItem.id}`"
+                                    class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-hover hover:underline"
+                                >
+                                    <span>{{ auditItem.status === 'ready' ? 'Terbitkan' : 'Lanjutkan' }}</span>
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M9 5l7 7-7 7"
+                                        />
+                                    </svg>
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
             <!-- Ringkasan Statistik IDDS Cards -->
             <section aria-labelledby="heading-ringkasan">
@@ -233,7 +357,7 @@ const tableColumns = [
             </section>
 
             <!-- Tabel Daftar Proyek Fisik -->
-            <section aria-labelledby="heading-proyek">
+            <section id="daftar-proyek" aria-labelledby="heading-proyek">
                 <div class="rounded-lg border border-stroke bg-surface p-4 sm:p-6">
                     <div class="mb-4 flex items-center justify-between">
                         <div>
@@ -252,7 +376,7 @@ const tableColumns = [
                         title="Belum ada proyek terdaftar"
                         description="Mulai publikasikan keterbukaan anggaran dengan mengunggah dokumen RAB proyek fisik desa."
                     >
-                        <Button variant="primary" href="/audits"> Unggah Dokumen RAB </Button>
+                        <Button variant="primary" href="/audits/create"> Unggah Dokumen RAB </Button>
                     </EmptyState>
 
                     <template v-else>
