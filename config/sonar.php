@@ -55,6 +55,32 @@ return [
         'threshold' => (int) env('REVIEW_THRESHOLD', 3),
     ],
 
+    // Measurement templates by project type for Cek Spek (PRD Fitur Inti 3.5 & F19).
+    'measurement_templates' => [
+        'rabat_beton' => [
+            ['name' => 'Ketebalan Beton Cor', 'unit' => 'cm', 'default_value' => '12.0', 'how_to' => 'Ukur ketebalan cor di batas bekisting tepi jalan pada minimal 3 titik berbeda.'],
+            ['name' => 'Lebar Badan Jalan', 'unit' => 'meter', 'default_value' => '2.50', 'how_to' => 'Rentangkan meteran tegak lurus dari tepi kiri ke tepi kanan jalan rabat beton.'],
+            ['name' => 'Panjang Total Pekerjaan', 'unit' => 'meter', 'default_value' => '450.0', 'how_to' => 'Ukur bentang jalan dari titik nol prasasti proyek sampai titik akhir pengecoran.'],
+        ],
+        'saluran_irigasi' => [
+            ['name' => 'Panjang Saluran', 'unit' => 'meter', 'default_value' => '300.0', 'how_to' => 'Ukur panjang bentang saluran drainase/irigasi dari hulu ke hilir.'],
+            ['name' => 'Lebar Dalam Saluran', 'unit' => 'cm', 'default_value' => '60.0', 'how_to' => 'Ukur bukaan lebar bersih penampang dalam saluran air.'],
+            ['name' => 'Tinggi Dinding Saluran', 'unit' => 'cm', 'default_value' => '80.0', 'how_to' => 'Ukur kedalaman dari bibir atas pasangan batu hingga dasar saluran.'],
+        ],
+        'gedung' => [
+            ['name' => 'Panjang Bangunan', 'unit' => 'meter', 'default_value' => '15.0', 'how_to' => 'Ukur sisi terpanjang dinding luar bangunan.'],
+            ['name' => 'Lebar Bangunan', 'unit' => 'meter', 'default_value' => '10.0', 'how_to' => 'Ukur sisi pendek dinding luar bangunan.'],
+            ['name' => 'Tinggi Dinding Bangunan', 'unit' => 'meter', 'default_value' => '3.80', 'how_to' => 'Ukur tinggi vertikal dari lantai finish hingga batas ring balok plafon.'],
+        ],
+        'lampu_jalan' => [
+            ['name' => 'Jumlah Titik Lampu', 'unit' => 'unit', 'default_value' => '20', 'how_to' => 'Hitung fisik tiang lampu PJU yang terpasang di sepanjang ruas jalan.'],
+            ['name' => 'Tinggi Tiang Lampu', 'unit' => 'meter', 'default_value' => '6.0', 'how_to' => 'Ukur tinggi vertikal tiang dari base plate fondasi hingga armatur lampu.'],
+        ],
+        'lainnya' => [
+            ['name' => 'Volume Utama Pekerjaan', 'unit' => 'unit', 'default_value' => '1.0', 'how_to' => 'Ukur atau hitung kesesuaian fisik pekerjaan utama di lokasi.'],
+        ],
+    ],
+
     'demo' => [
         // The Desa Contoh village that every demo session clones (PRD Arsitektur 6.7).
         'template_slug' => env('DEMO_TEMPLATE_SLUG', 'desa-contoh-template'),

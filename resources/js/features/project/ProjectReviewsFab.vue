@@ -224,41 +224,16 @@ function onKeydown(e: KeyboardEvent): void {
     }
 }
 
-let savedScrollY = 0;
-
-watch(
-    isOpen,
-    (open) => {
-        if (typeof document === 'undefined') {
-            return;
-        }
-        if (open) {
-            savedScrollY = window.scrollY;
-            document.body.style.position = 'fixed';
-            document.body.style.top = `-${savedScrollY}px`;
-            document.body.style.left = '0';
-            document.body.style.right = '0';
-            document.body.style.width = '100%';
-            document.body.style.overflow = 'hidden';
-            document.documentElement.style.overflow = 'hidden';
-            document.body.style.touchAction = 'none';
-        } else {
-            const top = document.body.style.top;
-            document.body.style.position = '';
-            document.body.style.top = '';
-            document.body.style.left = '';
-            document.body.style.right = '';
-            document.body.style.width = '';
-            document.body.style.overflow = '';
-            document.documentElement.style.overflow = '';
-            document.body.style.touchAction = '';
-            if (top) {
-                window.scrollTo(0, parseInt(top || '0', 10) * -1);
-            }
-        }
-    },
-    { immediate: true },
-);
+watch(isOpen, (open) => {
+    if (typeof document === 'undefined') {
+        return;
+    }
+    if (open) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+});
 
 onMounted(() => {
     document.addEventListener('keydown', onKeydown);
@@ -267,18 +242,7 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener('keydown', onKeydown);
     if (typeof document !== 'undefined') {
-        const top = document.body.style.top;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
-        document.body.style.width = '';
         document.body.style.overflow = '';
-        document.documentElement.style.overflow = '';
-        document.body.style.touchAction = '';
-        if (top) {
-            window.scrollTo(0, parseInt(top || '0', 10) * -1);
-        }
     }
 });
 </script>

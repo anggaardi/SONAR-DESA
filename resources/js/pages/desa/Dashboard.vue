@@ -20,6 +20,7 @@ interface ProjectItem {
     public_status: string;
     is_published: boolean;
     published_at: string | null;
+    audit_id?: number | null;
     audit_status?: string | null;
     photos_count: number;
 }
@@ -57,51 +58,71 @@ const tableColumns = [
     <AppLayout>
         <Head :title="`Dashboard Pemerintah Desa - ${village.name}`" />
 
-        <template #logo>
-            <div class="flex items-center gap-3">
-                <div
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-content-inverse"
-                    aria-hidden="true"
-                >
-                    SD
-                </div>
-                <div>
-                    <span class="block text-base leading-tight font-bold text-content">Sonar Desa</span>
-                    <span class="block text-xs text-content-tertiary">Pemerintah Desa</span>
-                </div>
-            </div>
+        <template #breadcrumb>
+            <Link href="/" class="transition-colors hover:text-primary">Beranda</Link>
+            <span>/</span>
+            <span class="font-medium text-content">Dashboard Pemerintah {{ village.name }}</span>
+        </template>
+
+        <template #headerActions>
+            <Button variant="secondary" href="/audits" size="sm">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                </svg>
+                Unggah RAB
+            </Button>
+            <Button variant="primary" href="/desa/projects/create" size="sm">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Tambah Proyek Fisik
+            </Button>
         </template>
 
         <template #nav>
             <Link
                 href="/desa"
-                class="flex items-center gap-3 rounded-md bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary"
+                class="flex items-center gap-3 rounded-xl bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="2"
                         d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                     />
                 </svg>
                 <span>Dashboard</span>
             </Link>
             <Link
+                href="/desa/projects/create"
+                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Tambah Proyek Fisik</span>
+            </Link>
+            <Link
                 :href="`/d/${village.slug}`"
-                class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content"
+                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="2"
                         d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="2"
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                 </svg>
@@ -139,12 +160,24 @@ const tableColumns = [
                         progres fisik.
                     </p>
                 </div>
-                <div>
-                    <Button variant="primary" href="/audits">
+                <!-- Tombol aksi hanya untuk mobile (di desktop sudah ada di sticky header) -->
+                <div class="flex flex-wrap items-center gap-2.5 sm:gap-3 md:hidden">
+                    <Button variant="secondary" href="/audits">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                        </svg>
+                        Unggah RAB
+                    </Button>
+                    <Button variant="primary" href="/desa/projects/create">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
-                        Unggah Dokumen RAB
+                        Tambah Proyek Fisik
                     </Button>
                 </div>
             </div>
@@ -255,22 +288,83 @@ const tableColumns = [
                                         </Badge>
                                     </td>
                                     <td class="px-4 py-3 text-right">
-                                        <div class="flex items-center justify-end gap-3">
+                                        <div class="flex items-center justify-end gap-1.5">
+                                            <!-- Review & Terbitkan (untuk draf yang punya dokumen audit) -->
+                                            <Link
+                                                v-if="project.audit_id && !project.is_published"
+                                                :href="`/audits/${project.audit_id}`"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-warning-border bg-warning-subtle text-warning transition-colors hover:bg-warning hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-warning"
+                                                title="Review &amp; Terbitkan RAB"
+                                                aria-label="Review &amp; Terbitkan RAB"
+                                            >
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                                                    />
+                                                </svg>
+                                            </Link>
+
+                                            <!-- Kelola Proyek & CCO -->
+                                            <Link
+                                                :href="`/desa/projects/${project.id}`"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary-subtle text-primary transition-colors hover:bg-primary hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                                title="Kelola &amp; CCO"
+                                                aria-label="Kelola &amp; CCO"
+                                            >
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                                                    />
+                                                </svg>
+                                            </Link>
+
+                                            <!-- Lihat Halaman Publik -->
                                             <Link
                                                 v-if="project.is_published"
                                                 :href="`/p/${project.slug}`"
-                                                class="text-sm font-medium text-primary underline-offset-2 hover:underline"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stroke bg-surface text-content-secondary transition-colors hover:border-stroke-strong hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                                title="Lihat Halaman Publik"
+                                                aria-label="Lihat Halaman Publik"
                                             >
-                                                Lihat Publik &rarr;
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                    />
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                    />
+                                                </svg>
                                             </Link>
+
+                                            <!-- Cetak Poster QR -->
                                             <Link
                                                 v-if="project.is_published"
                                                 :href="`/projects/${project.id}/qr`"
-                                                class="text-sm font-medium text-content-secondary underline-offset-2 hover:text-content hover:underline"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stroke bg-surface text-content-secondary transition-colors hover:border-stroke-strong hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                                title="Cetak Poster QR"
+                                                aria-label="Cetak Poster QR"
                                             >
-                                                Cetak QR
+                                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M4 3h5a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zM15 3h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1V4a1 1 0 011-1zM4 14h5a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1v-5a1 1 0 011-1zM14 14h3v3M21 14v.01M14 21h.01M17 21h4v-4"
+                                                    />
+                                                </svg>
                                             </Link>
-                                            <span v-else class="text-xs text-content-tertiary">Belum terbit</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -310,18 +404,80 @@ const tableColumns = [
                                 </div>
 
                                 <div
-                                    v-if="project.is_published"
-                                    class="mt-3 flex items-center justify-between border-t border-stroke pt-2.5 text-xs"
+                                    class="mt-3 flex items-center justify-between gap-2 border-t border-stroke pt-2.5"
                                 >
-                                    <Link :href="`/p/${project.slug}`" class="font-medium text-primary hover:underline">
-                                        Lihat Publik &rarr;
-                                    </Link>
-                                    <Link
-                                        :href="`/projects/${project.id}/qr`"
-                                        class="font-medium text-content-secondary hover:underline"
-                                    >
-                                        Cetak QR
-                                    </Link>
+                                    <span class="text-xs font-medium text-content-secondary">Aksi:</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <Link
+                                            v-if="project.audit_id && !project.is_published"
+                                            :href="`/audits/${project.audit_id}`"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-warning-border bg-warning-subtle text-warning transition-colors hover:bg-warning hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-warning"
+                                            title="Review &amp; Terbitkan RAB"
+                                            aria-label="Review &amp; Terbitkan RAB"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                                                />
+                                            </svg>
+                                        </Link>
+                                        <Link
+                                            :href="`/desa/projects/${project.id}`"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary-subtle text-primary transition-colors hover:bg-primary hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                            title="Kelola &amp; CCO"
+                                            aria-label="Kelola &amp; CCO"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                                                />
+                                            </svg>
+                                        </Link>
+                                        <Link
+                                            v-if="project.is_published"
+                                            :href="`/p/${project.slug}`"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stroke bg-surface text-content-secondary transition-colors hover:border-stroke-strong hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                            title="Lihat Halaman Publik"
+                                            aria-label="Lihat Halaman Publik"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                                />
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                />
+                                            </svg>
+                                        </Link>
+                                        <Link
+                                            v-if="project.is_published"
+                                            :href="`/projects/${project.id}/qr`"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stroke bg-surface text-content-secondary transition-colors hover:border-stroke-strong hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                            title="Cetak Poster QR"
+                                            aria-label="Cetak Poster QR"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M4 3h5a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1V4a1 1 0 011-1zM15 3h5a1 1 0 011 1v5a1 1 0 01-1 1h-5a1 1 0 01-1-1V4a1 1 0 011-1zM4 14h5a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1v-5a1 1 0 011-1zM14 14h3v3M21 14v.01M14 21h.01M17 21h4v-4"
+                                                />
+                                            </svg>
+                                        </Link>
+                                    </div>
                                 </div>
                             </Card>
                         </div>

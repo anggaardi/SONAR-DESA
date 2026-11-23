@@ -15,6 +15,11 @@ declare module '@inertiajs/core' {
             auth: { user: AuthUser | null };
             demo: { role: Role; village_slug?: string | null } | null;
             app: { commit: string };
+            flash?: {
+                success?: string | null;
+                error?: string | null;
+                published_project?: Record<string, unknown> | null;
+            };
         };
     }
 }

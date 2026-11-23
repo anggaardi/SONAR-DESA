@@ -20,6 +20,7 @@ final class ProgressPhotoController
             $project,
             (int) $request->validated('progress_pct'),
             $request->file('photos'),
+            $request->validated('decrease_reason'),
         );
 
         return back();

@@ -43,6 +43,7 @@ export interface ProjectChangeItem {
     field: string;
     old_value: string;
     new_value: string;
+    reason?: string | null;
     changed_at: string;
 }
 

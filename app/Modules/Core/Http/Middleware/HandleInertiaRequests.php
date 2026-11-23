@@ -43,6 +43,11 @@ final class HandleInertiaRequests extends Middleware
             'app' => [
                 'commit' => config('sonar.commit'),
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'published_project' => fn () => $request->session()->get('published_project'),
+            ],
         ];
     }
 }

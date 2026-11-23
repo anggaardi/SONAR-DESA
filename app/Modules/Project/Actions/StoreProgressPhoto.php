@@ -17,17 +17,23 @@ final class StoreProgressPhoto
 {
     private ImageManager $imageManager;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly ?RecordProjectChange $recordProjectChange = null,
+    ) {
         $this->imageManager = new ImageManager(new Driver);
     }
 
     /**
      * @param  array<UploadedFile>  $photos
      */
-    public function handle(Project $project, int $progressPct, array $photos): void
-    {
+    public function handle(
+        Project $project,
+        int $progressPct,
+        array $photos,
+        ?string $decreaseReason = null
+    ): void {
         $disk = Storage::disk('local');
+        $oldPct = $project->progress_pct;
 
         foreach ($photos as $uploadedFile) {
             $image = $this->imageManager->decode(file_get_contents($uploadedFile->getRealPath()));
@@ -47,6 +53,19 @@ final class StoreProgressPhoto
                 'progress_pct' => $progressPct,
                 'taken_at' => Carbon::now(),
             ]);
+        }
+
+        // D13: Penurunan progres fisik wajib tercatat ke project_changes
+        if ($progressPct < $oldPct) {
+            $recorder = $this->recordProjectChange ?? app(RecordProjectChange::class);
+            $recorder->execute(
+                project: $project,
+                field: 'Progres Fisik',
+                itemLabel: 'Penurunan Capaian Fisik',
+                oldValue: "{$oldPct}%",
+                newValue: "{$progressPct}%",
+                reason: $decreaseReason ?? 'Penyesuaian capaian fisik',
+            );
         }
 
         $project->update(['progress_pct' => $progressPct]);

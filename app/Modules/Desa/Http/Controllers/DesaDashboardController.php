@@ -67,6 +67,7 @@ final class DesaDashboardController
                 'public_status' => $p->public_status->value,
                 'is_published' => $p->isPublished(),
                 'published_at' => $p->published_at?->toIso8601String(),
+                'audit_id' => $p->audit_id,
                 'audit_status' => $p->audit?->status->value,
                 'photos_count' => $p->progressPhotos->count(),
             ])->values(),

@@ -87,6 +87,21 @@ final class VillageCloner
         });
     }
 
+    public static function createAccount(Village $village, Role $role): User
+    {
+        return User::query()->create([
+            'name' => match ($role) {
+                Role::Desa => 'Pemerintah Desa (demo)',
+                Role::Bpd => 'BPD (demo)',
+                Role::Warga => 'Warga (demo)',
+            },
+            'email' => "demo-{$role->value}-{$village->id}@demo.sonar-desa.test",
+            'role' => $role,
+            'village_id' => $village->id,
+            'password' => null,
+        ]);
+    }
+
     /**
      * @return array<int, int> template user id => demo account id
      */
@@ -94,17 +109,7 @@ final class VillageCloner
     {
         $accounts = [];
         foreach (self::ACCOUNT_ROLES as $role) {
-            $accounts[$role->value] = User::query()->create([
-                'name' => match ($role) {
-                    Role::Desa => 'Pemerintah Desa (demo)',
-                    Role::Bpd => 'BPD (demo)',
-                    Role::Warga => 'Warga (demo)',
-                },
-                'email' => "demo-{$role->value}-{$village->id}@demo.sonar-desa.test",
-                'role' => $role,
-                'village_id' => $village->id,
-                'password' => null,
-            ])->id;
+            $accounts[$role->value] = self::createAccount($village, $role)->id;
         }
 
         /** @var array<int, string> $templateUsers */

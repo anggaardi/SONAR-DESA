@@ -20,9 +20,10 @@ use Illuminate\Support\Carbon;
  * @property string $item_label
  * @property string $old_value
  * @property string $new_value
+ * @property string|null $reason
  * @property Carbon $changed_at
  */
-#[Fillable(['project_id', 'field', 'item_label', 'old_value', 'new_value', 'changed_at'])]
+#[Fillable(['project_id', 'field', 'item_label', 'old_value', 'new_value', 'reason', 'changed_at'])]
 #[UseFactory(ProjectChangeFactory::class)]
 final class ProjectChange extends Model implements OwnedThroughParent
 {

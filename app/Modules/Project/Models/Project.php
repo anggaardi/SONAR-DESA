@@ -104,6 +104,12 @@ final class Project extends Model
         return $this->hasMany(ProjectChange::class)->orderByDesc('changed_at');
     }
 
+    /** @return HasMany<ProjectChange, $this> */
+    public function changes(): HasMany
+    {
+        return $this->projectChanges();
+    }
+
     /** @return HasMany<Report, $this> */
     public function reports(): HasMany
     {

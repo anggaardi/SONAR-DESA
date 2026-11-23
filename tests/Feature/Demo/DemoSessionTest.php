@@ -174,6 +174,32 @@ it('switches role inside the same demo village', function () {
         ->and(Village::query()->where('is_demo', true)->count())->toBe(1);
 });
 
+it('creates the demo account on the fly if missing from an existing clone', function () {
+    $template = demoTemplate();
+    $village = app(VillageCloner::class)->clone($template);
+    User::query()->where('village_id', $village->id)->where('role', Role::Warga)->delete();
+
+    $this->withSession([SetCurrentVillage::DEMO_SESSION_KEY => $village->id])
+        ->post('/demo/start/warga')
+        ->assertRedirect(route('villages.projects', $village->slug));
+
+    expect(auth()->user()?->role)->toBe(Role::Warga)
+        ->and(auth()->user()?->village_id)->toBe($village->id)
+        ->and(User::query()->where('village_id', $village->id)->where('role', Role::Warga)->count())->toBe(1);
+});
+
+it('clones a new village when the session holds an expired demo village', function () {
+    $template = demoTemplate();
+    $expired = app(VillageCloner::class)->clone($template);
+    $expired->update(['demo_expires_at' => now()->subMinute()]);
+
+    $this->withSession([SetCurrentVillage::DEMO_SESSION_KEY => $expired->id])
+        ->post('/demo/start/warga');
+
+    $active = Village::query()->where('is_demo', true)->where('id', '!=', $expired->id)->sole();
+    expect(session(SetCurrentVillage::DEMO_SESSION_KEY))->toBe($active->id);
+});
+
 it('keeps one visitor demo invisible to another visitor (M4)', function () {
     demoTemplate();
     $this->post('/demo/start/warga');
