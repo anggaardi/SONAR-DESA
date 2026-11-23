@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth', 'village', 'role:desa'])->group(function () {
     Route::get('/desa', [DesaDashboardController::class, 'index'])->name('desa.dashboard');
     Route::get('/desa/dashboard', fn () => redirect()->route('desa.dashboard'));
-    Route::get('/audits', fn () => redirect()->route('desa.dashboard'))->name('audits.index');
+    Route::get('/audits', fn () => redirect()->route('audits.create'))->name('audits.index');
     Route::get('/desa/projects/create', [DesaProjectController::class, 'create'])->name('desa.projects.create');
     Route::post('/desa/projects', [DesaProjectController::class, 'store'])->name('desa.projects.store');
 

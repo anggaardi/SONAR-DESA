@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import Dialog from '@/components/ui/Dialog.vue';
 import PriceLabel from '@/components/ui/PriceLabel.vue';
@@ -42,6 +42,8 @@ interface Props {
         file_url: string | null;
         written_total_rp: number | null;
         total_ack: boolean;
+        read_ms?: number | null;
+        error_code?: string | null;
         created_at: string | null;
     };
     items: AuditItemData[];
@@ -55,6 +57,7 @@ interface Props {
         is_total_match: boolean;
         total_diff_rp: number;
         can_publish: boolean;
+        publish_block_reason?: string | null;
     };
     project: {
         id: number;
@@ -109,6 +112,138 @@ const filteredItems = computed(() => {
         return item.label === activeTab.value;
     });
 });
+
+// Polling for Audit Reading Status
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const pollSeconds = ref(0);
+
+function startPolling(): void {
+    if (pollTimer) return;
+    pollSeconds.value = 0;
+    pollTimer = setInterval(() => {
+        pollSeconds.value += 2;
+        if (props.audit.status !== 'reading' || pollSeconds.value >= 60) {
+            stopPolling();
+            return;
+        }
+        router.reload({
+            only: ['audit', 'items', 'summary', 'project'],
+        });
+    }, 2000);
+}
+
+function stopPolling(): void {
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
+}
+
+watch(
+    () => props.audit.status,
+    (newStatus) => {
+        if (newStatus === 'reading') {
+            startPolling();
+        } else {
+            stopPolling();
+        }
+    },
+    { immediate: true },
+);
+
+onUnmounted(() => {
+    stopPolling();
+});
+
+// Retry Reading (OCR)
+const isRetrying = ref(false);
+function retryReading(): void {
+    isRetrying.value = true;
+    router.post(
+        `/audits/${props.audit.id}/retry`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isRetrying.value = false;
+            },
+        },
+    );
+}
+
+// Ack Total Check (F3)
+const isAckingTotal = ref(false);
+function ackTotal(): void {
+    isAckingTotal.value = true;
+    router.post(
+        `/audits/${props.audit.id}/ack-total`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isAckingTotal.value = false;
+            },
+        },
+    );
+}
+
+// Add Item Modal
+const isAddModalOpen = ref(false);
+const isSubmittingAdd = ref(false);
+const addForm = ref({
+    raw_name: '',
+    volume: '1',
+    unit: '',
+    unit_price_rp: 0,
+    amount_rp: 0,
+    standard_id: null as number | null,
+});
+
+function openAddModal(): void {
+    addForm.value = {
+        raw_name: '',
+        volume: '1',
+        unit: '',
+        unit_price_rp: 0,
+        amount_rp: 0,
+        standard_id: null,
+    };
+    standardSearch.value = '';
+    isAddModalOpen.value = true;
+}
+
+function selectAddStandard(std: (typeof props.priceStandards)[0]): void {
+    addForm.value.standard_id = std.id;
+    standardSearch.value = `${std.name} (${std.unit}) - ${formatRupiah(std.price_rp)}`;
+    if (!addForm.value.unit) {
+        addForm.value.unit = std.unit;
+    }
+    if (!addForm.value.unit_price_rp) {
+        addForm.value.unit_price_rp = std.price_rp;
+    }
+}
+
+function submitAdd(): void {
+    isSubmittingAdd.value = true;
+    router.post(
+        `/audits/${props.audit.id}/items`,
+        {
+            raw_name: addForm.value.raw_name,
+            volume: addForm.value.volume,
+            unit: addForm.value.unit,
+            unit_price_rp: addForm.value.unit_price_rp,
+            amount_rp: addForm.value.amount_rp || null,
+            standard_id: addForm.value.standard_id,
+        },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                isSubmittingAdd.value = false;
+                isAddModalOpen.value = false;
+            },
+        },
+    );
+}
 
 // Wizard Modal State
 const isWizardOpen = ref(false);
@@ -258,7 +393,7 @@ function zoomOut(): void {
                 <span>Dashboard</span>
             </Link>
             <Link
-                href="/audits"
+                href="/audits/create"
                 class="flex items-center gap-3 rounded-xl bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -269,7 +404,21 @@ function zoomOut(): void {
                         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                     />
                 </svg>
-                <span>Audit & Ingesti RAB</span>
+                <span>Audit &amp; Ingesti RAB</span>
+            </Link>
+            <Link
+                href="/desa#daftar-proyek"
+                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                </svg>
+                <span>Proyek Fisik</span>
             </Link>
             <Link
                 :href="`/d/${village.slug}`"
@@ -310,14 +459,7 @@ function zoomOut(): void {
             <!-- Header Section -->
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                    <nav class="flex items-center gap-2 text-xs text-content-tertiary">
-                        <Link href="/desa" class="hover:underline">Dashboard</Link>
-                        <span>/</span>
-                        <span>Audit Anggaran RAB</span>
-                        <span>/</span>
-                        <span class="font-medium text-content">Review Dokumen #{{ audit.id }}</span>
-                    </nav>
-                    <h1 class="mt-1 text-2xl font-bold tracking-tight text-content sm:text-3xl">
+                    <h1 class="text-2xl font-bold tracking-tight text-content sm:text-3xl">
                         Verifikasi Hasil Ekstraksi RAB & Gatekeeper
                     </h1>
                     <p class="mt-1 text-sm text-content-secondary">
@@ -540,68 +682,128 @@ function zoomOut(): void {
 
                 <!-- PANEL KANAN: TABEL HASIL EKSTRAKSI & GATEKEEPER -->
                 <div class="space-y-4 lg:col-span-7">
-                    <!-- 1. Banner Gatekeeper Baris Kuning (D1) -->
+                    <!-- State A: Reading (Loading & Polling) -->
                     <div
-                        v-if="summary.needs_check_count > 0"
-                        class="rounded-xl border border-warning-border bg-warning-subtle p-4 text-warning"
+                        v-if="audit.status === 'reading'"
+                        class="rounded-2xl border border-primary/30 bg-surface p-8 text-center shadow-xs"
                     >
-                        <div class="flex items-start gap-3">
-                            <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2"
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        <div
+                            class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-subtle text-primary shadow-xs"
+                        >
+                            <svg class="h-8 w-8 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle
+                                    class="opacity-25"
+                                    cx="12"
+                                    cy="12"
+                                    r="10"
+                                    stroke="currentColor"
+                                    stroke-width="4"
                                 />
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                             </svg>
-                            <div>
-                                <h3 class="text-sm font-bold">
-                                    Publikasi Terkunci: {{ summary.needs_check_count }} Baris Perlu Diperiksa (D1)
-                                </h3>
-                                <p class="mt-0.5 text-xs text-warning/90">
-                                    Terdapat ketidaksesuaian satuan atau deviasi hitung. Selesaikan seluruh baris kuning
-                                    di bawah agar tombol publikasi terbuka.
-                                </p>
-                            </div>
+                        </div>
+                        <h3 class="mt-4 text-lg font-bold text-content">AI Sedang Mengekstrak Dokumen RAB...</h3>
+                        <p class="mx-auto mt-1 max-w-md text-xs text-content-secondary">
+                            Sistem AI Vision sedang membaca teks dan angka tabel rincian belanja dari lembar berkas
+                            fisik, lalu mencocokkannya ke Standar Harga (SSH) Gianyar. Halaman ini akan diperbarui
+                            secara otomatis.
+                        </p>
+                        <div
+                            class="mt-5 inline-flex items-center gap-2 rounded-full border border-stroke bg-surface-muted px-4 py-1.5 text-xs font-semibold text-content-secondary"
+                        >
+                            <span class="relative flex h-2 w-2">
+                                <span
+                                    class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"
+                                ></span>
+                                <span class="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+                            </span>
+                            <span>Memproses background job (± {{ pollSeconds }} detik)...</span>
                         </div>
                     </div>
 
-                    <div v-else class="rounded-xl border border-positive-border bg-positive-subtle p-4 text-positive">
-                        <div class="flex items-start gap-3">
-                            <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2.5"
-                                    d="M5 13l4 4L19 7"
-                                />
-                            </svg>
-                            <div>
-                                <h3 class="text-sm font-bold">Gatekeeper D1 Lolos: 0 Baris Kuning</h3>
-                                <p class="mt-0.5 text-xs text-positive/90">
-                                    Semua rincian belanja telah terverifikasi. Anda dapat melanjutkan ke wizard
-                                    penerbitan proyek fisik ke hadapan warga desa.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 2. Banner Cek Konsistensi Total (F3) -->
+                    <!-- State B: Read Failed (Error State & Recovery) -->
                     <div
-                        class="flex items-center justify-between rounded-lg border border-stroke bg-surface px-4 py-3 shadow-xs"
+                        v-else-if="audit.status === 'read_failed'"
+                        class="rounded-2xl border border-negative/30 bg-negative-subtle/20 p-6 shadow-xs"
                     >
-                        <div class="flex items-center gap-2.5">
-                            <span
-                                :class="[
-                                    'flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold',
-                                    summary.is_total_match
-                                        ? 'bg-positive-subtle text-positive'
-                                        : 'bg-warning-subtle text-warning',
-                                ]"
+                        <div class="flex items-start gap-4">
+                            <div
+                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-negative text-content-inverse shadow-xs"
                             >
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="text-base font-bold text-content">
+                                    Ekstraksi Otomatis AI Mengalami Kendala
+                                </h3>
+                                <p class="mt-1 text-xs text-content-secondary">
+                                    Dokumen tidak dapat diekstrak otomatis (Kode:
+                                    <code
+                                        class="rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] text-negative"
+                                        >{{ audit.error_code || 'EXTRACTION_FAILED' }}</code>). Berkas asli Anda tetap
+                                    tersimpan aman. Anda dapat mencoba ekstraksi ulang atau menginput rincian belanja
+                                    secara manual.
+                                </p>
+                                <div class="mt-4 flex flex-wrap gap-3">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-content-inverse shadow-xs transition-colors hover:bg-primary-hover"
+                                        :disabled="isRetrying"
+                                        @click="retryReading"
+                                    >
+                                        <svg
+                                            class="h-4 w-4"
+                                            :class="{ 'animate-spin': isRetrying }"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                            />
+                                        </svg>
+                                        <span>{{ isRetrying ? 'Memulai Ulang...' : 'Coba Ekstraksi Ulang' }}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-4 py-2 text-xs font-semibold text-content shadow-xs transition-colors hover:bg-surface-muted"
+                                        @click="openAddModal"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M12 4v16m8-8H4"
+                                            />
+                                        </svg>
+                                        <span>Isi Baris Manual</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- State C: Normal Audit Review Flow -->
+                    <template v-else>
+                        <!-- 1. Banner Gatekeeper Baris Kuning (D1) -->
+                        <div
+                            v-if="summary.needs_check_count > 0"
+                            class="rounded-xl border border-warning-border bg-warning-subtle p-4 text-warning"
+                        >
+                            <div class="flex items-start gap-3">
                                 <svg
-                                    v-if="summary.is_total_match"
-                                    class="h-3.5 w-3.5"
+                                    class="mt-0.5 h-5 w-5 shrink-0"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -609,180 +811,278 @@ function zoomOut(): void {
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
-                                        stroke-width="3"
+                                        stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                </svg>
+                                <div>
+                                    <h3 class="text-sm font-bold">
+                                        Publikasi Terkunci: {{ summary.needs_check_count }} Baris Perlu Diperiksa (D1)
+                                    </h3>
+                                    <p class="mt-0.5 text-xs text-warning/90">
+                                        Terdapat ketidaksesuaian satuan atau deviasi hitung. Selesaikan seluruh baris
+                                        kuning di bawah agar tombol publikasi terbuka.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            v-else
+                            class="rounded-xl border border-positive-border bg-positive-subtle p-4 text-positive"
+                        >
+                            <div class="flex items-start gap-3">
+                                <svg
+                                    class="mt-0.5 h-5 w-5 shrink-0"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2.5"
                                         d="M5 13l4 4L19 7"
                                     />
                                 </svg>
-                                <span v-else>!</span>
-                            </span>
-                            <div>
-                                <span class="text-xs font-bold text-content">Konsistensi Total (F3):</span>
-                                <span class="ml-1 text-xs text-content-secondary">
-                                    Total Tertulis
-                                    {{ formatRupiah(audit.written_total_rp ?? summary.total_calculated_rp) }} = Jumlah
-                                    Baris {{ formatRupiah(summary.total_calculated_rp) }}
-                                    <span v-if="summary.is_total_match" class="font-semibold text-positive"
-                                        >(Sesuai)</span
-                                    >
-                                    <span v-else class="font-semibold text-warning"
-                                        >(Selisih {{ formatRupiah(summary.total_diff_rp) }})</span
-                                    >
-                                </span>
+                                <div>
+                                    <h3 class="text-sm font-bold">Gatekeeper D1 Lolos: 0 Baris Kuning</h3>
+                                    <p class="mt-0.5 text-xs text-positive/90">
+                                        Semua rincian belanja telah terverifikasi. Anda dapat melanjutkan ke wizard
+                                        penerbitan proyek fisik ke hadapan warga desa.
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 3. Tab Filter Status Evaluasi -->
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            :class="[
-                                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                                activeTab === 'all'
-                                    ? 'bg-primary text-content-inverse'
-                                    : 'border border-stroke bg-surface text-content-secondary hover:bg-surface-muted hover:text-content',
-                            ]"
-                            @click="activeTab = 'all'"
+                        <!-- 2. Banner Cek Konsistensi Total (F3) -->
+                        <div
+                            class="flex flex-col gap-2 rounded-lg border border-stroke bg-surface px-4 py-3 shadow-xs sm:flex-row sm:items-center sm:justify-between"
                         >
-                            Semua ({{ summary.total_items }})
-                        </button>
-
-                        <button
-                            type="button"
-                            :class="[
-                                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                                activeTab === 'needs_check'
-                                    ? 'bg-warning text-white'
-                                    : 'border border-warning-border bg-warning-subtle text-warning hover:bg-warning-subtle/80',
-                            ]"
-                            @click="activeTab = 'needs_check'"
-                        >
-                            Perlu Dicek ({{ summary.needs_check_count }})
-                        </button>
-
-                        <button
-                            type="button"
-                            :class="[
-                                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                                activeTab === 'above_standard'
-                                    ? 'bg-negative text-white'
-                                    : 'border border-negative-border bg-negative-subtle text-negative hover:bg-negative-subtle/80',
-                            ]"
-                            @click="activeTab = 'above_standard'"
-                        >
-                            Di Atas Standar ({{ summary.above_standard_count }})
-                        </button>
-
-                        <button
-                            type="button"
-                            :class="[
-                                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                                activeTab === 'within_standard'
-                                    ? 'bg-positive text-white'
-                                    : 'border border-positive-border bg-positive-subtle text-positive hover:bg-positive-subtle/80',
-                            ]"
-                            @click="activeTab = 'within_standard'"
-                        >
-                            Sesuai ({{ summary.within_standard_count }})
-                        </button>
-
-                        <button
-                            type="button"
-                            :class="[
-                                'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
-                                activeTab === 'no_reference'
-                                    ? 'bg-content-secondary text-white'
-                                    : 'border border-stroke bg-surface text-content-tertiary hover:bg-surface-muted hover:text-content',
-                            ]"
-                            @click="activeTab = 'no_reference'"
-                        >
-                            Tanpa Acuan ({{ summary.no_reference_count }})
-                        </button>
-                    </div>
-
-                    <!-- 4. Tabel Audit Items -->
-                    <div class="overflow-hidden rounded-xl border border-stroke bg-surface shadow-xs">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs">
-                                <thead
-                                    class="border-b border-stroke bg-surface-subtle text-[11px] font-semibold tracking-wider text-content-tertiary uppercase"
+                            <div class="flex items-center gap-2.5">
+                                <span
+                                    :class="[
+                                        'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                                        summary.is_total_match
+                                            ? 'bg-positive-subtle text-positive'
+                                            : 'bg-warning-subtle text-warning',
+                                    ]"
                                 >
-                                    <tr>
-                                        <th class="w-10 px-3.5 py-3">No</th>
-                                        <th class="px-3.5 py-3">Uraian Belanja & Acuan SSH</th>
-                                        <th class="px-3.5 py-3">Vol / Sat</th>
-                                        <th class="px-3.5 py-3">Harga Satuan</th>
-                                        <th class="px-3.5 py-3">Subtotal</th>
-                                        <th class="px-3.5 py-3 text-right">Evaluasi</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-stroke">
-                                    <tr v-if="filteredItems.length === 0">
-                                        <td colspan="6" class="px-4 py-8 text-center text-xs text-content-tertiary">
-                                            Tidak ada baris belanja pada kategori filter ini.
-                                        </td>
-                                    </tr>
+                                    <svg
+                                        v-if="summary.is_total_match"
+                                        class="h-3.5 w-3.5"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="3"
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                    <span v-else>!</span>
+                                </span>
+                                <div>
+                                    <span class="text-xs font-bold text-content">Konsistensi Total (F3):</span>
+                                    <span class="ml-1 text-xs text-content-secondary">
+                                        <template v-if="summary.is_total_match">
+                                            Total Tertulis
+                                            {{ formatRupiah(audit.written_total_rp ?? summary.total_calculated_rp) }}
+                                            cocok dengan Jumlah Baris
+                                            <span class="font-semibold text-positive">(Sesuai)</span>
+                                        </template>
+                                        <template v-else>
+                                            Total Tertulis {{ formatRupiah(audit.written_total_rp ?? 0) }} vs Jumlah
+                                            Baris {{ formatRupiah(summary.total_calculated_rp) }}
+                                            <span class="font-semibold text-warning"
+                                                >(Selisih {{ formatRupiah(summary.total_diff_rp) }})</span
+                                            >
+                                            <span
+                                                v-if="audit.total_ack"
+                                                class="ml-1 rounded bg-positive-subtle px-1.5 py-0.5 text-[10px] font-semibold text-positive"
+                                            >
+                                                Dikonfirmasi
+                                            </span>
+                                        </template>
+                                    </span>
+                                </div>
+                            </div>
 
-                                    <template v-for="item in filteredItems" :key="item.id">
-                                        <!-- Normal or Yellow Row Body -->
-                                        <tr
-                                            :class="[
-                                                'transition-colors',
-                                                item.is_yellow ? 'bg-warning-subtle/40' : 'hover:bg-surface-muted/50',
-                                            ]"
-                                        >
-                                            <td class="px-3.5 py-3 align-top font-mono text-content-tertiary">
-                                                {{ String(item.position).padStart(2, '0') }}
+                            <div v-if="!summary.is_total_match && !audit.total_ack" class="shrink-0">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-1.5 rounded-lg border border-warning/40 bg-warning-subtle px-3 py-1.5 text-xs font-semibold text-warning hover:bg-warning-subtle/80"
+                                    :disabled="isAckingTotal"
+                                    @click="ackTotal"
+                                >
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M5 13l4 4L19 7"
+                                        />
+                                    </svg>
+                                    <span>{{
+                                        isAckingTotal ? 'Menyimpan...' : 'Saya Sudah Memeriksa Selisih Ini'
+                                    }}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. Tab Filter Status Evaluasi & Tambah Baris Manual -->
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                                        activeTab === 'all'
+                                            ? 'bg-primary text-content-inverse'
+                                            : 'border border-stroke bg-surface text-content-secondary hover:bg-surface-muted hover:text-content',
+                                    ]"
+                                    @click="activeTab = 'all'"
+                                >
+                                    Semua ({{ summary.total_items }})
+                                </button>
+
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                                        activeTab === 'needs_check'
+                                            ? 'bg-warning text-white'
+                                            : 'border border-warning-border bg-warning-subtle text-warning hover:bg-warning-subtle/80',
+                                    ]"
+                                    @click="activeTab = 'needs_check'"
+                                >
+                                    Perlu Dicek ({{ summary.needs_check_count }})
+                                </button>
+
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                                        activeTab === 'above_standard'
+                                            ? 'bg-negative text-white'
+                                            : 'border border-stroke bg-surface text-content-secondary hover:bg-surface-muted hover:text-content',
+                                    ]"
+                                    @click="activeTab = 'above_standard'"
+                                >
+                                    Di Atas Standar ({{ summary.above_standard_count }})
+                                </button>
+
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                                        activeTab === 'within_standard'
+                                            ? 'bg-positive text-white'
+                                            : 'border border-stroke bg-surface text-content-secondary hover:bg-surface-muted hover:text-content',
+                                    ]"
+                                    @click="activeTab = 'within_standard'"
+                                >
+                                    Sesuai ({{ summary.within_standard_count }})
+                                </button>
+
+                                <button
+                                    type="button"
+                                    :class="[
+                                        'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                                        activeTab === 'no_reference'
+                                            ? 'bg-stone-600 text-white'
+                                            : 'border border-stroke bg-surface text-content-secondary hover:bg-surface-muted hover:text-content',
+                                    ]"
+                                    @click="activeTab = 'no_reference'"
+                                >
+                                    Tanpa Acuan ({{ summary.no_reference_count }})
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-3 py-1.5 text-xs font-semibold text-content transition-colors hover:border-primary/50 hover:bg-surface-muted"
+                                @click="openAddModal"
+                            >
+                                <svg
+                                    class="h-3.5 w-3.5 text-primary"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 4v16m8-8H4"
+                                    />
+                                </svg>
+                                <span>Tambah Baris</span>
+                            </button>
+                        </div>
+
+                        <!-- 4. Tabel Audit Items -->
+                        <div class="overflow-hidden rounded-xl border border-stroke bg-surface shadow-xs">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead
+                                        class="border-b border-stroke bg-surface-subtle text-[11px] font-semibold tracking-wider text-content-tertiary uppercase"
+                                    >
+                                        <tr>
+                                            <th class="w-10 px-3.5 py-3">No</th>
+                                            <th class="px-3.5 py-3">Uraian Belanja & Acuan SSH</th>
+                                            <th class="px-3.5 py-3">Vol / Sat</th>
+                                            <th class="px-3.5 py-3">Harga Satuan</th>
+                                            <th class="px-3.5 py-3">Subtotal</th>
+                                            <th class="px-3.5 py-3 text-right">Evaluasi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-stroke">
+                                        <tr v-if="filteredItems.length === 0">
+                                            <td colspan="6" class="px-4 py-8 text-center text-xs text-content-tertiary">
+                                                Tidak ada baris belanja pada kategori filter ini.
                                             </td>
+                                        </tr>
 
-                                            <td class="px-3.5 py-3 align-top">
-                                                <div class="font-bold text-content">
-                                                    {{ item.raw_name }}
-                                                </div>
-                                                <div
-                                                    v-if="item.standard"
-                                                    class="mt-0.5 text-[11px] text-content-tertiary"
-                                                >
-                                                    SSH Gianyar: {{ formatRupiah(item.standard.price_rp) }} /
-                                                    {{ item.standard.unit }}
-                                                </div>
-                                                <div v-else class="mt-0.5 text-[11px] text-content-tertiary">
-                                                    Kearifan Lokal (Non-SSH)
-                                                </div>
+                                        <template v-for="item in filteredItems" :key="item.id">
+                                            <!-- Normal or Yellow Row Body -->
+                                            <tr
+                                                :class="[
+                                                    'transition-colors',
+                                                    item.is_yellow
+                                                        ? 'bg-warning-subtle/40'
+                                                        : 'hover:bg-surface-muted/50',
+                                                ]"
+                                            >
+                                                <td class="px-3.5 py-3 align-top font-mono text-content-tertiary">
+                                                    {{ String(item.position).padStart(2, '0') }}
+                                                </td>
 
-                                                <!-- Yellow Row Alert Detail & Action Buttons -->
-                                                <div
-                                                    v-if="item.is_yellow"
-                                                    class="mt-2.5 rounded-lg border border-warning-border bg-white p-3 shadow-xs"
-                                                >
-                                                    <div class="flex items-start gap-2 text-warning">
-                                                        <svg
-                                                            class="mt-0.5 h-4 w-4 shrink-0"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                                            />
-                                                        </svg>
-                                                        <span class="text-xs leading-snug font-semibold">
-                                                            {{ item.reason_text }}
-                                                        </span>
+                                                <td class="px-3.5 py-3 align-top">
+                                                    <div class="font-bold text-content">
+                                                        {{ item.raw_name }}
+                                                    </div>
+                                                    <div
+                                                        v-if="item.standard"
+                                                        class="mt-0.5 text-[11px] text-content-tertiary"
+                                                    >
+                                                        SSH Gianyar: {{ formatRupiah(item.standard.price_rp) }} /
+                                                        {{ item.standard.unit }}
+                                                    </div>
+                                                    <div v-else class="mt-0.5 text-[11px] text-content-tertiary">
+                                                        Kearifan Lokal (Non-SSH)
                                                     </div>
 
-                                                    <!-- Interactive Resolution Actions -->
-                                                    <div class="mt-2.5 flex flex-wrap items-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            class="inline-flex items-center gap-1 rounded border border-stroke-strong bg-surface px-2.5 py-1 text-xs font-bold text-content shadow-xs transition-colors hover:bg-surface-muted"
-                                                            @click="confirmItem(item)"
-                                                        >
+                                                    <!-- Yellow Row Alert Detail & Action Buttons -->
+                                                    <div
+                                                        v-if="item.is_yellow"
+                                                        class="mt-2.5 rounded-lg border border-warning-border bg-white p-3 shadow-xs"
+                                                    >
+                                                        <div class="flex items-start gap-2 text-warning">
                                                             <svg
-                                                                class="h-3.5 w-3.5 text-positive"
+                                                                class="mt-0.5 h-4 w-4 shrink-0"
                                                                 fill="none"
                                                                 viewBox="0 0 24 24"
                                                                 stroke="currentColor"
@@ -790,127 +1090,325 @@ function zoomOut(): void {
                                                                 <path
                                                                     stroke-linecap="round"
                                                                     stroke-linejoin="round"
-                                                                    stroke-width="2.5"
-                                                                    d="M5 13l4 4L19 7"
+                                                                    stroke-width="2"
+                                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                                                                 />
                                                             </svg>
-                                                            <span>Sudah Benar</span>
-                                                        </button>
+                                                            <span class="text-xs leading-snug font-semibold">
+                                                                {{ item.reason_text }}
+                                                            </span>
+                                                        </div>
 
-                                                        <button
-                                                            type="button"
-                                                            class="inline-flex items-center gap-1 rounded bg-primary-subtle px-2.5 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary-subtle/80"
-                                                            @click="openEditModal(item)"
-                                                        >
-                                                            <span>Koreksi Data</span>
-                                                        </button>
+                                                        <!-- Interactive Resolution Actions -->
+                                                        <div class="mt-2.5 flex flex-wrap items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                class="inline-flex items-center gap-1 rounded border border-stroke-strong bg-surface px-2.5 py-1 text-xs font-bold text-content shadow-xs transition-colors hover:bg-surface-muted"
+                                                                @click="confirmItem(item)"
+                                                            >
+                                                                <svg
+                                                                    class="h-3.5 w-3.5 text-positive"
+                                                                    fill="none"
+                                                                    viewBox="0 0 24 24"
+                                                                    stroke="currentColor"
+                                                                >
+                                                                    <path
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        stroke-width="2.5"
+                                                                        d="M5 13l4 4L19 7"
+                                                                    />
+                                                                </svg>
+                                                                <span>Sudah Benar</span>
+                                                            </button>
 
-                                                        <button
-                                                            type="button"
-                                                            class="px-2 py-1 text-xs font-semibold text-negative hover:underline"
-                                                            @click="deleteItem(item)"
-                                                        >
-                                                            Hapus Baris
-                                                        </button>
+                                                            <button
+                                                                type="button"
+                                                                class="inline-flex items-center gap-1 rounded bg-primary-subtle px-2.5 py-1 text-xs font-bold text-primary transition-colors hover:bg-primary-subtle/80"
+                                                                @click="openEditModal(item)"
+                                                            >
+                                                                <span>Koreksi Data</span>
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                class="px-2 py-1 text-xs font-semibold text-negative hover:underline"
+                                                                @click="deleteItem(item)"
+                                                            >
+                                                                Hapus Baris
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </td>
+                                                </td>
 
-                                            <td class="px-3.5 py-3 align-top whitespace-nowrap text-content">
-                                                {{ item.volume }} {{ item.unit }}
-                                            </td>
+                                                <td class="px-3.5 py-3 align-top whitespace-nowrap text-content">
+                                                    {{ item.volume }} {{ item.unit }}
+                                                </td>
 
-                                            <td class="px-3.5 py-3 align-top font-mono whitespace-nowrap text-content">
-                                                {{ item.unit_price_rp ? formatRupiah(item.unit_price_rp) : '-' }}
-                                            </td>
-
-                                            <td
-                                                class="px-3.5 py-3 align-top font-mono font-bold whitespace-nowrap text-content"
-                                            >
-                                                {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
-                                            </td>
-
-                                            <td class="px-3.5 py-3 text-right align-top whitespace-nowrap">
-                                                <span
-                                                    v-if="item.is_yellow"
-                                                    class="inline-flex items-center gap-1 rounded-full border border-warning-border bg-white px-2.5 py-0.5 text-xs font-bold text-warning"
+                                                <td
+                                                    class="px-3.5 py-3 align-top font-mono whitespace-nowrap text-content"
                                                 >
-                                                    <svg
-                                                        class="h-3 w-3"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        stroke="currentColor"
-                                                    >
-                                                        <circle cx="12" cy="12" r="9" stroke-width="2" />
-                                                        <path
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M12 8v4m0 4h.01"
-                                                        />
-                                                    </svg>
-                                                    <span>Perlu Dicek</span>
-                                                </span>
-                                                <PriceLabel
-                                                    v-else
-                                                    :label="item.label"
-                                                    :percent-above="item.over_pct ? `+${item.over_pct}%` : null"
-                                                />
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                                                    {{ item.unit_price_rp ? formatRupiah(item.unit_price_rp) : '-' }}
+                                                </td>
 
-                    <!-- 5. Sticky Bottom Action Bar (Gatekeeper Button) -->
-                    <div
-                        class="sticky bottom-4 z-20 flex flex-col gap-3 rounded-xl border border-stroke bg-surface p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            <span class="block text-xs text-content-tertiary">Total Pagu Terhitung:</span>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-xl font-bold text-content">
-                                    {{ formatRupiah(summary.total_calculated_rp) }}
-                                </span>
-                                <span class="text-xs text-content-tertiary">
-                                    ({{ summary.total_items }} item belanja)
-                                </span>
+                                                <td
+                                                    class="px-3.5 py-3 align-top font-mono font-bold whitespace-nowrap text-content"
+                                                >
+                                                    {{ item.amount_rp ? formatRupiah(item.amount_rp) : '-' }}
+                                                </td>
+
+                                                <td class="px-3.5 py-3 text-right align-top whitespace-nowrap">
+                                                    <span
+                                                        v-if="item.is_yellow"
+                                                        class="inline-flex items-center gap-1 rounded-full border border-warning-border bg-white px-2.5 py-0.5 text-xs font-bold text-warning"
+                                                    >
+                                                        <svg
+                                                            class="h-3 w-3"
+                                                            fill="none"
+                                                            viewBox="0 0 24 24"
+                                                            stroke="currentColor"
+                                                        >
+                                                            <circle cx="12" cy="12" r="9" stroke-width="2" />
+                                                            <path
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M12 8v4m0 4h.01"
+                                                            />
+                                                        </svg>
+                                                        <span>Perlu Dicek</span>
+                                                    </span>
+                                                    <PriceLabel
+                                                        v-else
+                                                        :label="item.label"
+                                                        :percent-above="item.over_pct ? `+${item.over_pct}%` : null"
+                                                    />
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
-                        <div class="flex flex-col items-end gap-1">
-                            <button
-                                type="button"
-                                :disabled="!summary.can_publish"
-                                :class="[
-                                    'inline-flex items-center gap-2 rounded-lg px-5 py-3 text-xs font-bold shadow-md transition-colors',
-                                    summary.can_publish
-                                        ? 'bg-primary text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
-                                        : 'cursor-not-allowed border border-stroke bg-surface-muted text-content-tertiary',
-                                ]"
-                                @click="isWizardOpen = true"
-                            >
-                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                                    />
-                                </svg>
-                                <span>Lanjut Terbitkan Proyek</span>
-                            </button>
+                        <!-- 5. Sticky Bottom Action Bar (Gatekeeper Button) -->
+                        <div
+                            class="sticky bottom-4 z-20 flex flex-col gap-3 rounded-xl border border-stroke bg-surface p-4 shadow-lg sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div>
+                                <span class="block text-xs text-content-tertiary">Total Pagu Terhitung:</span>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-xl font-bold text-content">
+                                        {{ formatRupiah(summary.total_calculated_rp) }}
+                                    </span>
+                                    <span class="text-xs text-content-tertiary">
+                                        ({{ summary.total_items }} item belanja)
+                                    </span>
+                                </div>
+                            </div>
 
-                            <span v-if="!summary.can_publish" class="text-[11px] font-semibold text-negative">
-                                Terkunci: selesaikan {{ summary.needs_check_count }} baris kuning (D1)
-                            </span>
+                            <div class="flex flex-col items-end gap-1">
+                                <!-- If already published -->
+                                <template
+                                    v-if="summary.publish_block_reason === 'already_published' || project?.is_published"
+                                >
+                                    <Link
+                                        v-if="project"
+                                        :href="`/desa/projects/${project.id}`"
+                                        class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-xs font-bold text-content-inverse shadow-md transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                            />
+                                        </svg>
+                                        <span>Kelola Proyek Fisik</span>
+                                    </Link>
+                                    <span class="text-[11px] font-semibold text-positive">
+                                        Dokumen ini telah diterbitkan ke hadapan warga desa.
+                                    </span>
+                                </template>
+
+                                <!-- Normal Publish flow -->
+                                <template v-else>
+                                    <button
+                                        type="button"
+                                        :disabled="!summary.can_publish"
+                                        :class="[
+                                            'inline-flex items-center gap-2 rounded-lg px-5 py-3 text-xs font-bold shadow-md transition-colors',
+                                            summary.can_publish
+                                                ? 'bg-primary text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
+                                                : 'cursor-not-allowed border border-stroke bg-surface-muted text-content-tertiary',
+                                        ]"
+                                        @click="isWizardOpen = true"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                            />
+                                        </svg>
+                                        <span>Lanjut Terbitkan Proyek</span>
+                                    </button>
+
+                                    <span v-if="!summary.can_publish" class="text-[11px] font-semibold text-negative">
+                                        <template v-if="summary.publish_block_reason === 'has_yellow_rows'">
+                                            Terkunci: selesaikan {{ summary.needs_check_count }} baris kuning (D1)
+                                        </template>
+                                        <template v-else-if="summary.publish_block_reason === 'unacknowledged_diff'">
+                                            Terkunci: konfirmasi ketidakcocokan total tertulis (F3)
+                                        </template>
+                                        <template v-else-if="summary.publish_block_reason === 'no_items'">
+                                            Terkunci: tambahkan rincian belanja terlebih dahulu
+                                        </template>
+                                        <template v-else-if="summary.publish_block_reason === 'reading'">
+                                            AI sedang mengekstrak data...
+                                        </template>
+                                        <template v-else-if="summary.publish_block_reason === 'read_failed'">
+                                            Ekstraksi AI gagal: silakan coba lagi atau isi manual
+                                        </template>
+                                        <template v-else> Terkunci: prasyarat publikasi belum lengkap </template>
+                                    </span>
+                                </template>
+                            </div>
                         </div>
-                    </div>
+                    </template>
                 </div>
             </div>
         </div>
+
+        <!-- Add Item Modal Dialog -->
+        <Dialog :open="isAddModalOpen" title="Tambah Baris Rincian Belanja Manual" @close="isAddModalOpen = false">
+            <form class="space-y-4" @submit.prevent="submitAdd">
+                <div>
+                    <label class="block text-xs font-semibold text-content" for="add-raw-name">
+                        Uraian Material / Upah <span class="text-negative">*</span>
+                    </label>
+                    <input
+                        id="add-raw-name"
+                        v-model="addForm.raw_name"
+                        type="text"
+                        required
+                        placeholder="Contoh: Semen Portland 50kg (Gresik)"
+                        class="mt-1 block w-full rounded-md border border-stroke px-3 py-2 text-xs text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                    />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-content" for="add-vol">
+                            Volume <span class="text-negative">*</span>
+                        </label>
+                        <input
+                            id="add-vol"
+                            v-model="addForm.volume"
+                            type="text"
+                            required
+                            placeholder="Contoh: 100"
+                            class="mt-1 block w-full rounded-md border border-stroke px-3 py-2 text-xs text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-content" for="add-unit">
+                            Satuan <span class="text-negative">*</span>
+                        </label>
+                        <input
+                            id="add-unit"
+                            v-model="addForm.unit"
+                            type="text"
+                            required
+                            placeholder="Contoh: sak, m3, HOK"
+                            class="mt-1 block w-full rounded-md border border-stroke px-3 py-2 text-xs text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-content" for="add-price">
+                            Harga Satuan (Rp) <span class="text-negative">*</span>
+                        </label>
+                        <input
+                            id="add-price"
+                            v-model.number="addForm.unit_price_rp"
+                            type="number"
+                            min="0"
+                            required
+                            placeholder="Contoh: 68000"
+                            class="mt-1 block w-full rounded-md border border-stroke px-3 py-2 text-xs text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-content" for="add-subtotal">
+                            Jumlah Subtotal (Rp)
+                        </label>
+                        <input
+                            id="add-subtotal"
+                            v-model.number="addForm.amount_rp"
+                            type="number"
+                            min="0"
+                            :placeholder="
+                                addForm.volume && addForm.unit_price_rp
+                                    ? String(Math.round(Number(addForm.volume) * addForm.unit_price_rp))
+                                    : 'Otomatis'
+                            "
+                            class="mt-1 block w-full rounded-md border border-stroke px-3 py-2 text-xs text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-content">
+                        Pencocokan Acuan Standar SSH Gianyar
+                    </label>
+                    <input
+                        v-model="standardSearch"
+                        type="text"
+                        placeholder="Ketik untuk mencari standar harga resmi..."
+                        class="mt-1 block w-full rounded-md border border-stroke px-3 py-2 text-xs text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
+                    />
+                    <div
+                        v-if="filteredStandards.length > 0 && standardSearch.trim()"
+                        class="mt-2 max-h-36 overflow-y-auto rounded-md border border-stroke bg-surface p-1 shadow-xs"
+                    >
+                        <button
+                            v-for="std in filteredStandards.slice(0, 8)"
+                            :key="std.id"
+                            type="button"
+                            class="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-xs text-content hover:bg-surface-muted"
+                            @click="selectAddStandard(std)"
+                        >
+                            <span>{{ std.name }} ({{ std.unit }})</span>
+                            <span class="font-semibold text-primary">{{ formatRupiah(std.price_rp) }}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 border-t border-stroke pt-3">
+                    <button
+                        type="button"
+                        class="rounded-lg border border-stroke px-4 py-2 text-xs font-semibold text-content hover:bg-surface-muted"
+                        @click="isAddModalOpen = false"
+                    >
+                        Batal
+                    </button>
+                    <button
+                        type="submit"
+                        class="rounded-lg bg-primary px-4 py-2 text-xs font-bold text-content-inverse shadow-xs hover:bg-primary-hover disabled:opacity-50"
+                        :disabled="isSubmittingAdd"
+                    >
+                        {{ isSubmittingAdd ? 'Menyimpan...' : 'Simpan Baris Belanja' }}
+                    </button>
+                </div>
+            </form>
+        </Dialog>
 
         <!-- Inline Edit Modal Dialog -->
         <Dialog :open="isEditModalOpen" title="Koreksi Data Rincian Belanja" @close="isEditModalOpen = false">
@@ -1054,7 +1552,8 @@ function zoomOut(): void {
             :open="isWizardOpen"
             :audit-id="audit.id"
             :initial-data="project"
-            :written-total-rp="summary.total_calculated_rp"
+            :written-total-rp="audit.written_total_rp ?? summary.total_calculated_rp"
+            :total-items="summary.total_items"
             :types="types"
             :templates="templates"
             :fund-sources="fundSources"

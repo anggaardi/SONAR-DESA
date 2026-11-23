@@ -1,6 +1,6 @@
 # M4 Report (Fitur 3: Cek Spek & laporan warga)
 
-Owner: Dev 2 (mengambil alih dari Dev 1, lihat tasks/README.md) · Jadwal: 27 Nov - 3 Des (M4-03, M4-04, M4-05 boleh mulai lebih awal)
+Owner: Dev 1 · Jadwal: 27 Nov - 3 Des (M4-03, M4-04, M4-05 boleh mulai lebih awal)
 Spec: PRD Fitur Inti v1.1 Bagian 5 (C1-C12), 8.3 (privasi); PRD Arsitektur v1.2 M4 (6.4, 6.8, 6.9, 8, F4-1..F4-4), 14.3-14.5
 
 Cara kerja: warga membuka Cek Spek dari halaman proyek, mengizinkan lokasi, masuk dengan Google, mengisi
@@ -31,7 +31,7 @@ terpisah bila disetujui nanti.
 ## Task List
 
 ### M4-03 · DistanceCalculator + ReportClassifier
-- Status: review · Ukuran: M · Owner: Dev 2 · Depends on: -
+- Status: review · Ukuran: M · Owner: Dev 1 · Depends on: -
 - Spec: PRD Fitur Inti 5.3, 9 (edge "280 m, akurasi 90 m"); PRD Arsitektur M4-03, F4-1; ENGINEERING 2, 6
 - Tujuan: jarak dan jenis laporan dihitung kelas PHP murni, tanpa Eloquent dan tanpa Laravel di dalamnya.
 - Scope:
@@ -60,7 +60,7 @@ terpisah bila disetujui nanti.
 - Verify: `make test ARGS="--filter=Report"`
 
 ### M4-04 · useCamera (kamera langsung, tanpa galeri)
-- Status: review · Ukuran: M · Owner: Dev 2 · Depends on: -
+- Status: review · Ukuran: M · Owner: Dev 1 · Depends on: -
 - Spec: PRD Fitur Inti 5.1 langkah 6, C6; PRD Arsitektur A15, M4-04, F4-3
 - Scope:
   - Composable `useCamera`: `getUserMedia` + `<canvas>` -> `Blob` JPEG. Tidak ada `<input type="file">`.
@@ -79,7 +79,7 @@ terpisah bila disetujui nanti.
   lewat canvas (JPEG, sisi terpanjang <= 1600 px), jadi EXIF/GPS bawaan tidak ikut. Server tetap memvalidasi ulang (M4-06).
 
 ### M4-05 · useGeolocation + layar jarak
-- Status: review · Ukuran: M · Owner: Dev 2 · Depends on: M4-03 (aturan jarak untuk warna)
+- Status: review · Ukuran: M · Owner: Dev 1 · Depends on: M4-03 (aturan jarak untuk warna)
 - Spec: PRD Fitur Inti 5.1 langkah 1-3, C1, C2, C7; PRD Arsitektur M4-05
 - Scope:
   - Layar penjelasan sebelum izin diminta: kenapa lokasi diminta, laporan masuk ke BPD, nama tidak tampil (C1).
@@ -108,7 +108,7 @@ terpisah bila disetujui nanti.
     dan accuracy <= 100. HP butuh HTTPS (tunnel) karena lokasi dan kamera diblokir di `http://IP-LAN`.
 
 ### M4-02 · Migration report_answers + report_photos (+ kolom hasil rapat 22 Nov)
-- Status: review (22 Nov) · migration `2026_11_21_171555_add_answers_photos_and_device_to_reports` · Ukuran: M · Owner: Dev 2 · Depends on: D-xxx hasil rapat
+- Status: review (22 Nov) · migration `2026_11_21_171555_add_answers_photos_and_device_to_reports` · Ukuran: M · Owner: Dev 1 · Depends on: D-xxx hasil rapat
 - Spec: PRD Arsitektur 6.4, M4-02, F4-4; ENGINEERING 3 (migration baru, bukan edit)
 - Scope:
   - Migration baru (satu file): tabel `report_answers` (`report_id`, `measurement_id`, `answer`,
@@ -137,10 +137,10 @@ terpisah bila disetujui nanti.
     terenkripsi, 2 tahun) di halaman checklist dan saat kirim. Disimpan hanya `hash_hmac('sha256', token, APP_KEY)`.
   - `VillageCloner`: `report_answers` dan `report_photos` didaftarkan; kolom DEFERRED kini disisipkan dengan nilai
     template lalu dipetakan ulang (bukan null), supaya salinan laporan yang sudah digantikan tidak dianggap aktif
-    dan tidak melanggar unique index. Perubahan kecil di kode M6 (Dev 1).
+    dan tidak melanggar unique index. Perubahan kecil di kode M6.
 
 ### M4-01 · Socialite Google, kembali ke checklist yang sama
-- Status: review · Ukuran: M · Owner: Dev 2 · Depends on: persetujuan dependency baru, Google OAuth client (26 Nov)
+- Status: review · Ukuran: M · Owner: Dev 1 · Depends on: persetujuan dependency baru, Google OAuth client (26 Nov)
 - Spec: PRD Fitur Inti 5.1 langkah 4, F11, C3; PRD Arsitektur 6.8, A4, M4-01
 - Scope:
   - Tambah `laravel/socialite` (butuh persetujuan; alasan di pesan commit: login Google warga, A4).
@@ -168,7 +168,7 @@ terpisah bila disetujui nanti.
   - Setelah login, halaman dimuat ulang: lokasi diminta lagi, tapi izin sudah diberikan sehingga cepat (M4-07).
 
 ### M4-06 · SubmitReport (Action + FormRequest + Policy + event)
-- Status: review (22 Nov, termasuk simpan jawaban + foto dan 1 perangkat 1 pelapor) · Ukuran: L · Owner: Dev 2 · Depends on: M4-02, M4-03, M4-01
+- Status: review (22 Nov, termasuk simpan jawaban + foto dan 1 perangkat 1 pelapor) · Ukuran: L · Owner: Dev 1 · Depends on: M4-02, M4-03, M4-01
 - Spec: PRD Fitur Inti 5.1 langkah 8, 5.3, C5, C8-C10; PRD Arsitektur 6.8, 6.9, M4-06, F4-2, F4-4
 - Scope:
   - `POST /p/{slug}/reports` (auth warga). `SubmitReport` Action dalam **satu transaksi**:
@@ -229,7 +229,7 @@ terpisah bila disetujui nanti.
   - Sisa: tidak ada untuk M4-06. Listener M5 (`ReportSubmitted`) dikerjakan di M5-03.
 
 ### M4-07 · Checklist Cek Spek + layar konfirmasi
-- Status: doing (halaman, kirim, dan konfirmasi selesai; cek 360 px + uji HP belum) · Ukuran: L · Owner: Dev 2 · Depends on: M4-04, M4-05, M4-06
+- Status: doing (halaman, kirim, dan konfirmasi selesai; cek 360 px + uji HP belum) · Ukuran: L · Owner: Dev 1 · Depends on: M4-04, M4-05, M4-06
 - Spec: PRD Fitur Inti 5.1 langkah 5-9, 5.5, C4, C9, C11; PRD Arsitektur 6.8, M4-07
 - Scope:
   - `GET /p/{slug}/cek`: checklist semua ukuran wajib dari template + tambahan desa, dengan nilai RAB dan

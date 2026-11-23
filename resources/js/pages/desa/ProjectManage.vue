@@ -250,13 +250,32 @@ function deleteDraftProject(): void {
                 <span>Dashboard</span>
             </Link>
             <Link
-                href="/desa/projects/create"
+                href="/audits/create"
                 class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
-                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                 </svg>
-                <span>Tambah Proyek Fisik</span>
+                <span>Audit &amp; Ingesti RAB</span>
+            </Link>
+            <Link
+                href="/desa#daftar-proyek"
+                class="flex items-center gap-3 rounded-xl bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                </svg>
+                <span>Proyek Fisik</span>
             </Link>
             <Link
                 v-if="project.is_published"
@@ -323,12 +342,7 @@ function deleteDraftProject(): void {
             <!-- Header Section -->
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <div class="flex items-center gap-2 text-xs text-content-secondary">
-                        <Link href="/desa" class="hover:underline">Dashboard</Link>
-                        <span>&gt;</span>
-                        <span>Kelola Proyek &amp; CCO</span>
-                    </div>
-                    <h1 class="mt-1 text-2xl font-bold text-content sm:text-3xl">
+                    <h1 class="text-2xl font-bold text-content sm:text-3xl">
                         {{ project.name }}
                     </h1>
                     <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-content-secondary">

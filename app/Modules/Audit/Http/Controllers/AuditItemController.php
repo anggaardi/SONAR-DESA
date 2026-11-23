@@ -67,6 +67,78 @@ final class AuditItemController
     }
 
     /**
+     * Add a new item manually to an audit.
+     */
+    public function store(
+        Request $request,
+        Audit $audit,
+        PriceLabeler $priceLabeler
+    ): RedirectResponse {
+        $villageId = app(CurrentVillage::class)->id();
+        abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
+        $this->ensureEditable($audit);
+
+        $validated = $request->validate([
+            'raw_name' => ['required', 'string', 'max:255'],
+            'volume' => ['required', 'numeric', 'min:0.0001'],
+            'unit' => ['required', 'string', 'max:32'],
+            'unit_price_rp' => ['required', 'integer', 'min:0'],
+            'amount_rp' => ['nullable', 'integer', 'min:0'],
+            'standard_id' => ['nullable', 'integer', 'exists:price_standards,id'],
+        ], [
+            'raw_name.required' => 'Nama uraian belanja wajib diisi.',
+            'volume.required' => 'Volume belanja wajib diisi.',
+            'unit.required' => 'Satuan belanja wajib diisi.',
+            'unit_price_rp.required' => 'Harga satuan wajib diisi.',
+        ]);
+
+        $standard = ! empty($validated['standard_id'])
+            ? PriceStandard::find($validated['standard_id'])
+            : null;
+
+        $volumeStr = (string) $validated['volume'];
+        $unitPrice = (int) $validated['unit_price_rp'];
+        $amountRp = isset($validated['amount_rp'])
+            ? (int) $validated['amount_rp']
+            : (int) bcmul($volumeStr, (string) $unitPrice, 0);
+
+        $labelResult = $priceLabeler->label(
+            rawName: $validated['raw_name'],
+            volume: $volumeStr,
+            unit: $validated['unit'],
+            unitPriceRp: $unitPrice,
+            amountRp: $amountRp,
+            standardPriceRp: $standard?->price_rp,
+            standardUnit: $standard?->unit,
+            doubtFields: [],
+        );
+
+        $nextPosition = ((int) $audit->items()->max('position')) + 1;
+
+        DB::transaction(function () use ($audit, $validated, $standard, $volumeStr, $unitPrice, $amountRp, $labelResult, $nextPosition): void {
+            AuditItem::create([
+                'audit_id' => $audit->id,
+                'position' => $nextPosition,
+                'raw_name' => $validated['raw_name'],
+                'volume' => $volumeStr,
+                'unit' => $validated['unit'],
+                'unit_price_rp' => $unitPrice,
+                'amount_rp' => $amountRp,
+                'standard_id' => $standard?->id,
+                'label' => $labelResult->label,
+                'over_pct' => $labelResult->overPct,
+                'diff_rp' => $labelResult->diffRp,
+                'doubt' => $labelResult->reason ? ['reason' => $labelResult->reason] : null,
+                'corrected' => true,
+            ]);
+
+            $this->updateAuditStatusIfResolved($audit);
+        });
+
+        return back()->with('success', 'Baris rincian belanja berhasil ditambahkan.');
+    }
+
+    /**
      * Inline update for an audit item (correcting volume, unit, price, or price standard).
      */
     public function update(

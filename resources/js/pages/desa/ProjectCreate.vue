@@ -291,13 +291,32 @@ function submit(publishDirectly: boolean): void {
                 <span>Dashboard</span>
             </Link>
             <Link
+                href="/audits/create"
+                class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                </svg>
+                <span>Audit &amp; Ingesti RAB</span>
+            </Link>
+            <Link
                 href="/desa/projects/create"
                 class="flex items-center gap-3 rounded-xl bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4" />
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
                 </svg>
-                <span>Tambah Proyek Fisik</span>
+                <span>Proyek Fisik</span>
             </Link>
             <Link
                 :href="`/d/${village.slug}`"
@@ -340,13 +359,8 @@ function submit(publishDirectly: boolean): void {
 
         <!-- Main Form Container -->
         <div class="mx-auto max-w-6xl space-y-8">
-            <!-- Breadcrumb & Header -->
+            <!-- Header -->
             <div>
-                <nav class="mb-2 flex items-center gap-2 text-xs text-content-tertiary" aria-label="Breadcrumb">
-                    <Link href="/desa" class="hover:text-primary">Dashboard</Link>
-                    <span>/</span>
-                    <span class="font-semibold text-content">Input Proyek Fisik & Tabel RAB (Isi Manual)</span>
-                </nav>
                 <h1 class="text-2xl font-bold tracking-tight text-content sm:text-3xl">
                     Input Proyek Fisik & Tabel RAB
                 </h1>
