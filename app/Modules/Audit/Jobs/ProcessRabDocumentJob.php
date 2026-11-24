@@ -25,7 +25,7 @@ final class ProcessRabDocumentJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 75;
+    public int $timeout = 180;
 
     public int $tries = 1;
 
@@ -129,6 +129,7 @@ final class ProcessRabDocumentJob implements ShouldQueue
                         standardPriceRp: $standard?->price_rp,
                         standardUnit: $standard?->unit,
                         doubtFields: $row->doubtFields,
+                        rowToleranceRp: (int) config('sonar.price.row_tolerance_rp', 1000),
                     );
 
                     if ($labelResult->label === PriceLabel::NeedsCheck) {
@@ -147,7 +148,10 @@ final class ProcessRabDocumentJob implements ShouldQueue
                         'unit_price_rp' => $row->unitPriceRp ?? 0,
                         'amount_rp' => $amountRp,
                         'standard_id' => $standard?->id,
-                        'doubt' => $labelResult->reason ? ['reason' => $labelResult->reason] : null,
+                        'doubt' => $labelResult->reason ? [
+                            'reason' => $labelResult->reason,
+                            'fields' => $labelResult->doubtFields,
+                        ] : null,
                         'label' => $labelResult->label,
                         'over_pct' => $labelResult->overPct,
                         'diff_rp' => $labelResult->diffRp,

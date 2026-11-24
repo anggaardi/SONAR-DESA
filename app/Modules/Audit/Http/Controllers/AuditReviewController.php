@@ -62,6 +62,24 @@ final class AuditReviewController
             };
 
             // Derive reason description for yellow rows
+            $rawDoubtFields = $item->doubt['fields'] ?? [];
+            /** @var list<string> $doubtFields */
+            $doubtFields = is_array($rawDoubtFields)
+                ? array_values(array_filter($rawDoubtFields, static fn (mixed $f): bool => is_string($f)))
+                : [];
+
+            $fieldLabelsMap = [
+                'raw_name' => 'Uraian Belanja',
+                'volume' => 'Volume',
+                'unit' => 'Satuan',
+                'unit_price_rp' => 'Harga Satuan',
+                'amount_rp' => 'Subtotal',
+            ];
+            $doubtFieldLabels = array_map(
+                static fn (string $f): string => $fieldLabelsMap[$f] ?? $f,
+                $doubtFields
+            );
+
             $reasonText = null;
             if ($isYellow) {
                 $reason = $item->doubt['reason'] ?? null;
@@ -70,7 +88,11 @@ final class AuditReviewController
                 } elseif ($reason === 'deviasi_perkalian') {
                     $reasonText = 'Deviasi perkalian: Hasil kali volume dan harga satuan tidak cocok dengan subtotal.';
                 } elseif ($reason === 'ai_ragu') {
-                    $reasonText = 'Visual kabur: AI menandai keraguan pada pembacaan teks dokumen.';
+                    $reasonText = $doubtFieldLabels !== []
+                        ? 'Visual kabur: AI Vision menandai keraguan pembacaan pada kolom '.implode(', ', $doubtFieldLabels).'.'
+                        : 'Visual kabur: AI menandai keraguan pada pembacaan teks dokumen.';
+                } elseif ($reason === 'nilai_tidak_lengkap') {
+                    $reasonText = 'Nilai tidak lengkap: Volume atau harga satuan belum terbaca secara utuh dari dokumen.';
                 } else {
                     $reasonText = 'Perlu diperiksa: Konfirmasikan kebenaran angka dan satuan rincian belanja ini.';
                 }
@@ -98,6 +120,7 @@ final class AuditReviewController
                 'corrected' => (bool) $item->corrected,
                 'is_yellow' => $isYellow,
                 'reason_text' => $reasonText,
+                'doubt_fields' => $doubtFields,
             ];
         })->values()->all();
 
@@ -167,6 +190,11 @@ final class AuditReviewController
             ])->all(),
         ] : null;
 
+        $driver = (string) config('sonar.rab_reader.driver', 'fixture');
+        $aiModel = (string) config('sonar.rab_reader.ai.model', 'google/gemini-1.5-flash');
+        $aiProvider = (string) config('sonar.rab_reader.ai.provider', 'databyte');
+        $hasApiKey = ! blank(config('sonar.rab_reader.ai.api_key'));
+
         return Inertia::render('audit/Review', [
             'audit' => [
                 'id' => $audit->id,
@@ -180,6 +208,12 @@ final class AuditReviewController
                 'read_ms' => $audit->read_ms,
                 'error_code' => $audit->error_code,
                 'created_at' => $audit->created_at?->toIso8601String(),
+            ],
+            'aiReader' => [
+                'driver' => $driver,
+                'provider' => $aiProvider,
+                'model' => $aiModel,
+                'is_ai_active' => $driver === 'ai' && $hasApiKey,
             ],
             'items' => $itemsData,
             'summary' => [

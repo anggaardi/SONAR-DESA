@@ -55,9 +55,17 @@ final class DesaDashboardController
                 'written_total_rp' => $a->written_total_rp,
                 'items_count' => $a->items->count(),
                 'needs_check_count' => $a->items->filter(fn ($item) => $item->label === PriceLabel::NeedsCheck && ! $item->corrected)->count(),
+                'read_ms' => $a->read_ms,
+                'error_code' => $a->error_code,
                 'created_at' => $a->created_at?->toIso8601String(),
             ])
             ->values();
+
+        $driver = (string) config('sonar.rab_reader.driver', 'fixture');
+        $aiModel = (string) config('sonar.rab_reader.ai.model', 'google/gemini-1.5-flash');
+        $aiProvider = (string) config('sonar.rab_reader.ai.provider', 'databyte');
+        $hasApiKey = ! blank(config('sonar.rab_reader.ai.api_key'));
+        $sampleAvailable = file_exists(base_path('database/seeders/assets/audits/sample-rab-melati.pdf'));
 
         return Inertia::render('desa/Dashboard', [
             'village' => [
@@ -65,6 +73,13 @@ final class DesaDashboardController
                 'name' => $village->name,
                 'slug' => $village->slug,
                 'regency' => $village->regency,
+            ],
+            'ai_reader' => [
+                'driver' => $driver,
+                'provider' => $aiProvider,
+                'model' => $aiModel,
+                'is_ai_active' => $driver === 'ai' && $hasApiKey,
+                'sample_available' => $sampleAvailable,
             ],
             'stats' => [
                 'total_projects' => $projects->count(),

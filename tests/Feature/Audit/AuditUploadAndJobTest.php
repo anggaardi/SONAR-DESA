@@ -226,3 +226,62 @@ it('returns in_progress_audits in desa dashboard', function () {
             ->has('in_progress_audits', 1)
         );
 });
+
+it('allows desa user to replace an unpublished audit file and re-dispatches extraction job', function () {
+    Storage::disk('local')->put('audits/old-file.pdf', 'old-content');
+
+    $audit = Audit::factory()->create([
+        'village_id' => $this->village->id,
+        'status' => AuditStatus::ReadFailed,
+        'file_path' => 'audits/old-file.pdf',
+        'error_code' => 'NO_RAB_ITEMS_FOUND',
+    ]);
+
+    $newFile = UploadedFile::fake()->create('rab-baru.pdf', 300, 'application/pdf');
+
+    $this->actingAs($this->desaUser)
+        ->post("/audits/{$audit->id}/replace-file", ['file' => $newFile])
+        ->assertRedirect(route('audits.show', $audit));
+
+    $audit->refresh();
+    expect($audit->status)->toBe(AuditStatus::Reading)
+        ->and($audit->error_code)->toBeNull()
+        ->and($audit->file_path)->not->toBe('audits/old-file.pdf')
+        ->and(Storage::disk('local')->exists('audits/old-file.pdf'))->toBeFalse()
+        ->and(Storage::disk('local')->exists((string) $audit->file_path))->toBeTrue();
+
+    Queue::assertPushed(ProcessRabDocumentJob::class, fn ($job) => $job->auditId === $audit->id);
+});
+
+it('allows desa user to delete an unpublished audit and its stored file, but forbids deleting published audit', function () {
+    Storage::disk('local')->put('audits/to-delete.pdf', 'delete-me');
+
+    $audit = Audit::factory()->create([
+        'village_id' => $this->village->id,
+        'status' => AuditStatus::NeedsReview,
+        'file_path' => 'audits/to-delete.pdf',
+    ]);
+
+    $this->actingAs($this->desaUser)
+        ->delete("/audits/{$audit->id}")
+        ->assertRedirect(route('desa.dashboard'));
+
+    expect(Audit::find($audit->id))->toBeNull()
+        ->and(Storage::disk('local')->exists('audits/to-delete.pdf'))->toBeFalse();
+
+    $publishedAudit = Audit::factory()->create([
+        'village_id' => $this->village->id,
+        'status' => AuditStatus::Published,
+        'file_path' => 'audits/published.pdf',
+    ]);
+
+    $this->actingAs($this->desaUser)
+        ->delete("/audits/{$publishedAudit->id}")
+        ->assertForbidden();
+
+    $this->actingAs($this->desaUser)
+        ->post("/audits/{$publishedAudit->id}/replace-file", [
+            'file' => UploadedFile::fake()->create('hack.pdf', 100, 'application/pdf'),
+        ])
+        ->assertForbidden();
+});
