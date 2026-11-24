@@ -30,6 +30,7 @@ interface AuditItemData {
     corrected: boolean;
     is_yellow: boolean;
     reason_text: string | null;
+    doubt_fields?: string[];
 }
 
 interface Props {
@@ -45,6 +46,12 @@ interface Props {
         read_ms?: number | null;
         error_code?: string | null;
         created_at: string | null;
+    };
+    aiReader?: {
+        driver: string;
+        provider: string;
+        model: string;
+        is_ai_active: boolean;
     };
     items: AuditItemData[];
     summary: {
@@ -123,7 +130,7 @@ function startPolling(): void {
     pollSeconds.value = 0;
     pollTimer = setInterval(() => {
         pollSeconds.value += 2;
-        if (props.audit.status !== 'reading' || pollSeconds.value >= 60) {
+        if (props.audit.status !== 'reading' || pollSeconds.value >= 180) {
             stopPolling();
             return;
         }
@@ -170,6 +177,53 @@ function retryReading(): void {
             },
         },
     );
+}
+
+const isEditableAudit = computed(() => {
+    return props.audit.status !== 'published' && !props.project?.is_published;
+});
+
+const replaceFileInputRef = ref<HTMLInputElement | null>(null);
+const isReplacingFile = ref(false);
+
+function triggerReplaceFile(): void {
+    if (replaceFileInputRef.value) {
+        replaceFileInputRef.value.value = '';
+        replaceFileInputRef.value.click();
+    }
+}
+
+function handleReplaceFileChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    isReplacingFile.value = true;
+    router.post(
+        `/audits/${props.audit.id}/replace-file`,
+        { file },
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => {
+                isReplacingFile.value = false;
+            },
+        },
+    );
+}
+
+const isDeletingAudit = ref(false);
+function deleteAudit(): void {
+    if (!confirm(`Yakin ingin menghapus dokumen RAB "${props.audit.file_name}" beserta draf audit ini?`)) {
+        return;
+    }
+
+    isDeletingAudit.value = true;
+    router.delete(`/audits/${props.audit.id}`, {
+        onFinish: () => {
+            isDeletingAudit.value = false;
+        },
+    });
 }
 
 // Ack Total Check (F3)
@@ -492,8 +546,69 @@ function zoomOut(): void {
                         </span>
                         <span class="block text-[11px] text-content-tertiary">
                             {{ audit.created_at ? formatDate(audit.created_at) : 'Hari ini' }} &middot;
-                            {{ audit.source === 'ocr' ? 'Sumber: OCR AI' : 'Unggah Fisik' }}
+                            {{
+                                audit.source === 'ocr_ai' || audit.source === 'ocr'
+                                    ? 'Sumber: AI Vision'
+                                    : audit.source === 'demo_sample'
+                                      ? 'Sumber: Contoh RAB (AI)'
+                                      : 'Unggah Fisik'
+                            }}
+                            <template v-if="audit.read_ms">
+                                &middot; {{ (audit.read_ms / 1000).toFixed(1) }} dtk
+                            </template>
                         </span>
+                        <span
+                            v-if="aiReader?.model"
+                            class="mt-0.5 inline-block rounded bg-surface px-1.5 py-0.5 font-mono text-[10px] text-content-secondary"
+                        >
+                            Model: {{ aiReader.model }}
+                        </span>
+                    </div>
+
+                    <input
+                        ref="replaceFileInputRef"
+                        type="file"
+                        accept=".pdf,application/pdf,image/jpeg,image/png,image/jpg"
+                        class="hidden"
+                        @change="handleReplaceFileChange"
+                    />
+
+                    <div v-if="isEditableAudit" class="ml-2 flex items-center gap-1.5 border-l border-stroke pl-3">
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-1 rounded-lg border border-stroke bg-surface px-2.5 py-1.5 text-xs font-semibold text-content transition-colors hover:border-primary/40 hover:bg-surface-muted hover:text-primary"
+                            :disabled="isReplacingFile"
+                            title="Ganti berkas dokumen RAB dan ekstrak ulang dengan AI"
+                            @click="triggerReplaceFile"
+                        >
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                />
+                            </svg>
+                            <span>{{ isReplacingFile ? 'Mengunggah...' : 'Ganti File' }}</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="inline-flex items-center gap-1 rounded-lg border border-negative/30 bg-negative-subtle/20 px-2.5 py-1.5 text-xs font-semibold text-negative transition-colors hover:bg-negative hover:text-white"
+                            :disabled="isDeletingAudit"
+                            title="Hapus dokumen RAB ini"
+                            @click="deleteAudit"
+                        >
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                            </svg>
+                            <span>{{ isDeletingAudit ? 'Menghapus...' : 'Hapus' }}</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -748,9 +863,18 @@ function zoomOut(): void {
                                     Dokumen tidak dapat diekstrak otomatis (Kode:
                                     <code
                                         class="rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] text-negative"
-                                        >{{ audit.error_code || 'EXTRACTION_FAILED' }}</code>). Berkas asli Anda tetap
-                                    tersimpan aman. Anda dapat mencoba ekstraksi ulang atau menginput rincian belanja
-                                    secara manual.
+                                        >{{ audit.error_code || 'EXTRACTION_FAILED' }}</code>).
+                                    <template v-if="audit.error_code === 'NO_RAB_ITEMS_FOUND'">
+                                        AI Vision tidak menemukan baris rincian tabel RAB pada berkas ini. Pastikan
+                                        berkas yang diunggah adalah lembar dokumen/foto tabel RAB yang jelas.
+                                    </template>
+                                    <template v-else-if="audit.error_code === 'AI_KEY_MISSING'">
+                                        Kunci API AI Vision belum dikonfigurasi pada server.
+                                    </template>
+                                    <template v-else>
+                                        Berkas asli Anda tetap tersimpan aman. Anda dapat mencoba ekstraksi ulang atau
+                                        menginput rincian belanja secara manual.
+                                    </template>
                                 </p>
                                 <div class="mt-4 flex flex-wrap gap-3">
                                     <button
@@ -774,6 +898,23 @@ function zoomOut(): void {
                                             />
                                         </svg>
                                         <span>{{ isRetrying ? 'Memulai Ulang...' : 'Coba Ekstraksi Ulang' }}</span>
+                                    </button>
+                                    <button
+                                        v-if="isEditableAudit"
+                                        type="button"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-4 py-2 text-xs font-semibold text-content shadow-xs transition-colors hover:bg-surface-muted"
+                                        :disabled="isReplacingFile"
+                                        @click="triggerReplaceFile"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                            />
+                                        </svg>
+                                        <span>{{ isReplacingFile ? 'Mengunggah...' : 'Ganti Berkas RAB' }}</span>
                                     </button>
                                     <button
                                         type="button"

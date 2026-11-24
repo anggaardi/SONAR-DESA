@@ -65,6 +65,13 @@ it('renders the dashboard with village data and statistics for desa users', func
                 ->where('audits_needs_review', 1)
                 ->etc()
             )
+            ->has('ai_reader', fn (AssertableInertia $ai) => $ai
+                ->has('driver')
+                ->has('provider')
+                ->has('model')
+                ->has('is_ai_active')
+                ->etc()
+            )
             ->has('projects', 1)
         );
 });

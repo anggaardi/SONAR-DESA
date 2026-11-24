@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
@@ -18,7 +19,17 @@ interface InProgressAuditItem {
     written_total_rp: number | null;
     items_count: number;
     needs_check_count: number;
+    read_ms?: number | null;
+    error_code?: string | null;
     created_at: string | null;
+}
+
+interface AiReaderConfig {
+    driver: string;
+    provider: string;
+    model: string;
+    is_ai_active: boolean;
+    sample_available: boolean;
 }
 
 interface ProjectItem {
@@ -44,6 +55,8 @@ interface Props {
         slug: string;
         regency: string;
     };
+    // eslint-disable-next-line vue/prop-name-casing
+    ai_reader?: AiReaderConfig;
     stats: {
         total_projects: number;
         published_projects: number;
@@ -59,7 +72,160 @@ interface Props {
     projects: ProjectItem[];
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
+
+const quickFileInputRef = ref<HTMLInputElement | null>(null);
+const quickForm = useForm({
+    file: null as File | null,
+    use_sample: false,
+});
+
+function handleQuickFileSelect(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|jpe?g|png)$/i)) {
+        quickForm.setError('file', 'Format berkas harus berupa PDF, JPG, JPEG, atau PNG.');
+        return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+        quickForm.setError('file', 'Ukuran berkas maksimal 10 MB.');
+        return;
+    }
+
+    quickForm.clearErrors('file');
+    quickForm.file = file;
+    quickForm.use_sample = false;
+    quickForm.post('/audits', {
+        forceFormData: true,
+    });
+}
+
+function submitQuickSample(): void {
+    quickForm.clearErrors('file');
+    quickForm.file = null;
+    quickForm.use_sample = true;
+    quickForm.post('/audits');
+}
+
+const retryingAuditId = ref<number | null>(null);
+function retryAuditReading(auditId: number): void {
+    retryingAuditId.value = auditId;
+    router.post(
+        `/audits/${auditId}/retry`,
+        {},
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                retryingAuditId.value = null;
+            },
+        },
+    );
+}
+
+const replaceFileInputRef = ref<HTMLInputElement | null>(null);
+const targetReplaceAuditId = ref<number | null>(null);
+const replacingAuditId = ref<number | null>(null);
+
+function triggerReplaceAuditFile(auditId: number): void {
+    targetReplaceAuditId.value = auditId;
+    if (replaceFileInputRef.value) {
+        replaceFileInputRef.value.value = '';
+        replaceFileInputRef.value.click();
+    }
+}
+
+function handleReplaceAuditFileChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    const auditId = targetReplaceAuditId.value;
+    if (!file || !auditId) return;
+
+    replacingAuditId.value = auditId;
+    router.post(
+        `/audits/${auditId}/replace-file`,
+        { file },
+        {
+            forceFormData: true,
+            onFinish: () => {
+                replacingAuditId.value = null;
+                targetReplaceAuditId.value = null;
+            },
+        },
+    );
+}
+
+const deletingAuditId = ref<number | null>(null);
+function deleteAuditDocument(auditItem: InProgressAuditItem): void {
+    if (!confirm(`Yakin ingin menghapus dokumen RAB "${auditItem.file_name}"?`)) {
+        return;
+    }
+
+    deletingAuditId.value = auditItem.id;
+    router.delete(`/audits/${auditItem.id}`, {
+        preserveScroll: true,
+        onFinish: () => {
+            deletingAuditId.value = null;
+        },
+    });
+}
+
+const hasReadingAudits = computed(() => {
+    return (
+        (props.stats.audits_reading ?? 0) > 0 ||
+        (props.in_progress_audits?.some((a) => a.status === 'reading') ?? false)
+    );
+});
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+const pollSeconds = ref(0);
+
+function startPolling(): void {
+    if (pollTimer) return;
+    pollSeconds.value = 0;
+    pollTimer = setInterval(() => {
+        pollSeconds.value += 2;
+        if (!hasReadingAudits.value || pollSeconds.value >= 180) {
+            stopPolling();
+            return;
+        }
+        router.reload({
+            only: ['stats', 'in_progress_audits'],
+        });
+    }, 2000);
+}
+
+function stopPolling(): void {
+    if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+    }
+}
+
+watch(
+    hasReadingAudits,
+    (reading) => {
+        if (reading) {
+            startPolling();
+        } else {
+            stopPolling();
+        }
+    },
+    { immediate: true },
+);
+
+onUnmounted(() => {
+    stopPolling();
+});
+
+function formatReadDuration(ms?: number | null): string {
+    if (!ms || ms <= 0) return '';
+    if (ms < 1000) return `${ms} ms`;
+    return `${(ms / 1000).toFixed(1)} dtk`;
+}
 
 const tableColumns = [
     { key: 'name', label: 'Proyek Fisik', isRowHeader: true },
@@ -217,13 +383,97 @@ const tableColumns = [
                 </Alert>
             </div>
 
+            <!-- Panel Ingesti & Ekstraksi RAB Berbasis AI Vision -->
+            <section aria-labelledby="heading-ai-vision">
+                <Card
+                    padding="app"
+                    class="border-primary/30 bg-gradient-to-r from-primary-subtle/20 via-surface to-surface"
+                >
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div class="space-y-1.5">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Badge :color="ai_reader?.is_ai_active ? 'positive' : 'info'">
+                                    {{ ai_reader?.is_ai_active ? 'AI Vision Aktif' : 'Mode Fixture Offline' }}
+                                </Badge>
+                                <span
+                                    v-if="ai_reader?.model"
+                                    class="rounded-md border border-stroke bg-surface-subtle px-2 py-0.5 font-mono text-[11px] font-medium text-content-secondary"
+                                >
+                                    {{ ai_reader.model }} ({{ ai_reader.provider }})
+                                </span>
+                            </div>
+                            <h2 id="heading-ai-vision" class="text-base font-bold text-content sm:text-lg">
+                                Ingesti &amp; Audit Otomatis Dokumen RAB dengan AI Vision
+                            </h2>
+                            <p class="max-w-2xl text-xs text-content-secondary">
+                                Unggah berkas PDF atau foto lembar RAB fisik berstempel langsung dari dashboard. Model
+                                AI Vision mengekstrak rincian tabel, mendeteksi kolom kabur/ragu, dan mencocokkan harga
+                                ke Standar Satuan Harga (SSH) Kabupaten {{ village.regency }} secara deterministik.
+                            </p>
+                            <p v-if="quickForm.errors.file" class="text-xs font-semibold text-negative">
+                                {{ quickForm.errors.file }}
+                            </p>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2.5">
+                            <input
+                                ref="quickFileInputRef"
+                                type="file"
+                                accept=".pdf,application/pdf,image/jpeg,image/png,image/jpg"
+                                class="hidden"
+                                @change="handleQuickFileSelect"
+                            />
+                            <Button
+                                type="button"
+                                variant="primary"
+                                size="sm"
+                                :loading="quickForm.processing && !quickForm.use_sample"
+                                @click="quickFileInputRef?.click()"
+                            >
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                    />
+                                </svg>
+                                <span>Pilih &amp; Ekstrak RAB (AI)</span>
+                            </Button>
+
+                            <Button
+                                v-if="ai_reader?.sample_available !== false"
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                :loading="quickForm.processing && quickForm.use_sample"
+                                @click="submitQuickSample"
+                            >
+                                <span>Uji Contoh RAB Melati</span>
+                            </Button>
+
+                            <Button variant="ghost" size="sm" href="/desa/projects/create">
+                                <span>Isi Manual</span>
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+            </section>
+
             <!-- Dokumen RAB Dalam Proses (Ingesti & Audit) -->
             <section
                 v-if="in_progress_audits && in_progress_audits.length > 0"
                 aria-labelledby="heading-dokumen-proses"
             >
                 <div class="rounded-lg border border-primary/30 bg-primary-subtle/10 p-4 sm:p-6">
-                    <div class="mb-4 flex items-center justify-between">
+                    <input
+                        ref="replaceFileInputRef"
+                        type="file"
+                        accept=".pdf,application/pdf,image/jpeg,image/png,image/jpg"
+                        class="hidden"
+                        @change="handleReplaceAuditFileChange"
+                    />
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <h2
                                 id="heading-dokumen-proses"
@@ -244,7 +494,16 @@ const tableColumns = [
                                 diterbitkan.
                             </p>
                         </div>
-                        <Badge color="info"> {{ in_progress_audits.length }} Dokumen </Badge>
+                        <div class="flex items-center gap-2">
+                            <span
+                                v-if="hasReadingAudits"
+                                class="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-surface px-3 py-1 text-xs font-semibold text-primary"
+                            >
+                                <span class="h-2 w-2 animate-ping rounded-full bg-primary" />
+                                Memantau Ekstraksi AI...
+                            </span>
+                            <Badge color="info"> {{ in_progress_audits.length }} Dokumen </Badge>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -291,27 +550,66 @@ const tableColumns = [
                                             ? formatRupiah(auditItem.written_total_rp)
                                             : 'Total belum terhitung'
                                     }}
+                                    <template v-if="auditItem.read_ms">
+                                        &middot; AI {{ formatReadDuration(auditItem.read_ms) }}
+                                    </template>
+                                </p>
+
+                                <p
+                                    v-if="auditItem.status === 'read_failed' && auditItem.error_code"
+                                    class="mt-1.5 rounded bg-negative-subtle/30 px-2 py-1 font-mono text-[10px] text-negative"
+                                >
+                                    Kode: {{ auditItem.error_code }}
                                 </p>
                             </div>
 
-                            <div class="mt-4 flex items-center justify-between border-t border-stroke pt-3">
+                            <div
+                                class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-stroke pt-3"
+                            >
                                 <span class="text-[11px] text-content-tertiary">
                                     {{ auditItem.created_at ? formatDate(auditItem.created_at) : '' }}
                                 </span>
-                                <Link
-                                    :href="`/audits/${auditItem.id}`"
-                                    class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-hover hover:underline"
-                                >
-                                    <span>{{ auditItem.status === 'ready' ? 'Terbitkan' : 'Lanjutkan' }}</span>
-                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path
-                                            stroke-linecap="round"
-                                            stroke-linejoin="round"
-                                            stroke-width="2"
-                                            d="M9 5l7 7-7 7"
-                                        />
-                                    </svg>
-                                </Link>
+                                <div class="flex flex-wrap items-center gap-2.5">
+                                    <button
+                                        v-if="auditItem.status === 'read_failed'"
+                                        type="button"
+                                        class="text-xs font-semibold text-content-secondary hover:text-primary hover:underline"
+                                        :disabled="retryingAuditId === auditItem.id"
+                                        @click="retryAuditReading(auditItem.id)"
+                                    >
+                                        {{ retryingAuditId === auditItem.id ? 'Memproses...' : 'Coba Ulang AI' }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="text-xs font-semibold text-content-secondary hover:text-primary hover:underline"
+                                        :disabled="replacingAuditId === auditItem.id"
+                                        @click="triggerReplaceAuditFile(auditItem.id)"
+                                    >
+                                        {{ replacingAuditId === auditItem.id ? 'Mengunggah...' : 'Ganti File' }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="text-xs font-semibold text-negative hover:underline"
+                                        :disabled="deletingAuditId === auditItem.id"
+                                        @click="deleteAuditDocument(auditItem)"
+                                    >
+                                        {{ deletingAuditId === auditItem.id ? 'Menghapus...' : 'Hapus' }}
+                                    </button>
+                                    <Link
+                                        :href="`/audits/${auditItem.id}`"
+                                        class="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-hover hover:underline"
+                                    >
+                                        <span>{{ auditItem.status === 'ready' ? 'Terbitkan' : 'Lanjutkan' }}</span>
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 5l7 7-7 7"
+                                            />
+                                        </svg>
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>

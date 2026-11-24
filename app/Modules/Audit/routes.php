@@ -15,6 +15,8 @@ Route::middleware(['auth', 'village', 'role:desa'])->group(function () {
     Route::post('/audits', [AuditUploadController::class, 'store'])->name('audits.store');
     Route::get('/audits/{audit}', [AuditReviewController::class, 'show'])->name('audits.show');
     Route::post('/audits/{audit}/retry', [AuditUploadController::class, 'retry'])->name('audits.retry');
+    Route::post('/audits/{audit}/replace-file', [AuditUploadController::class, 'replaceFile'])->name('audits.replace_file');
+    Route::delete('/audits/{audit}', [AuditUploadController::class, 'destroy'])->name('audits.destroy');
     Route::get('/audits/{audit}/document', [AuditReviewController::class, 'document'])->name('audits.document');
     Route::post('/audits/{audit}/publish', [AuditReviewController::class, 'publish'])->name('audits.publish');
     Route::post('/audits/{audit}/ack-total', [AuditReviewController::class, 'ackTotal'])->name('audits.ack_total');

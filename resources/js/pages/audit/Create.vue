@@ -17,6 +17,12 @@ interface Props {
     village: VillageInfo;
     sampleAvailable: boolean;
     sampleFileName?: string;
+    aiReader?: {
+        driver: string;
+        provider: string;
+        model: string;
+        is_ai_active: boolean;
+    };
 }
 
 defineProps<Props>();
@@ -187,19 +193,28 @@ function formatBytes(bytes: number): string {
         <div class="mx-auto max-w-4xl space-y-6">
             <!-- Header Section -->
             <div class="border-b border-stroke pb-5">
-                <span
-                    class="inline-flex items-center gap-1.5 rounded-full bg-primary-subtle px-3 py-1 text-xs font-semibold text-primary"
-                >
-                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                    </svg>
-                    Fase 1: Ingesti Dokumen & Audit Anggaran
-                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span
+                        class="inline-flex items-center gap-1.5 rounded-full bg-primary-subtle px-3 py-1 text-xs font-semibold text-primary"
+                    >
+                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"
+                            />
+                        </svg>
+                        Fase 1: Ingesti Dokumen &amp; Audit Anggaran
+                    </span>
+                    <span
+                        v-if="aiReader"
+                        class="inline-flex items-center gap-1.5 rounded-full border border-stroke bg-surface-subtle px-3 py-1 font-mono text-[11px] font-medium text-content-secondary"
+                    >
+                        <span :class="['h-2 w-2 rounded-full', aiReader.is_ai_active ? 'bg-positive' : 'bg-info']" />
+                        {{ aiReader.is_ai_active ? `AI Vision: ${aiReader.model}` : 'Reader: Fixture Offline' }}
+                    </span>
+                </div>
                 <h1 class="mt-2 text-2xl font-bold tracking-tight text-content sm:text-3xl">
                     Unggah Dokumen RAB Fisik Berstempel
                 </h1>

@@ -12,6 +12,7 @@ use App\Modules\Core\Village\Village;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -28,6 +29,11 @@ final class AuditUploadController
         $samplePath = base_path('database/seeders/assets/audits/sample-rab-melati.pdf');
         $sampleAvailable = file_exists($samplePath);
 
+        $driver = (string) config('sonar.rab_reader.driver', 'fixture');
+        $aiModel = (string) config('sonar.rab_reader.ai.model', 'google/gemini-1.5-flash');
+        $aiProvider = (string) config('sonar.rab_reader.ai.provider', 'databyte');
+        $hasApiKey = ! blank(config('sonar.rab_reader.ai.api_key'));
+
         return Inertia::render('audit/Create', [
             'village' => [
                 'id' => $village->id,
@@ -37,6 +43,12 @@ final class AuditUploadController
             ],
             'sampleAvailable' => $sampleAvailable,
             'sampleFileName' => 'sample-rab-melati.pdf',
+            'aiReader' => [
+                'driver' => $driver,
+                'provider' => $aiProvider,
+                'model' => $aiModel,
+                'is_ai_active' => $driver === 'ai' && $hasApiKey,
+            ],
         ]);
     }
 
@@ -103,5 +115,87 @@ final class AuditUploadController
         ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id);
 
         return back()->with('success', 'Pembacaan ulang dokumen dengan AI telah dimulai.');
+    }
+
+    public function replaceFile(Request $request, Audit $audit): RedirectResponse
+    {
+        $villageId = app(CurrentVillage::class)->id();
+        abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
+
+        $audit->loadMissing('project');
+        $isPublished = $audit->status === AuditStatus::Published
+            || ($audit->project !== null && $audit->project->isPublished());
+
+        if ($isPublished) {
+            abort(403, 'Dokumen audit yang sudah diterbitkan tidak dapat diganti berkasnya (D4, D10).');
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ], [
+            'file.required' => 'Pilih berkas dokumen fisik RAB pengganti terlebih dahulu.',
+            'file.mimes' => 'Format berkas harus berupa PDF, JPG, JPEG, atau PNG.',
+            'file.max' => 'Ukuran berkas tidak boleh melebihi 10 MB.',
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $request->file('file');
+        $newPath = $file->store('audits', 'local');
+        $oldPath = $audit->file_path;
+
+        DB::transaction(function () use ($audit, $newPath): void {
+            $audit->items()->delete();
+            $audit->update([
+                'status' => AuditStatus::Reading,
+                'source' => 'ocr_ai',
+                'file_path' => $newPath,
+                'written_total_rp' => null,
+                'total_ack' => false,
+                'read_ms' => null,
+                'error_code' => null,
+            ]);
+        });
+
+        if ($oldPath && $oldPath !== $newPath && Storage::disk('local')->exists($oldPath)) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id);
+
+        return redirect()->route('audits.show', $audit)
+            ->with('success', 'Berkas RAB berhasil diganti. AI sedang mengekstrak ulang dokumen baru...');
+    }
+
+    public function destroy(Request $request, Audit $audit): RedirectResponse
+    {
+        $villageId = app(CurrentVillage::class)->id();
+        abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
+
+        $audit->loadMissing('project');
+        $isPublished = $audit->status === AuditStatus::Published
+            || ($audit->project !== null && $audit->project->isPublished());
+
+        if ($isPublished) {
+            abort(403, 'Dokumen audit yang sudah diterbitkan tidak dapat dihapus (D4, D10).');
+        }
+
+        $filePath = $audit->file_path;
+
+        DB::transaction(function () use ($audit): void {
+            if ($audit->project !== null) {
+                $audit->project->measurements()->delete();
+                $audit->project->delete();
+            }
+
+            $audit->items()->delete();
+            $audit->delete();
+        });
+
+        if ($filePath && Storage::disk('local')->exists($filePath)) {
+            Storage::disk('local')->delete($filePath);
+        }
+
+        return redirect()->route('desa.dashboard')
+            ->with('success', 'Dokumen RAB berhasil dihapus.');
     }
 }

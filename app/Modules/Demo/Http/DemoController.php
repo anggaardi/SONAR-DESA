@@ -5,19 +5,15 @@ declare(strict_types=1);
 namespace App\Modules\Demo\Http;
 
 use App\Modules\Core\Auth\Role;
-use App\Modules\Core\Http\Middleware\SetCurrentVillage;
 use App\Modules\Core\Village\Village;
 use App\Modules\Demo\Actions\DemoSession;
-use App\Modules\Demo\Actions\SampleCheckLocation;
-use App\Modules\Project\Actions\FindPublicProject;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * GET /demo, POST /demo/start/{role}, /demo/switch/{role}, /demo/reset, GET /demo/lokasi-contoh/{slug} .
+ * GET /demo, POST /demo/start/{role}, /demo/switch/{role}, /demo/reset .
  */
 final class DemoController
 {
@@ -30,52 +26,34 @@ final class DemoController
 
     public function start(Request $request, Role $role): RedirectResponse
     {
-        return $this->landing($this->demo->start($request, $role), $role);
+        return $this->landing($this->demo->start($request, $role));
     }
 
     public function switch(Request $request, Role $role): RedirectResponse
     {
         $village = $this->demo->switch($request, $role);
 
-        return $village === null ? redirect()->route('home') : $this->landing($village, $role);
+        return $village === null ? redirect()->route('home') : $this->landing($village);
     }
 
     public function reset(Request $request): RedirectResponse
     {
-        $role = Role::tryFrom((string) $request->session()->get(SetCurrentVillage::DEMO_ROLE_SESSION_KEY)) ?? Role::Warga;
-
-        return $this->landing($this->demo->reset($request), $role);
+        return $this->landing($this->demo->reset($request));
     }
 
     /**
-     * M6-05: sample position for Cek Spek. Only for a project of this session's demo village: a real project
-     * never gets a sample position, so this cannot be used to skip the trip to the site (D-009).
+     * Desa lands on /desa (M2-06); BPD lands on /bpd (M5); warga lands on the village page.
      */
-    public function sampleLocation(
-        Request $request,
-        string $slug,
-        FindPublicProject $findProject,
-        SampleCheckLocation $sample,
-    ): JsonResponse {
-        $project = $findProject->handle($request, $slug);
-        $demoVillageId = $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY);
+    private function landing(Village $village): RedirectResponse
+    {
+        $user = auth()->user();
 
-        if ($project === null || $project->lat === null || $project->lng === null
-            || ! $project->village->is_demo || $project->village_id !== (int) $demoVillageId) {
-            abort(404);
+        if ($user?->hasRole(Role::Desa)) {
+            return redirect()->route('desa.dashboard');
         }
 
-        return response()->json($sample->for($project))->header('Cache-Control', 'no-store, private');
-    }
-
-    /**
-     * Desa lands on dashboard; BPD and warga on the village page.
-     * TODO(M5-04): bpd -> /bpd.
-     */
-    private function landing(Village $village, ?Role $role = null): RedirectResponse
-    {
-        if ($role === Role::Desa) {
-            return redirect()->route('desa.dashboard');
+        if ($user?->hasRole(Role::Bpd)) {
+            return redirect()->route('bpd.index');
         }
 
         return redirect()->route('villages.projects', $village->slug);
