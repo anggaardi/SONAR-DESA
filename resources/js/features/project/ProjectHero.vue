@@ -45,7 +45,7 @@ const funding = computed(() => fundingLabel(props.project.fund_source, props.pro
             </h1>
 
             <p class="mt-2 text-base leading-relaxed text-content-secondary sm:text-lg">
-                {{ story }}
+                {{ project.description || story }}
             </p>
 
             <div class="mt-4 flex flex-wrap items-center gap-2">

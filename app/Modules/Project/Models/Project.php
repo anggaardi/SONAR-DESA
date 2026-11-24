@@ -30,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string $name
  * @property ProjectType $type
+ * @property string|null $description
  * @property string|null $lat
  * @property string|null $lng
  * @property string $fund_source
@@ -45,6 +46,7 @@ use Illuminate\Support\Carbon;
     'slug',
     'name',
     'type',
+    'description',
     'lat',
     'lng',
     'fund_source',

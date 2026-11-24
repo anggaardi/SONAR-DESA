@@ -88,10 +88,11 @@ const EQUIPMENT_NAME = /^sewa\b|\balat\b/i;
 /** Kelompok baris RAB dari nama dan satuannya. Bukan data resmi: halaman menyebutnya "dikelompokkan otomatis". */
 export function budgetGroupOf(item: Pick<ProjectBudgetItem, 'name' | 'unit'>): BudgetGroupKey {
     const unit = (item.unit ?? '').trim().toLowerCase();
-    if (LABOR_UNITS.includes(unit) || LABOR_NAME.test(item.name.trim())) {
+    const name = (item.name ?? '').trim();
+    if (LABOR_UNITS.includes(unit) || LABOR_NAME.test(name)) {
         return 'labor';
     }
-    if (EQUIPMENT_NAME.test(item.name.trim())) {
+    if (EQUIPMENT_NAME.test(name)) {
         return 'equipment';
     }
     return 'material';

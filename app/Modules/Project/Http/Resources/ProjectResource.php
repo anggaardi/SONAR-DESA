@@ -83,6 +83,7 @@ final class ProjectResource extends JsonResource
             'slug' => $project->slug,
             'name' => $project->name,
             'type' => $project->type->value,
+            'description' => $project->description,
             'village' => [
                 'name' => $project->village->name,
                 'slug' => $project->village->slug,

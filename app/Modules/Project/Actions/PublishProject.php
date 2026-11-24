@@ -192,6 +192,9 @@ final class PublishProject
                     'slug' => $slug,
                     'name' => $data['name'],
                     'type' => $type,
+                    'description' => isset($data['description']) && trim((string) $data['description']) !== ''
+                        ? trim((string) $data['description'])
+                        : null,
                     'fund_source' => $data['fund_source'],
                     'year' => (int) $data['year'],
                     'lat' => (string) $lat,

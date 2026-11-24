@@ -69,6 +69,7 @@ export interface ProjectDetail {
     slug: string;
     name: string;
     type: string;
+    description?: string | null;
     village: ProjectVillage;
     fund_source: string;
     year: number;

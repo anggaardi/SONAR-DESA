@@ -64,6 +64,7 @@ interface Props {
         slug: string;
         name: string;
         type: string;
+        description?: string | null;
         fund_source: string;
         year: number;
         lat: string | null;
@@ -1558,6 +1559,8 @@ function zoomOut(): void {
             :templates="templates"
             :fund-sources="fundSources"
             :village="village"
+            :items="items"
+            :summary="summary"
             @close="isWizardOpen = false"
         />
 

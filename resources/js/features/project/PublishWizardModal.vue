@@ -2,7 +2,9 @@
 import { computed, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import Badge from '@/components/ui/Badge.vue';
+import CitizenMobilePreview from '@/features/project/CitizenMobilePreview.vue';
 import { formatRupiah } from '@/lib/format';
+import { fundingLabel } from '@/lib/projectStory';
 
 interface MeasurementItem {
     name: string;
@@ -18,6 +20,7 @@ interface Props {
     initialData?: {
         name?: string;
         type?: string;
+        description?: string | null;
         fund_source?: string;
         year?: number;
         lat?: number | string | null;
@@ -41,6 +44,27 @@ interface Props {
         slug: string;
         regency: string;
     };
+    items?: Array<{
+        id: number;
+        name?: string;
+        raw_name?: string;
+        volume?: string | null;
+        unit?: string | null;
+        unit_price_rp?: number | null;
+        amount_rp?: number | null;
+        standard_price_rp?: number | null;
+        over_pct?: number | null;
+        label?: string;
+        standard_source?: string | null;
+        explanation?: string | null;
+    }>;
+    summary?: {
+        total_items?: number;
+        above_standard_count?: number;
+        within_standard_count?: number;
+        no_reference_count?: number;
+        total_calculated_rp?: number;
+    };
 }
 
 const props = defineProps<Props>();
@@ -57,6 +81,7 @@ const stepErrors = ref<string[]>([]);
 const form = useForm({
     name: props.initialData?.name ?? '',
     type: props.initialData?.type ?? 'rabat_beton',
+    description: props.initialData?.description ?? '',
     fund_source: props.initialData?.fund_source ?? 'Dana Desa (DDS)',
     year: props.initialData?.year ?? new Date().getFullYear(),
     lat: props.initialData?.lat ? String(props.initialData.lat) : '-8.4124',
@@ -94,6 +119,7 @@ watch(
             if (props.initialData) {
                 form.name = props.initialData.name ?? form.name;
                 form.type = props.initialData.type ?? form.type;
+                form.description = props.initialData.description ?? form.description;
                 form.fund_source = props.initialData.fund_source ?? form.fund_source;
                 form.year = props.initialData.year ?? form.year;
                 if (props.initialData.lat) form.lat = String(props.initialData.lat);
@@ -127,6 +153,12 @@ const customMeasurementsCount = computed(() => form.measurements.filter((m) => m
 
 const selectedTypeLabel = computed(() => {
     return props.types.find((t) => t.value === form.type)?.label ?? form.type;
+});
+
+const autoStoryPlaceholder = computed(() => {
+    const subject = form.type === 'rabat_beton' ? 'Jalan rabat beton' : selectedTypeLabel.value;
+    const funding = fundingLabel(form.fund_source, form.year);
+    return `Contoh: ${subject}, dibiayai ${funding}. Pekerjaan belum dimulai.`;
 });
 
 function addCustomMeasurement(): void {
@@ -432,7 +464,7 @@ function submitPublish(): void {
                 </div>
 
                 <!-- Step Body Container (Scrollable) -->
-                <div class="flex-1 overflow-y-auto p-6 text-sm">
+                <div class="flex-1 overflow-y-auto p-4 text-sm sm:p-6">
                     <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
                         <!-- Left Column: Form Steps (lg:col-span-7) -->
                         <div class="space-y-4 lg:col-span-7">
@@ -457,6 +489,32 @@ function submitPublish(): void {
                                         type="text"
                                         class="mt-1 block w-full rounded-lg border border-stroke bg-surface px-3 py-2 text-sm text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
                                         placeholder="Contoh: Pembangunan Jalan Rabat Beton Banjar Melati"
+                                    />
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between">
+                                        <label
+                                            class="block text-xs font-semibold text-content"
+                                            for="wizard-description"
+                                        >
+                                            Deskripsi / Narasi Proyek untuk Warga
+                                        </label>
+                                        <button
+                                            v-if="form.description && form.description.trim() !== ''"
+                                            type="button"
+                                            class="text-[11px] font-semibold text-primary transition-colors hover:underline"
+                                            @click="form.description = ''"
+                                        >
+                                            Reset Otomatis
+                                        </button>
+                                    </div>
+                                    <textarea
+                                        id="wizard-description"
+                                        v-model="form.description"
+                                        rows="2"
+                                        class="mt-1 block w-full rounded-lg border border-stroke bg-surface px-3 py-2 text-sm leading-relaxed text-content shadow-xs placeholder:text-content-tertiary focus:border-primary focus:ring-1 focus:ring-primary"
+                                        :placeholder="autoStoryPlaceholder"
                                     />
                                 </div>
 
@@ -532,21 +590,6 @@ function submitPublish(): void {
                                     <p class="text-xs text-content-secondary">
                                         Titik GPS ini mengaktifkan radius geofence (&le; 300m) agar warga hanya dapat
                                         melakukan Cek Spek jika berada langsung di lokasi proyek.
-                                    </p>
-                                </div>
-
-                                <div
-                                    class="rounded-lg border border-primary/20 bg-primary-subtle p-3.5 text-xs text-primary"
-                                >
-                                    <div class="flex items-center justify-between">
-                                        <span class="font-semibold"
-                                            >Lokasi Desa: {{ village.name }}, Kab. {{ village.regency }}</span
-                                        >
-                                        <Badge color="info">Geofence 300m Aktif</Badge>
-                                    </div>
-                                    <p class="mt-1 text-content-secondary">
-                                        Pengawasan warga diuji terhadap koordinat ini untuk memvalidasi keberadaan fisik
-                                        reporter di lapangan.
                                     </p>
                                 </div>
 
@@ -827,90 +870,26 @@ function submitPublish(): void {
                             </div>
                         </div>
 
-                        <!-- Right Column: Live Preview Card (lg:col-span-5) -->
-                        <div class="space-y-4 lg:col-span-5">
-                            <div class="sticky top-0 space-y-3 rounded-xl border border-stroke bg-surface-subtle p-4">
-                                <div>
-                                    <h4 class="text-xs font-bold tracking-wide text-content uppercase">
-                                        Pratinjau Tampilan Warga
-                                    </h4>
-                                    <p class="mt-0.5 text-xs text-content-tertiary">
-                                        Simulasi bagaimana proyek ini terlihat bagi warga desa.
-                                    </p>
-                                </div>
-
-                                <div class="rounded-lg border border-stroke bg-surface p-4 shadow-sm">
-                                    <div class="flex items-start justify-between gap-2">
-                                        <h5 class="text-sm leading-snug font-bold text-content">
-                                            {{ form.name.trim() || 'Nama Proyek Pembangunan Fisik' }}
-                                        </h5>
-                                        <Badge color="positive"> Terbit </Badge>
-                                    </div>
-
-                                    <p class="mt-1 text-xs text-content-tertiary">
-                                        {{ selectedTypeLabel }} &middot; {{ form.fund_source }} {{ form.year }}
-                                    </p>
-
-                                    <div class="mt-3 flex items-baseline justify-between border-t border-stroke pt-3">
-                                        <span class="text-xs text-content-secondary">Total Pagu (Item RAB)</span>
-                                        <span class="text-sm font-bold text-primary tabular-nums">
-                                            {{ formatRupiah(writtenTotalRp) }}
-                                        </span>
-                                    </div>
-
-                                    <!-- Items count preview -->
-                                    <div class="mt-2 text-[11px] text-content-secondary">
-                                        {{ totalItems || 0 }} baris item anggaran tercatat
-                                    </div>
-
-                                    <!-- Spek List Preview -->
-                                    <div
-                                        v-if="form.measurements.length > 0"
-                                        class="mt-3 rounded-md bg-surface-subtle p-2.5 text-xs"
-                                    >
-                                        <span class="block font-semibold text-content-secondary"
-                                            >Parameter Ukuran Fisik:</span
-                                        >
-                                        <ul class="mt-1.5 space-y-1 text-content">
-                                            <li
-                                                v-for="(spek, i) in form.measurements.slice(0, 3)"
-                                                :key="i"
-                                                class="flex items-center justify-between text-xs"
-                                            >
-                                                <span class="truncate text-content-secondary">{{
-                                                    spek.name || 'Parameter'
-                                                }}</span>
-                                                <span class="shrink-0 font-semibold text-content tabular-nums">
-                                                    {{ spek.value || '0' }} {{ spek.unit }}
-                                                </span>
-                                            </li>
-                                        </ul>
-                                        <span
-                                            v-if="form.measurements.length > 3"
-                                            class="mt-1 block text-right text-[10px] text-content-tertiary"
-                                        >
-                                            +{{ form.measurements.length - 3 }} parameter lainnya
-                                        </span>
-                                    </div>
-
-                                    <div
-                                        class="mt-3 flex items-center justify-between border-t border-stroke pt-2.5 text-[11px] text-content-tertiary"
-                                    >
-                                        <span class="truncate">{{ village.name }}, {{ village.regency }}</span>
-                                        <span v-if="form.lat && form.lng" class="shrink-0 font-medium text-positive">
-                                            Geofence Aktif &check;
-                                        </span>
-                                        <span v-else class="shrink-0 text-content-tertiary"> Tanpa Geofence </span>
-                                    </div>
-                                </div>
-
-                                <div
-                                    class="rounded-lg border border-primary/20 bg-primary-subtle p-2.5 text-[11px] text-primary"
-                                >
-                                    <span class="font-semibold">Live Preview:</span> Kartu di atas diperbarui seketika
-                                    mengikuti isian nama, jenis proyek, GPS, dan ukuran Cek Spek yang Anda tentukan di
-                                    wizard.
-                                </div>
+                        <!-- Right Column: Live Mobile Preview (lg:col-span-5) -->
+                        <div class="lg:col-span-5">
+                            <div class="sticky top-0">
+                                <CitizenMobilePreview
+                                    :description="form.description"
+                                    :project-name="form.name"
+                                    :project-type="form.type"
+                                    :project-type-label="selectedTypeLabel"
+                                    :fund-source="form.fund_source"
+                                    :year="form.year"
+                                    :written-total-rp="writtenTotalRp"
+                                    :total-items="totalItems"
+                                    :lat="form.lat"
+                                    :lng="form.lng"
+                                    :measurements="form.measurements"
+                                    :village="village"
+                                    :items="items"
+                                    :summary="summary"
+                                    :current-step="currentStep"
+                                />
                             </div>
                         </div>
                     </div>

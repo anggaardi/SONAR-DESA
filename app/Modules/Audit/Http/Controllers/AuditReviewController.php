@@ -153,6 +153,7 @@ final class AuditReviewController
             'slug' => $project->slug,
             'name' => $project->name,
             'type' => $project->type->value,
+            'description' => $project->description,
             'fund_source' => $project->fund_source,
             'year' => $project->year,
             'lat' => $project->lat,
@@ -248,6 +249,7 @@ final class AuditReviewController
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::enum(ProjectType::class)],
             'fund_source' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:1000'],
             'year' => ['required', 'integer', 'min:2020', 'max:2035'],
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
@@ -271,6 +273,7 @@ final class AuditReviewController
         $project = $publishProject->execute($audit, [
             'name' => $validated['name'],
             'type' => ProjectType::from((string) $validated['type']),
+            'description' => $validated['description'] ?? null,
             'fund_source' => $validated['fund_source'],
             'year' => (int) $validated['year'],
             'lat' => (string) $validated['lat'],
