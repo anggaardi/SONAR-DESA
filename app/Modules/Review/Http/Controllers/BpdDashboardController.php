@@ -11,8 +11,11 @@ use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
 use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
+use App\Modules\Project\Models\ProjectChange;
 use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Actions\AddFollowUpNote;
 use App\Modules\Review\Actions\MarkReportInvalid;
 use App\Modules\Review\Actions\MarkReportOpened;
@@ -25,8 +28,10 @@ use App\Modules\Review\Models\ReviewCycle;
 use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Dashboard BPD & siklus tinjauan (PRD Fitur Inti Bagian 6, B1-B10).
@@ -42,8 +47,11 @@ final class BpdDashboardController
             ->with([
                 'currentCycle',
                 'audit.items',
+                'projectChanges' => static function ($query): void {
+                    $query->orderByDesc('changed_at');
+                },
                 'reports' => static function ($query): void {
-                    $query->orderBy('created_at');
+                    $query->orderBy('created_at')->with(['answers.measurement', 'photos']);
                 },
             ])
             ->get();
@@ -143,14 +151,44 @@ final class BpdDashboardController
                 ->values()
                 ->all();
 
+            $selectedActiveReports = $cycleReports->filter(static fn (Report $r): bool => $r->superseded_by === null);
+            $selectedValidMismatchCount = $selectedActiveReports
+                ->filter(static fn (Report $r): bool => $r->kind === ReportKind::Mismatch && $r->invalid_reason === null)
+                ->pluck('user_id')
+                ->unique()
+                ->count();
+
             $selectedDetail = [
                 'id' => $selectedProject->id,
                 'slug' => $selectedProject->slug,
                 'name' => $selectedProject->name,
                 'public_status' => $selectedProject->public_status->value,
                 'in_review_since' => $selectedProject->currentCycle?->in_review_since?->toIso8601String(),
+                'valid_mismatch_count' => $selectedValidMismatchCount,
                 'public_url' => route('projects.show', $selectedProject->slug),
                 'document_url' => route('projects.document', $selectedProject->slug),
+                'above_standard_items' => $selectedProject->audit !== null
+                    ? $selectedProject->audit->items
+                        ->filter(static fn ($item): bool => $item->label === PriceLabel::AboveStandard)
+                        ->map(static fn ($item): array => [
+                            'id' => $item->id,
+                            'name' => $item->raw_name,
+                            'unit_price_rp' => $item->unit_price_rp,
+                            'over_pct' => $item->over_pct,
+                            'explanation' => is_array($item->doubt) ? ($item->doubt['neutral_explanation'] ?? null) : null,
+                        ])
+                        ->values()
+                        ->all()
+                    : [],
+                'changes' => $selectedProject->projectChanges->map(static fn (ProjectChange $c): array => [
+                    'id' => $c->id,
+                    'item_label' => $c->item_label,
+                    'field' => $c->field,
+                    'old_value' => $c->old_value,
+                    'new_value' => $c->new_value,
+                    'reason' => $c->reason,
+                    'changed_at' => $c->changed_at->toIso8601String(),
+                ])->values()->all(),
                 'reports' => $cycleReports->map(static fn (Report $r): array => [
                     'id' => $r->id,
                     'reporter_label' => $reporterLabels[$r->user_id],
@@ -161,6 +199,20 @@ final class BpdDashboardController
                     'invalid_reason' => $r->invalid_reason,
                     'is_new' => $r->opened_at === null,
                     'created_at' => $r->created_at?->toIso8601String(),
+                    'answers' => $r->answers->map(static fn (ReportAnswer $a): array => [
+                        'id' => $a->id,
+                        'measurement_name' => $a->measurement->name,
+                        'rab_value' => (string) (float) $a->measurement->value,
+                        'rab_unit' => $a->measurement->unit,
+                        'answer' => $a->answer->value,
+                        'measured_value' => $a->measured_value !== null ? (string) (float) $a->measured_value : null,
+                        'measured_unit' => $a->measured_unit ?? $a->measurement->unit,
+                    ])->values()->all(),
+                    'photos' => $r->photos->map(static fn (ReportPhoto $p): array => [
+                        'id' => $p->id,
+                        'position' => $p->position,
+                        'url' => route('bpd.photos.show', $p->id),
+                    ])->values()->all(),
                 ])->values()->all(),
                 'closed_cycles' => $closedCycles,
             ];
@@ -172,10 +224,33 @@ final class BpdDashboardController
             'village' => [
                 'name' => $village->name,
                 'slug' => $village->slug,
+                'regency' => $village->regency,
             ],
             'projects' => $projectRows->all(),
             'selectedProject' => $selectedDetail,
             'threshold' => (int) config('sonar.review.threshold', 3),
+        ]);
+    }
+
+    /**
+     * Serves a citizen report photo exclusively to BPD of the owning village (PRD Fitur Inti 6.1, 8.3, B2, C11).
+     */
+    public function showPhoto(Request $request, int $photoId): SymfonyResponse
+    {
+        $this->ensureBpd($request);
+
+        $photo = ReportPhoto::query()->with('report')->findOrFail($photoId);
+        // Scope check via BelongsToVillage on Project (IDOR protection across villages).
+        Project::query()->findOrFail($photo->report->project_id);
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($photo->path)) {
+            abort(404, 'Foto laporan tidak ditemukan.');
+        }
+
+        return $disk->response($photo->path, null, [
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Content-Type' => 'image/webp',
         ]);
     }
 
@@ -185,6 +260,24 @@ final class BpdDashboardController
         $report = $this->findVillageReport($reportId);
 
         $action->execute($report);
+
+        return back();
+    }
+
+    public function openAllReports(Request $request, int $projectId): RedirectResponse
+    {
+        $this->ensureBpd($request);
+        $project = Project::query()->findOrFail($projectId);
+
+        $query = Report::query()
+            ->where('project_id', $project->id)
+            ->whereNull('opened_at');
+
+        if ($project->current_cycle_id !== null) {
+            $query->where('cycle_id', $project->current_cycle_id);
+        }
+
+        $query->update(['opened_at' => now()]);
 
         return back();
     }

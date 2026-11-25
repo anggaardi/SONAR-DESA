@@ -18,8 +18,11 @@ use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\ProgressPhoto;
 use App\Modules\Project\Models\Project;
 use App\Modules\Project\Models\ProjectMeasurement;
+use App\Modules\Report\Enums\MeasurementAnswer;
 use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Enums\ReviewOutcome;
 use App\Modules\Review\Models\ReviewCycle;
 use App\Modules\Review\Models\ReviewNote;
@@ -82,6 +85,8 @@ final class ProjectSeeder extends Seeder
     /**
      * Fixed warga accounts and reports: no Faker (dev-only) and the same rows on every run.
      * Accounts have no password and no village, like Google-login warga.
+     *
+     * @param  array<string, float|string>  $mismatchMeasurements  measurement name => measured value for Mismatch answers
      */
     private function seedCitizenReport(
         Project $project,
@@ -90,7 +95,9 @@ final class ProjectSeeder extends Seeder
         ?string $note = null,
         int $daysAgo = 2,
         int $distanceM = 15,
-        ?ReviewCycle $cycle = null
+        ?ReviewCycle $cycle = null,
+        array $mismatchMeasurements = [],
+        string $samplePhotoPath = 'progress/sample-progress-35.webp',
     ): void {
         $citizen = User::query()->updateOrCreate(
             ['email' => sprintf('warga-%02d@contoh.sonar-desa.test', $citizenIndex)],
@@ -119,6 +126,47 @@ final class ProjectSeeder extends Seeder
             ],
         );
         $report->forceFill(['created_at' => $reportedAt])->save();
+
+        $measurements = ProjectMeasurement::query()
+            ->where('project_id', $project->id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($measurements as $index => $measurement) {
+            $hasSpecificMismatch = array_key_exists($measurement->name, $mismatchMeasurements);
+            $isFallbackMismatch = $kind === ReportKind::Mismatch
+                && $mismatchMeasurements === []
+                && $index === $measurements->count() - 1;
+
+            if ($hasSpecificMismatch || $isFallbackMismatch) {
+                $measuredVal = $hasSpecificMismatch
+                    ? (string) $mismatchMeasurements[$measurement->name]
+                    : (string) round(((float) $measurement->value) * 0.75, 3);
+
+                ReportAnswer::query()->updateOrCreate(
+                    ['report_id' => $report->id, 'measurement_id' => $measurement->id],
+                    [
+                        'answer' => MeasurementAnswer::Mismatch,
+                        'measured_value' => $measuredVal,
+                        'measured_unit' => $measurement->unit,
+                    ],
+                );
+            } else {
+                ReportAnswer::query()->updateOrCreate(
+                    ['report_id' => $report->id, 'measurement_id' => $measurement->id],
+                    [
+                        'answer' => MeasurementAnswer::Match,
+                        'measured_value' => null,
+                        'measured_unit' => null,
+                    ],
+                );
+            }
+        }
+
+        ReportPhoto::query()->updateOrCreate(
+            ['report_id' => $report->id, 'position' => 1],
+            ['path' => $samplePhotoPath],
+        );
     }
 
     /**
@@ -480,6 +528,8 @@ final class ProjectSeeder extends Seeder
             note: 'Tebal perkerasan cor di pinggir jalan hanya 8 cm, tidak mencapai spesifikasi 12 cm di RAB.',
             daysAgo: 5,
             distanceM: 18,
+            mismatchMeasurements: ['Tebal' => '0.08'],
+            samplePhotoPath: 'progress/sample-progress-35.webp',
         );
 
         $this->seedCitizenReport(
@@ -489,6 +539,8 @@ final class ProjectSeeder extends Seeder
             note: 'Hasil pengukuran ketebalan beton di beberapa titik rata-rata 9 cm.',
             daysAgo: 3,
             distanceM: 24,
+            mismatchMeasurements: ['Tebal' => '0.09'],
+            samplePhotoPath: 'progress/sample-progress-65.webp',
         );
 
         $this->seedCitizenReport(
@@ -498,6 +550,7 @@ final class ProjectSeeder extends Seeder
             note: 'Panjang 200 m dan lebar badan jalan 3 m sudah sesuai rencana.',
             daysAgo: 1,
             distanceM: 14,
+            samplePhotoPath: 'progress/sample-progress-65.webp',
         );
     }
 

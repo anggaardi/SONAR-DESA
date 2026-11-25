@@ -69,6 +69,14 @@ final class LoginController
 
     private function defaultLanding(?User $user): string
     {
-        return route($user?->hasRole(Role::Desa) ? 'desa.dashboard' : 'home');
+        if ($user?->hasRole(Role::Desa)) {
+            return route('desa.dashboard');
+        }
+
+        if ($user?->hasRole(Role::Bpd)) {
+            return route('bpd.index');
+        }
+
+        return route('home');
     }
 }

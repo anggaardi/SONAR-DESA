@@ -26,7 +26,7 @@ it('shows the login page to guests', function () {
 
 it('logs in desa and bpd accounts with the right password', function (Role $role) {
     $user = villageAccount($role);
-    $expected = $role === Role::Desa ? route('desa.dashboard') : route('home');
+    $expected = $role === Role::Desa ? route('desa.dashboard') : route('bpd.index');
 
     $this->post('/login', ['email' => $user->email, 'password' => 'rahasia-benar'])
         ->assertRedirect($expected);
@@ -101,7 +101,7 @@ it('lets a demo account open the login page to switch to a real account', functi
 it('sends a logged-in real account away from the login page', function () {
     $this->actingAs(villageAccount(Role::Bpd))
         ->get('/login')
-        ->assertRedirect(route('home'));
+        ->assertRedirect(route('bpd.index'));
 });
 
 it('sends guests on protected routes to the login page', function () {

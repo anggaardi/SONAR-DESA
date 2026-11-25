@@ -2,18 +2,26 @@
 
 declare(strict_types=1);
 
+use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Audit\Models\Audit;
+use App\Modules\Audit\Models\AuditItem;
 use App\Modules\Core\Auth\Role;
 use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
 use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
+use App\Modules\Project\Models\ProjectChange;
+use App\Modules\Project\Models\ProjectMeasurement;
+use App\Modules\Report\Enums\MeasurementAnswer;
 use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Actions\EvaluateReviewThreshold;
 use App\Modules\Review\Enums\ReviewOutcome;
 use App\Modules\Review\Models\ReviewCycle;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 function setupBpdVillage(): array
@@ -209,4 +217,125 @@ it('forbids non-BPD roles from accessing /bpd', function () {
     $this->actingAs($desa)
         ->get('/bpd')
         ->assertForbidden();
+});
+
+it('displays report measurement answers vs RAB, above-standard items, and serves report photos exclusively to owning village BPD (B2, C11)', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('reports/test-bukti.webp', 'fake-webp-bytes');
+
+    [$village, $bpd] = setupBpdVillage();
+
+    $audit = Audit::factory()->create(['village_id' => $village->id]);
+    AuditItem::factory()->create([
+        'audit_id' => $audit->id,
+        'position' => 1,
+        'raw_name' => 'Semen Portland 50kg',
+        'unit_price_rp' => 85000,
+        'label' => PriceLabel::AboveStandard,
+        'over_pct' => 18,
+        'doubt' => ['neutral_explanation' => 'Biaya langsir ke lokasi menanjak.'],
+    ]);
+
+    $project = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => $audit->id,
+        'public_status' => PublicStatus::InReview,
+        'published_at' => now(),
+    ]);
+
+    $cycle = ReviewCycle::create([
+        'project_id' => $project->id,
+        'opened_at' => now(),
+        'in_review_since' => now(),
+    ]);
+    $project->update(['current_cycle_id' => $cycle->id]);
+
+    $measurement = ProjectMeasurement::factory()->create([
+        'project_id' => $project->id,
+        'name' => 'Tebal beton',
+        'value' => 12,
+        'unit' => 'cm',
+    ]);
+
+    $warga = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $report = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $warga->id,
+        'kind' => ReportKind::Mismatch,
+        'distance_m' => 14,
+        'opened_at' => null,
+    ]);
+
+    ReportAnswer::factory()->create([
+        'report_id' => $report->id,
+        'measurement_id' => $measurement->id,
+        'answer' => MeasurementAnswer::Mismatch,
+        'measured_value' => 8.5,
+        'measured_unit' => 'cm',
+    ]);
+
+    $photo = ReportPhoto::factory()->create([
+        'report_id' => $report->id,
+        'position' => 1,
+        'path' => 'reports/test-bukti.webp',
+    ]);
+
+    ProjectChange::factory()->create([
+        'project_id' => $project->id,
+        'item_label' => 'Semen Portland 50kg',
+        'field' => 'volume',
+        'old_value' => '450 sak',
+        'new_value' => '480 sak',
+        'reason' => 'Penambahan tebal cor pada tanjakan.',
+    ]);
+
+    $this->actingAs($bpd)
+        ->get('/bpd')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('review/Index')
+            ->where('selectedProject.valid_mismatch_count', 1)
+            ->where('selectedProject.above_standard_items.0.name', 'Semen Portland 50kg')
+            ->where('selectedProject.above_standard_items.0.over_pct', 18)
+            ->where('selectedProject.above_standard_items.0.explanation', 'Biaya langsir ke lokasi menanjak.')
+            ->where('selectedProject.changes.0.item_label', 'Semen Portland 50kg')
+            ->where('selectedProject.changes.0.old_value', '450 sak')
+            ->where('selectedProject.changes.0.new_value', '480 sak')
+            ->where('selectedProject.changes.0.reason', 'Penambahan tebal cor pada tanjakan.')
+            ->where('selectedProject.reports.0.answers.0.measurement_name', 'Tebal beton')
+            ->where('selectedProject.reports.0.answers.0.rab_value', '12')
+            ->where('selectedProject.reports.0.answers.0.rab_unit', 'cm')
+            ->where('selectedProject.reports.0.answers.0.answer', 'mismatch')
+            ->where('selectedProject.reports.0.answers.0.measured_value', '8.5')
+            ->where('selectedProject.reports.0.answers.0.measured_unit', 'cm')
+            ->where('selectedProject.reports.0.photos.0.id', $photo->id)
+            ->where('selectedProject.reports.0.photos.0.url', route('bpd.photos.show', $photo->id))
+        );
+
+    // Bulk mark all reports opened for the project.
+    expect($report->refresh()->opened_at)->toBeNull();
+    $this->actingAs($bpd)
+        ->post(route('bpd.projects.reports.open-all', $project->id))
+        ->assertRedirect();
+    expect($report->refresh()->opened_at)->not->toBeNull();
+
+    // Owning village BPD can view the photo.
+    $this->actingAs($bpd)
+        ->get(route('bpd.photos.show', $photo->id))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/webp');
+
+    // Desa role of the same village is forbidden from viewing report photos (C11).
+    $desa = User::factory()->create(['village_id' => $village->id, 'role' => Role::Desa]);
+    $this->actingAs($desa)
+        ->get(route('bpd.photos.show', $photo->id))
+        ->assertForbidden();
+
+    // BPD from another village cannot access the photo (IDOR guard -> 404).
+    $otherVillage = Village::factory()->create();
+    $otherBpd = User::factory()->create(['village_id' => $otherVillage->id, 'role' => Role::Bpd]);
+    $this->actingAs($otherBpd)
+        ->get(route('bpd.photos.show', $photo->id))
+        ->assertNotFound();
 });

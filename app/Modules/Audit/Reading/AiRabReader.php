@@ -49,11 +49,211 @@ PROMPT;
     ) {}
 
     /**
-     * Read and extract structured rows from an RAB document using AI Vision.
+     * Read and extract structured rows from an RAB document.
+     * Automatically tries Method 1 (Jalur A: fast digital PDF stream extraction) first for PDFs,
+     * and falls back to Method 2 (Jalur B: AI Vision OCR) for scanned PDFs and photos.
      *
      * @param  list<StandardRef>  $standards
      */
     public function read(string $filePath, array $standards): RabReadResult
+    {
+        if (! file_exists($filePath)) {
+            return new RabReadResult(
+                rows: [],
+                readMs: 0,
+                errorCode: 'FILE_NOT_FOUND',
+            );
+        }
+
+        // Method 1 (Jalur A): Fast digital PDF coordinate table extraction (~50ms for 59 pages)
+        if (strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) === 'pdf') {
+            $digitalResult = $this->readViaDigitalPdf($filePath, $standards);
+            if ($digitalResult !== null && $digitalResult->isSuccess()) {
+                return $digitalResult;
+            }
+        }
+
+        // Method 2 (Jalur B): AI Vision extraction for scanned PDFs, photos (JPG/PNG), or custom layouts
+        return $this->readViaAiVision($filePath, $standards);
+    }
+
+    /**
+     * Method 1 (Jalur A): Fast deterministic extraction from digital PDF text streams (e.g. Siskeudes multi-page PDF).
+     * Extracts all budgeted product rows across all pages in ~50ms without burning AI Vision tokens.
+     * Returns null if the PDF is a scanned image without digital table text streams.
+     *
+     * @param  list<StandardRef>  $standards
+     */
+    public function readViaDigitalPdf(string $filePath, array $standards): ?RabReadResult
+    {
+        $startTime = microtime(true);
+
+        if (! file_exists($filePath)) {
+            return null;
+        }
+
+        $pdfBytes = file_get_contents($filePath);
+        if ($pdfBytes === false || ! str_contains($pdfBytes, 'stream')) {
+            return null;
+        }
+
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $pdfBytes, $matches);
+        if (empty($matches[1])) {
+            return null;
+        }
+
+        $pagesCells = [];
+        $currentCells = [];
+
+        foreach ($matches[1] as $rawStream) {
+            $decompressed = @gzuncompress($rawStream);
+            if ($decompressed === false || ! str_contains($decompressed, 'BT') || str_contains($decompressed, 'GSUB')) {
+                continue;
+            }
+
+            if (! preg_match_all('/([0-9.]+)\s+([0-9.]+)\s+Tm\s*\[(.*?)\]\s*TJ/s', $decompressed, $tmMatches, PREG_SET_ORDER)) {
+                continue;
+            }
+
+            $streamCells = [];
+            foreach ($tmMatches as $tm) {
+                $x = (float) $tm[1];
+                $y = (float) $tm[2];
+                preg_match_all('/<([0-9A-Fa-f]{4})>(-?[0-9.]+)?/', $tm[3], $hexMatches, PREG_SET_ORDER);
+
+                $text = '';
+                foreach ($hexMatches as $hex) {
+                    $ascii = hexdec($hex[1]) + 29;
+                    if ($ascii >= 32 && $ascii <= 126) {
+                        $text .= chr($ascii);
+                    }
+                    if (isset($hex[2]) && (float) $hex[2] < -100) {
+                        $text .= ' ';
+                    }
+                }
+
+                $trimmed = trim($text);
+                if ($trimmed !== '') {
+                    $streamCells[] = ['x' => $x, 'y' => $y, 'text' => $trimmed];
+                }
+            }
+
+            if ($streamCells === []) {
+                continue;
+            }
+
+            $joinedStreamText = implode(' ', array_column($streamCells, 'text'));
+            if (str_contains($joinedStreamText, 'RENCANA ANGGARAN BIAYA')) {
+                if ($currentCells !== []) {
+                    $pagesCells[] = $currentCells;
+                }
+                $currentCells = $streamCells;
+            } else {
+                $currentCells = array_merge($currentCells, $streamCells);
+            }
+        }
+
+        if ($currentCells !== []) {
+            $pagesCells[] = $currentCells;
+        }
+
+        if ($pagesCells === []) {
+            return null;
+        }
+
+        $rawRows = [];
+        $position = 1;
+        $singlePageTotalRp = null;
+
+        foreach ($pagesCells as $cells) {
+            usort($cells, static fn (array $a, array $b): int => $a['y'] <=> $b['y']);
+
+            /** @var list<array{y: float, cells: list<array{x: float, y: float, text: string}>}> $clusteredRows */
+            $clusteredRows = [];
+            foreach ($cells as $cell) {
+                $lastIdx = count($clusteredRows) - 1;
+                if ($lastIdx < 0 || abs($cell['y'] - $clusteredRows[$lastIdx]['y']) > 5.0) {
+                    $clusteredRows[] = ['y' => $cell['y'], 'cells' => [$cell]];
+                } else {
+                    $clusteredRows[$lastIdx]['cells'][] = $cell;
+                }
+            }
+
+            $kegiatanLabel = null;
+            foreach ($clusteredRows as $rowGroup) {
+                $rowCells = $rowGroup['cells'];
+                usort($rowCells, static fn (array $a, array $b): int => $a['x'] <=> $b['x']);
+                $texts = array_column($rowCells, 'text');
+                $line = implode(' | ', $texts);
+
+                if (str_starts_with($line, 'Output/Keluaran')) {
+                    $lastCol = trim((string) end($texts));
+                    if ($lastCol !== '' && $lastCol !== ':') {
+                        $kegiatanLabel = $lastCol;
+                    }
+                } elseif (str_starts_with($line, 'JUMLAH (Rp)') && count($pagesCells) === 1) {
+                    $singlePageTotalRp = $this->parseRupiahInt(end($texts));
+                }
+
+                if (preg_match('/^0?\d+\.\s*\|\s*(.+?)\s*\|\s*(?:ADD|DDS|PBH|PAD|PBK|DLL|BKK|BHPR)?\s*\|?\s*([0-9.,]+\s+\S+)\s*\|\s*([0-9.,]+)\s*\|\s*([0-9.,]+)$/i', $line, $rm)) {
+                    $itemName = trim($rm[1]);
+                    if (count($pagesCells) > 1 && $kegiatanLabel !== null && ! str_contains(strtolower($itemName), strtolower($kegiatanLabel))) {
+                        $itemName .= " ({$kegiatanLabel})";
+                    }
+
+                    $unitPriceRp = $this->parseRupiahInt($rm[3]);
+                    $amountRp = $this->parseRupiahInt($rm[4]);
+                    [$volume, $unit] = $this->extractVolumeAndUnit($rm[2], null, $unitPriceRp, $amountRp);
+
+                    $matchedCode = $this->matchStandardCode($rm[1], $unit, $standards);
+
+                    $rawRows[] = [
+                        'position' => $position++,
+                        'raw_name' => $itemName,
+                        'volume' => $volume,
+                        'unit' => $unit,
+                        'unit_price_rp' => $unitPriceRp,
+                        'amount_rp' => $amountRp,
+                        'standard_code' => $matchedCode,
+                        'doubt_fields' => [],
+                    ];
+                }
+            }
+        }
+
+        if ($rawRows === []) {
+            return null;
+        }
+
+        $validStandardCodes = array_map(static fn (StandardRef $ref): string => $ref->code, $standards);
+        $rows = $this->sanitizeRows($rawRows, $validStandardCodes);
+
+        $calculatedTotalRp = 0;
+        foreach ($rows as $r) {
+            $calculatedTotalRp += $r->amountRp ?? 0;
+        }
+
+        $elapsedMs = max(1, (int) round((microtime(true) - $startTime) * 1000));
+
+        Log::info('rab.read.digital_pdf', [
+            'pages' => count($pagesCells),
+            'items' => count($rows),
+            'ms' => $elapsedMs,
+        ]);
+
+        return new RabReadResult(
+            rows: $rows,
+            writtenTotalRp: $singlePageTotalRp ?? $calculatedTotalRp,
+            readMs: $elapsedMs,
+        );
+    }
+
+    /**
+     * Method 2 (Jalur B): AI Vision extraction via OpenAI-compatible gateway for scanned PDFs and photos.
+     *
+     * @param  list<StandardRef>  $standards
+     */
+    public function readViaAiVision(string $filePath, array $standards): RabReadResult
     {
         $startTime = microtime(true);
 
@@ -140,10 +340,12 @@ PROMPT;
                     'error' => $response->body(),
                 ]);
 
+                $errorCode = $response->status() === 402 ? 'AI_QUOTA_EXCEEDED' : 'AI_REQUEST_FAILED';
+
                 return new RabReadResult(
                     rows: [],
                     readMs: $elapsedMs,
-                    errorCode: 'AI_REQUEST_FAILED',
+                    errorCode: $errorCode,
                     rawResponse: $response->body(),
                 );
             }
@@ -234,6 +436,36 @@ PROMPT;
         $lines[] = "\nSilakan baca dokumen RAB terlampir dan cocokkan item ke kode standar di atas.";
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Match an item name and unit against the standard price catalog deterministically.
+     *
+     * @param  list<StandardRef>  $standards
+     */
+    private function matchStandardCode(string $rawName, ?string $unit, array $standards): ?string
+    {
+        if ($standards === []) {
+            return null;
+        }
+
+        $normalizedName = strtolower(trim($rawName));
+        $normalizedUnit = $unit !== null ? strtolower(trim($unit)) : '';
+
+        foreach ($standards as $standard) {
+            $stdName = strtolower(trim($standard->name));
+            $stdUnit = strtolower(trim($standard->unit));
+
+            if ($normalizedUnit !== '' && $stdUnit !== '' && $normalizedUnit !== $stdUnit) {
+                continue;
+            }
+
+            if ($normalizedName === $stdName || str_contains($normalizedName, $stdName) || str_contains($stdName, $normalizedName)) {
+                return $standard->code;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -262,4 +262,21 @@ describe('AiRabReader', function () {
             ->and($result->rows[1]->unitPriceRp)->toBe(892)
             ->and($result->rows[1]->amountRp)->toBe(4_745_440);
     });
+
+    it('returns AI_QUOTA_EXCEEDED when gateway responds with HTTP 402 spend limit exceeded in Jalur B', function () {
+        Http::fake([
+            'https://ai.databyte.co.id/v1/chat/completions' => Http::response([
+                'error' => ['code' => 'key_spend_limit_exceeded'],
+            ], 402),
+        ]);
+
+        $result = $this->reader->readViaAiVision($this->sampleFile, $this->standards);
+
+        expect($result->isSuccess())->toBeFalse()
+            ->and($result->errorCode)->toBe('AI_QUOTA_EXCEEDED');
+    });
+
+    it('returns null from Jalur A (readViaDigitalPdf) for scanned/image PDFs and automatically falls back to Jalur B (readViaAiVision)', function () {
+        expect($this->reader->readViaDigitalPdf($this->sampleFile, $this->standards))->toBeNull();
+    });
 });

@@ -25,6 +25,16 @@ const emit = defineEmits<{
 
 const page = usePage();
 const demo = computed(() => page.props.demo);
+const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
+const dashboardLink = computed<{ href: string; label: string } | null>(() => {
+    if (activeRole.value === 'bpd') {
+        return { href: '/bpd', label: 'Kembali ke Dashboard BPD' };
+    }
+    if (activeRole.value === 'desa') {
+        return { href: '/desa', label: 'Kembali ke Dashboard Pemdes' };
+    }
+    return null;
+});
 const showRolePicker = ref(false);
 
 const formattedVillageName = computed(() => {
@@ -82,6 +92,17 @@ function restartDemo(): void {
 
         <!-- Navigation Links -->
         <nav class="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-3" aria-label="Menu navigasi">
+            <Link
+                v-if="dashboardLink"
+                :href="dashboardLink.href"
+                class="mb-2 flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-content-inverse focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>{{ dashboardLink.label }}</span>
+            </Link>
+
             <p class="px-3 pt-2 pb-1 text-[10px] font-bold tracking-wider text-content-tertiary uppercase">
                 MENU UTAMA
             </p>
@@ -249,7 +270,14 @@ function restartDemo(): void {
             <p class="leading-relaxed">
                 Sonar Desa &middot; Keterbukaan Informasi Publik Desa &middot; UU No. 6/2014 &amp; UU No. 14/2008
             </p>
-            <Link href="/login" class="mt-2.5 inline-block font-medium text-primary hover:underline">
+            <Link
+                v-if="dashboardLink"
+                :href="dashboardLink.href"
+                class="mt-2.5 inline-block font-medium text-primary hover:underline"
+            >
+                &larr; {{ dashboardLink.label }}
+            </Link>
+            <Link v-else href="/login" class="mt-2.5 inline-block font-medium text-primary hover:underline">
                 Pamong / BPD? Masuk &rarr;
             </Link>
         </div>

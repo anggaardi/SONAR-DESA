@@ -871,6 +871,11 @@ function zoomOut(): void {
                                     <template v-else-if="audit.error_code === 'AI_KEY_MISSING'">
                                         Kunci API AI Vision belum dikonfigurasi pada server.
                                     </template>
+                                    <template v-else-if="audit.error_code === 'AI_QUOTA_EXCEEDED'">
+                                        Batas kuota pemakaian bulanan API Key AI Vision telah tercapai. Dokumen PDF
+                                        digital (Siskeudes) tetap dapat diekstrak cepat lewat Jalur A, atau isi rincian
+                                        belanja secara manual.
+                                    </template>
                                     <template v-else>
                                         Berkas asli Anda tetap tersimpan aman. Anda dapat mencoba ekstraksi ulang atau
                                         menginput rincian belanja secara manual.

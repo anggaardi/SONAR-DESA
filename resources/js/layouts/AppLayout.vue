@@ -3,10 +3,14 @@
 // Aligned with DesktopSidebar (w-[260px], sticky top-0 h-screen) and Village desktop header.
 // See docs/DESIGN.md §4.
 
-import { Link } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
+const page = usePage();
 const sidebarOpen = ref(false);
+const isBpd = computed(() => (page.props.auth?.user?.role ?? page.props.demo?.role) === 'bpd');
+const homeHref = computed(() => (isBpd.value ? '/bpd' : '/desa'));
+const roleSubtitle = computed(() => (isBpd.value ? 'Badan Permusyawaratan Desa' : 'Pemerintah Desa'));
 
 function toggleSidebar(): void {
     sidebarOpen.value = !sidebarOpen.value;
@@ -29,7 +33,7 @@ function toggleSidebar(): void {
                 <div class="flex items-center gap-3 border-b border-stroke px-5 py-4">
                     <slot name="logo">
                         <Link
-                            href="/desa"
+                            :href="homeHref"
                             class="flex items-center gap-3 text-content transition-colors hover:text-primary"
                         >
                             <div
@@ -64,7 +68,7 @@ function toggleSidebar(): void {
                                 <span class="block text-[17px] leading-tight font-bold tracking-tight text-content"
                                     >Sonar Desa</span
                                 >
-                                <span class="block text-[11px] text-content-tertiary">Pemerintah Desa</span>
+                                <span class="block text-[11px] text-content-tertiary">{{ roleSubtitle }}</span>
                             </div>
                         </Link>
                     </slot>
@@ -119,7 +123,7 @@ function toggleSidebar(): void {
                         </div>
                         <div>
                             <span class="block text-sm leading-tight font-bold text-content">Sonar Desa</span>
-                            <span class="block text-[10px] text-content-tertiary">Pemerintah Desa</span>
+                            <span class="block text-[10px] text-content-tertiary">{{ roleSubtitle }}</span>
                         </div>
                     </div>
                     <button
