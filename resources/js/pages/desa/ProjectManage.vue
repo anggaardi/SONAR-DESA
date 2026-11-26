@@ -591,6 +591,8 @@ function deleteDraftProject(): void {
 
                     <div v-if="!project.audit || project.audit.items.length === 0" class="mt-4">
                         <EmptyState
+                            illustration="document-error"
+                            compact
                             title="Tidak ada item belanja RAB"
                             description="Dokumen audit RAB belum memiliki baris rincian item belanja."
                         />

@@ -3,6 +3,7 @@
 // dalam satu linimasa, terbaru di atas. Foto terbaru tampil besar. Klik foto membuka lightbox.
 
 import { computed, ref } from 'vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import { formatDate } from '@/lib/format';
 import { publicStatus, type ReviewOutcome } from '@/lib/labels';
 import type { ProjectDetail } from '@/types/project';
@@ -92,12 +93,14 @@ const activePhoto = ref<string | null>(null);
         <h2 class="text-xl font-semibold text-content">Perjalanan proyek</h2>
         <p class="text-sm text-content-secondary">Foto dari pemerintah desa dan catatan BPD</p>
 
-        <p
-            v-if="events.length === 0"
-            class="mt-3 rounded-2xl bg-surface-muted p-4 text-center text-sm text-content-secondary"
-        >
-            Desa belum mengunggah foto progres
-        </p>
+        <div v-if="events.length === 0" class="mt-3 rounded-lg border border-stroke bg-surface px-4">
+            <EmptyState
+                illustration="plang-empty"
+                compact
+                title="Belum ada catatan perjalanan"
+                description="Desa belum mengunggah foto progres"
+            />
+        </div>
 
         <ol v-else class="mt-4">
             <li v-for="(event, index) in events" :key="event.key" class="relative flex gap-3 pb-6 last:pb-0">

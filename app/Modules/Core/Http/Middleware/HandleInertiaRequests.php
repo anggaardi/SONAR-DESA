@@ -35,10 +35,7 @@ final class HandleInertiaRequests extends Middleware
                 ],
             ],
             // PRD Fitur 7.2: every demo screen shows the banner with "Ganti peran" and "Mulai ulang demo".
-            'demo' => $request->session()->has(SetCurrentVillage::DEMO_SESSION_KEY) ? [
-                'role' => (string) $request->session()->get(SetCurrentVillage::DEMO_ROLE_SESSION_KEY, 'warga'),
-                'village_slug' => Village::whereKey((int) $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY))->value('slug'),
-            ] : null,
+            'demo' => $this->demoContext($request),
             // F0-4: commit shown in the footer to confirm which build is live.
             'app' => [
                 'commit' => config('sonar.commit'),
@@ -48,6 +45,26 @@ final class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'published_project' => fn () => $request->session()->get('published_project'),
             ],
+        ];
+    }
+
+    /**
+     * @return array{role: string, village_slug: string|null, uploads_used: int, upload_limit: int}|null
+     */
+    private function demoContext(Request $request): ?array
+    {
+        $villageId = $request->session()->get(SetCurrentVillage::DEMO_SESSION_KEY);
+        if (! is_numeric($villageId)) {
+            return null;
+        }
+
+        $village = Village::query()->select(['slug', 'demo_ai_uploads_count'])->find((int) $villageId);
+
+        return [
+            'role' => (string) $request->session()->get(SetCurrentVillage::DEMO_ROLE_SESSION_KEY, 'warga'),
+            'village_slug' => $village?->slug,
+            'uploads_used' => $village !== null ? $village->demo_ai_uploads_count : 0,
+            'upload_limit' => (int) config('sonar.demo.upload_limit', 3),
         ];
     }
 }

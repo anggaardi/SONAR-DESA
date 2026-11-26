@@ -3,6 +3,7 @@
 // PRD P11, P12, F20, F21 (Langkah 7, 9). Gambar lempeng hanya muncul bila panjang & lebar ada.
 
 import { computed } from 'vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import { formatLength } from '@/lib/format';
 import { findMeasurement, measurementInMeters } from '@/lib/projectStory';
 import type { ProjectDetail, ProjectMeasurementItem } from '@/types/project';
@@ -107,11 +108,13 @@ const howTos = computed(() => props.project.measurements.filter((m) => m.how_to)
             </div>
         </div>
 
-        <p
-            v-else
-            class="mt-3 rounded-2xl border border-stroke bg-surface p-4 text-center text-sm text-content-secondary"
-        >
-            Belum ada ukuran fisik yang tercatat di RAB proyek ini.
-        </p>
+        <div v-else class="mt-3 rounded-lg border border-stroke bg-surface px-4">
+            <EmptyState
+                illustration="plang-empty"
+                compact
+                title="Ukuran fisik belum tersedia"
+                description="Belum ada ukuran fisik yang tercatat di RAB proyek ini."
+            />
+        </div>
     </section>
 </template>

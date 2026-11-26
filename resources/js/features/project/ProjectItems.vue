@@ -3,6 +3,8 @@
 // Tiga kotak angka sekaligus jadi filter; baris membuka bottom sheet perbandingan harga.
 
 import { computed, ref, watch } from 'vue';
+import Button from '@/components/ui/Button.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import PriceLabel from '@/components/ui/PriceLabel.vue';
 import { formatPercentAbove, formatRupiah, formatRupiahShort } from '@/lib/format';
 import { document as documentLabels, priceStandardSource } from '@/lib/labels';
@@ -167,12 +169,18 @@ function percentAbove(item: ProjectBudgetItem): string | null {
             </button>
         </div>
 
-        <p
-            v-if="filteredItems.length === 0"
-            class="mt-2 rounded-2xl border border-dashed border-stroke-strong p-6 text-center text-sm text-content-secondary"
-        >
-            Tidak ada baris untuk label ini.
-        </p>
+        <div v-if="filteredItems.length === 0" class="mt-2 rounded-lg border border-stroke bg-surface px-4">
+            <EmptyState
+                illustration="search-empty"
+                compact
+                title="Tidak ada baris untuk label ini."
+                description="Pilih label harga lainnya atau tampilkan semua baris belanja."
+            >
+                <Button v-if="selectedFilter !== 'all'" variant="secondary" size="sm" @click="setFilter('all')">
+                    Tampilkan semua
+                </Button>
+            </EmptyState>
+        </div>
 
         <template v-else>
             <!-- Desktop Tabular Table (md:block) ala FigCraft desk-proyek -->

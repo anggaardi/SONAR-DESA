@@ -6,6 +6,7 @@ import { Head } from '@inertiajs/vue3';
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
+import successSeal from '@/components/ui/illustrations/success-seal.svg';
 import PublicLayout from '@/layouts/PublicLayout.vue';
 import { reportSubmitted as text, reportType } from '@/lib/labels';
 import type { SubmittedReportPage } from '@/types/report';
@@ -18,9 +19,12 @@ defineProps<{ submitted: SubmittedReportPage }>();
         <Head :title="`${text.title} · ${submitted.project.name}`" />
 
         <div class="space-y-5">
-            <header>
+            <header class="flex flex-col items-center pt-2 text-center">
+                <div class="mb-4 aspect-4/3 w-full max-w-52 sm:max-w-60" aria-hidden="true">
+                    <img :src="successSeal" alt="" width="280" height="210" class="h-full w-full object-contain" />
+                </div>
                 <h1 class="text-2xl font-bold text-content">{{ text.title }}</h1>
-                <p class="text-base text-content-secondary">
+                <p class="mt-1 text-base text-content-secondary">
                     {{ submitted.project.name }} · {{ submitted.project.village_name }}
                 </p>
             </header>

@@ -1,0 +1,155 @@
+{
+  "written_total_rp": 64500000,
+  "rows": [
+    {
+      "position": 1,
+      "raw_name": "Pembersihan lokasi",
+      "volume": "1",
+      "unit": "ls",
+      "unit_price_rp": 500000,
+      "amount_rp": 500000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 2,
+      "raw_name": "Galian tanah biasa s.d. 1 m",
+      "volume": "45",
+      "unit": "m3",
+      "unit_price_rp": 95000,
+      "amount_rp": 4275000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 3,
+      "raw_name": "Urugan tanah kembali",
+      "volume": "12",
+      "unit": "m3",
+      "unit_price_rp": 110000,
+      "amount_rp": 1320000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 4,
+      "raw_name": "Semen Portland 50 kg",
+      "volume": "210",
+      "unit": "sak",
+      "unit_price_rp": 98000,
+      "amount_rp": 20580000,
+      "standard_code": "MAT-SMN-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 5,
+      "raw_name": "Pasir pasang",
+      "volume": "14",
+      "unit": "m3",
+      "unit_price_rp": 285000,
+      "amount_rp": 3990000,
+      "standard_code": "MAT-PSR-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 6,
+      "raw_name": "Batu kali",
+      "volume": "38",
+      "unit": "m3",
+      "unit_price_rp": 380000,
+      "amount_rp": 14440000,
+      "standard_code": "MAT-BTK-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 7,
+      "raw_name": "Batu pecah 2/3",
+      "volume": "6",
+      "unit": "m3",
+      "unit_price_rp": 420000,
+      "amount_rp": 2520000,
+      "standard_code": "MAT-BPC-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 8,
+      "raw_name": "Besi beton O 10 polos",
+      "volume": "24",
+      "unit": "btg",
+      "unit_price_rp": 95000,
+      "amount_rp": 2280000,
+      "standard_code": "MAT-BSI-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 9,
+      "raw_name": "Kawat beton",
+      "volume": "3",
+      "unit": "kg",
+      "unit_price_rp": 35000,
+      "amount_rp": 105000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 10,
+      "raw_name": "Papan bekisting",
+      "volume": "0.8",
+      "unit": "m3",
+      "unit_price_rp": 3200000,
+      "amount_rp": 2560000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 11,
+      "raw_name": "Paku",
+      "volume": "5",
+      "unit": "kg",
+      "unit_price_rp": 25000,
+      "amount_rp": 125000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 12,
+      "raw_name": "Pasir beton",
+      "volume": "2",
+      "unit": "truk",
+      "unit_price_rp": 1400000,
+      "amount_rp": 2800000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 13,
+      "raw_name": "Tukang batu",
+      "volume": "18",
+      "unit": "OH",
+      "unit_price_rp": 150000,
+      "amount_rp": 2700000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 14,
+      "raw_name": "Pekerja",
+      "volume": "40",
+      "unit": "OH",
+      "unit_price_rp": 120000,
+      "amount_rp": 4800000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 15,
+      "raw_name": "Sewa molen",
+      "volume": "3",
+      "unit": "hari",
+      "unit_price_rp": 350000,
+      "amount_rp": 1500000,
+      "standard_code": null,
+      "doubt_fields": []
+    }
+  ]
+}

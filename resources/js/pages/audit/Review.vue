@@ -2,6 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import Dialog from '@/components/ui/Dialog.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import PriceLabel from '@/components/ui/PriceLabel.vue';
 import PublishSuccessModal, { type PublishedProjectData } from '@/features/project/PublishSuccessModal.vue';
 import PublishWizardModal from '@/features/project/PublishWizardModal.vue';
@@ -840,105 +841,96 @@ function zoomOut(): void {
                     <!-- State B: Read Failed (Error State & Recovery) -->
                     <div
                         v-else-if="audit.status === 'read_failed'"
-                        class="rounded-2xl border border-negative/30 bg-negative-subtle/20 p-6 shadow-xs"
+                        class="rounded-2xl border border-negative/30 bg-surface p-6 shadow-xs"
                     >
-                        <div class="flex items-start gap-4">
-                            <div
-                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-negative text-content-inverse shadow-xs"
-                            >
-                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                    />
-                                </svg>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-base font-bold text-content">
-                                    Ekstraksi Otomatis AI Mengalami Kendala
-                                </h3>
-                                <p class="mt-1 text-xs text-content-secondary">
-                                    Dokumen tidak dapat diekstrak otomatis (Kode:
-                                    <code
-                                        class="rounded bg-surface px-1.5 py-0.5 font-mono text-[11px] text-negative"
-                                        >{{ audit.error_code || 'EXTRACTION_FAILED' }}</code>).
-                                    <template v-if="audit.error_code === 'NO_RAB_ITEMS_FOUND'">
-                                        AI Vision tidak menemukan baris rincian tabel RAB pada berkas ini. Pastikan
-                                        berkas yang diunggah adalah lembar dokumen/foto tabel RAB yang jelas.
-                                    </template>
-                                    <template v-else-if="audit.error_code === 'AI_KEY_MISSING'">
-                                        Kunci API AI Vision belum dikonfigurasi pada server.
-                                    </template>
-                                    <template v-else-if="audit.error_code === 'AI_QUOTA_EXCEEDED'">
-                                        Batas kuota pemakaian bulanan API Key AI Vision telah tercapai. Dokumen PDF
-                                        digital (Siskeudes) tetap dapat diekstrak cepat lewat Jalur A, atau isi rincian
-                                        belanja secara manual.
-                                    </template>
-                                    <template v-else>
-                                        Berkas asli Anda tetap tersimpan aman. Anda dapat mencoba ekstraksi ulang atau
-                                        menginput rincian belanja secara manual.
-                                    </template>
-                                </p>
-                                <div class="mt-4 flex flex-wrap gap-3">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-content-inverse shadow-xs transition-colors hover:bg-primary-hover"
-                                        :disabled="isRetrying"
-                                        @click="retryReading"
-                                    >
-                                        <svg
-                                            class="h-4 w-4"
-                                            :class="{ 'animate-spin': isRetrying }"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
+                        <EmptyState
+                            illustration="document-error"
+                            compact
+                            title="Ekstraksi Otomatis AI Mengalami Kendala"
+                        >
+                            <template #default>
+                                <div class="max-w-xl text-center">
+                                    <p class="text-xs leading-relaxed text-content-secondary">
+                                        Dokumen tidak dapat diekstrak otomatis (Kode:
+                                        <code
+                                            class="rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px] text-negative"
+                                            >{{ audit.error_code || 'EXTRACTION_FAILED' }}</code>).
+                                        <template v-if="audit.error_code === 'NO_RAB_ITEMS_FOUND'">
+                                            AI Vision tidak menemukan baris rincian tabel RAB pada berkas ini. Pastikan
+                                            berkas yang diunggah adalah lembar dokumen/foto tabel RAB yang jelas.
+                                        </template>
+                                        <template v-else-if="audit.error_code === 'AI_KEY_MISSING'">
+                                            Kunci API AI Vision belum dikonfigurasi pada server.
+                                        </template>
+                                        <template v-else-if="audit.error_code === 'AI_QUOTA_EXCEEDED'">
+                                            Batas kuota pemakaian bulanan API Key AI Vision telah tercapai. Dokumen PDF
+                                            digital (Siskeudes) tetap dapat diekstrak cepat lewat Jalur A, atau isi
+                                            rincian belanja secara manual.
+                                        </template>
+                                        <template v-else>
+                                            Berkas asli Anda tetap tersimpan aman. Anda dapat mencoba ekstraksi ulang
+                                            atau menginput rincian belanja secara manual.
+                                        </template>
+                                    </p>
+                                    <div class="mt-5 flex flex-wrap justify-center gap-3">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-content-inverse shadow-xs transition-colors hover:bg-primary-hover"
+                                            :disabled="isRetrying"
+                                            @click="retryReading"
                                         >
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                            />
-                                        </svg>
-                                        <span>{{ isRetrying ? 'Memulai Ulang...' : 'Coba Ekstraksi Ulang' }}</span>
-                                    </button>
-                                    <button
-                                        v-if="isEditableAudit"
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-4 py-2 text-xs font-semibold text-content shadow-xs transition-colors hover:bg-surface-muted"
-                                        :disabled="isReplacingFile"
-                                        @click="triggerReplaceFile"
-                                    >
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                                            />
-                                        </svg>
-                                        <span>{{ isReplacingFile ? 'Mengunggah...' : 'Ganti Berkas RAB' }}</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-4 py-2 text-xs font-semibold text-content shadow-xs transition-colors hover:bg-surface-muted"
-                                        @click="openAddModal"
-                                    >
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path
-                                                stroke-linecap="round"
-                                                stroke-linejoin="round"
-                                                stroke-width="2"
-                                                d="M12 4v16m8-8H4"
-                                            />
-                                        </svg>
-                                        <span>Isi Baris Manual</span>
-                                    </button>
+                                            <svg
+                                                class="h-4 w-4"
+                                                :class="{ 'animate-spin': isRetrying }"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                />
+                                            </svg>
+                                            <span>{{ isRetrying ? 'Memulai Ulang...' : 'Coba Ekstraksi Ulang' }}</span>
+                                        </button>
+                                        <button
+                                            v-if="isEditableAudit"
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-4 py-2 text-xs font-semibold text-content shadow-xs transition-colors hover:bg-surface-muted"
+                                            :disabled="isReplacingFile"
+                                            @click="triggerReplaceFile"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                                                />
+                                            </svg>
+                                            <span>{{ isReplacingFile ? 'Mengunggah...' : 'Ganti Berkas RAB' }}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-stroke bg-surface px-4 py-2 text-xs font-semibold text-content shadow-xs transition-colors hover:bg-surface-muted"
+                                            @click="openAddModal"
+                                        >
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M12 4v16m8-8H4"
+                                                />
+                                            </svg>
+                                            <span>Isi Baris Manual</span>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
+                            </template>
+                        </EmptyState>
                     </div>
 
                     <!-- State C: Normal Audit Review Flow -->
@@ -1188,8 +1180,30 @@ function zoomOut(): void {
                                     </thead>
                                     <tbody class="divide-y divide-stroke">
                                         <tr v-if="filteredItems.length === 0">
-                                            <td colspan="6" class="px-4 py-8 text-center text-xs text-content-tertiary">
-                                                Tidak ada baris belanja pada kategori filter ini.
+                                            <td colspan="6" class="px-4">
+                                                <EmptyState
+                                                    :illustration="items.length === 0 ? 'plang-empty' : 'search-empty'"
+                                                    compact
+                                                    :title="
+                                                        items.length === 0
+                                                            ? 'Belum ada baris belanja RAB.'
+                                                            : 'Tidak ada baris belanja pada kategori filter ini.'
+                                                    "
+                                                    :description="
+                                                        items.length === 0
+                                                            ? 'Tambahkan baris belanja secara manual atau unggah ulang berkas RAB.'
+                                                            : 'Pilih kategori filter lain atau tampilkan semua baris belanja.'
+                                                    "
+                                                >
+                                                    <button
+                                                        v-if="items.length > 0 && activeTab !== 'all'"
+                                                        type="button"
+                                                        class="inline-flex h-9 items-center justify-center rounded-md border border-stroke-strong bg-surface px-3 text-xs font-medium text-content transition-colors hover:bg-surface-muted"
+                                                        @click="activeTab = 'all'"
+                                                    >
+                                                        Tampilkan semua
+                                                    </button>
+                                                </EmptyState>
                                             </td>
                                         </tr>
 

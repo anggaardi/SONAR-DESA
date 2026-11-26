@@ -402,12 +402,6 @@ watch(
                 <div>
                     <h4 class="flex items-center gap-1.5 text-xs font-bold text-content">
                         <span>Live Preview</span>
-                        <span
-                            class="inline-flex items-center gap-1 rounded-full bg-positive-subtle px-1.5 py-0.5 text-[9px] font-medium text-positive"
-                        >
-                            <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-positive"></span>
-                            Interaktif
-                        </span>
                     </h4>
                     <p class="text-[10px] text-content-tertiary">Layar ponsel warga desa</p>
                 </div>

@@ -483,7 +483,7 @@ final class ProjectSeeder extends Seeder
         $measurements = [
             ['name' => 'Panjang', 'value' => 200.000, 'unit' => 'meter', 'how_to' => 'Ukur dari patok awal RT 02 sampai batas RT 03.'],
             ['name' => 'Lebar', 'value' => 3.000, 'unit' => 'meter', 'how_to' => 'Ukur lebar perkerasan badan jalan beton.'],
-            ['name' => 'Tebal', 'value' => 0.120, 'unit' => 'meter', 'how_to' => 'Ukur ketebalan pada sisi pinggir dan tengah cor beton.'],
+            ['name' => 'Tebal', 'value' => 12.000, 'unit' => 'cm', 'how_to' => 'Ukur ketebalan pada sisi pinggir dan tengah cor beton.'],
         ];
 
         foreach ($measurements as $m) {

@@ -161,6 +161,31 @@ const autoStoryPlaceholder = computed(() => {
     return `Contoh: ${subject}, dibiayai ${funding}. Pekerjaan belum dimulai.`;
 });
 
+const validCoordinates = computed<{ lat: number; lng: number } | null>(() => {
+    const latText = String(form.lat).trim();
+    const lngText = String(form.lng).trim();
+    if (!latText || !lngText) return null;
+
+    const lat = Number(latText);
+    const lng = Number(lngText);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+
+    return { lat, lng };
+});
+
+const googleMapsEmbedUrl = computed<string | null>(() => {
+    if (!validCoordinates.value) return null;
+    const { lat, lng } = validCoordinates.value;
+    return `https://maps.google.com/maps?q=${lat},${lng}&hl=id&z=16&output=embed`;
+});
+
+const googleMapsExternalUrl = computed<string | null>(() => {
+    if (!validCoordinates.value) return null;
+    const { lat, lng } = validCoordinates.value;
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+});
+
 function addCustomMeasurement(): void {
     if (customMeasurementsCount.value >= 5) return;
     form.measurements.push({
@@ -672,6 +697,59 @@ function submitPublish(): void {
                                             class="mt-1 block w-full rounded-lg border border-stroke bg-surface px-3 py-2 font-mono text-sm text-content shadow-xs focus:border-primary focus:ring-1 focus:ring-primary"
                                             placeholder="115.248200"
                                         />
+                                    </div>
+                                </div>
+
+                                <!-- Google Maps Verification Iframe -->
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-semibold text-content">
+                                            Verifikasi Lokasi di Peta (Google Maps)
+                                        </span>
+                                        <a
+                                            v-if="googleMapsExternalUrl"
+                                            :href="googleMapsExternalUrl"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                        >
+                                            <span>Buka di Google Maps</span>
+                                            <svg
+                                                class="h-3.5 w-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                                                />
+                                            </svg>
+                                        </a>
+                                    </div>
+
+                                    <div
+                                        v-if="googleMapsEmbedUrl"
+                                        class="overflow-hidden rounded-lg border border-stroke bg-surface-subtle shadow-xs"
+                                    >
+                                        <iframe
+                                            :src="googleMapsEmbedUrl"
+                                            title="Verifikasi Lokasi Proyek di Google Maps"
+                                            class="h-64 w-full border-0"
+                                            loading="lazy"
+                                            referrerpolicy="no-referrer-when-downgrade"
+                                            allowfullscreen
+                                        />
+                                    </div>
+
+                                    <div
+                                        v-else
+                                        class="flex h-64 items-center justify-center rounded-lg border border-dashed border-stroke bg-surface-subtle px-4 text-center text-xs text-content-secondary"
+                                    >
+                                        Masukkan koordinat Latitude dan Longitude yang valid untuk menampilkan peta
+                                        verifikasi Google Maps.
                                     </div>
                                 </div>
                             </div>

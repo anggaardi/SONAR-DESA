@@ -19,9 +19,10 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string $regency
  * @property bool $is_demo
+ * @property int $demo_ai_uploads_count
  * @property Carbon|null $demo_expires_at
  */
-#[Fillable(['name', 'slug', 'regency', 'is_demo', 'demo_expires_at'])]
+#[Fillable(['name', 'slug', 'regency', 'is_demo', 'demo_ai_uploads_count', 'demo_expires_at'])]
 #[UseFactory(VillageFactory::class)]
 final class Village extends Model
 {
@@ -32,6 +33,7 @@ final class Village extends Model
     {
         return [
             'is_demo' => 'boolean',
+            'demo_ai_uploads_count' => 'integer',
             'demo_expires_at' => 'immutable_datetime',
         ];
     }
