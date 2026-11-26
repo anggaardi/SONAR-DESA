@@ -59,10 +59,16 @@ it('never sends the project coordinates to the page', function () {
 });
 
 it('forbids desa and BPD accounts from opening Cek Spek', function (string $role) {
-    $project = publishedProject();
+    $project = publishedProject(['name' => 'Rabat beton Jl. Melati']);
     $official = User::factory()->{$role}()->create(['village_id' => $project->village_id]);
 
-    $this->actingAs($official)->get(route('reports.check', 'rabat-beton-melati'))->assertForbidden();
+    $this->actingAs($official)
+        ->get(route('reports.check', 'rabat-beton-melati'))
+        ->assertForbidden()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('report/Forbidden')
+            ->where('project.slug', 'rabat-beton-melati')
+            ->where('project.name', 'Rabat beton Jl. Melati'));
 })->with(['desa', 'bpd']);
 
 it('shows the not found page for a project that is not public', function (Closure $makeProject) {

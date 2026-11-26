@@ -23,12 +23,15 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
+const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
+const isDemo = computed(() => page.props.demo !== null);
+const canCheckSpec = computed(() => activeRole.value === null || activeRole.value === 'warga');
+
 const dashboardLink = computed<{ href: string; label: string } | null>(() => {
-    const role = page.props.auth?.user?.role ?? page.props.demo?.role ?? null;
-    if (role === 'bpd') {
+    if (activeRole.value === 'bpd') {
         return { href: '/bpd', label: 'Kembali ke Dashboard BPD' };
     }
-    if (role === 'desa') {
+    if (activeRole.value === 'desa') {
         return { href: '/desa', label: 'Kembali ke Dashboard Pemdes' };
     }
     return null;
@@ -86,6 +89,9 @@ const showHelpDialog = ref(false);
 const showQrDialog = ref(false);
 
 function handleCheckSpecClick(): void {
+    if (!canCheckSpec.value) {
+        return;
+    }
     window.location.assign(checkSpecHref.value);
 }
 
@@ -114,7 +120,7 @@ function handleTabClick(tabId: string): void {
             />
 
             <!-- Main Content Area -->
-            <div class="min-w-0 flex-1 pb-32 lg:pb-16">
+            <div :class="['min-w-0 flex-1', canCheckSpec ? 'pb-32 lg:pb-16' : 'pb-12 lg:pb-16']">
                 <!-- Mobile Header (Sticky agar warga mudah keluar / kembali ke desa) -->
                 <div class="sticky top-0 z-20 md:hidden">
                     <ProjectHeader
@@ -248,6 +254,8 @@ function handleTabClick(tabId: string): void {
                                     :citizen-count="project.citizen_reports_count"
                                     :check-spec-href="checkSpecHref"
                                     :show-privacy-hint="showPrivacyHint"
+                                    :can-check-spec="canCheckSpec"
+                                    :is-demo="isDemo"
                                 />
                             </div>
 
@@ -265,6 +273,8 @@ function handleTabClick(tabId: string): void {
                                 :citizen-count="project.citizen_reports_count"
                                 :check-spec-href="checkSpecHref"
                                 :show-privacy-hint="showPrivacyHint"
+                                :can-check-spec="canCheckSpec"
+                                :is-demo="isDemo"
                             />
 
                             <!-- 2. Dokumen Publik RAB Asli Card -->
@@ -325,7 +335,10 @@ function handleTabClick(tabId: string): void {
         </div>
 
         <!-- Satu tombol utama per layar (PRD 6.1), menempel di bawah (hanya di mobile/tablet; di desktop sudah ada di aside) -->
-        <div class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface/95 backdrop-blur-sm lg:hidden">
+        <div
+            v-if="canCheckSpec"
+            class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface/95 backdrop-blur-sm lg:hidden"
+        >
             <div class="mx-auto max-w-md px-4 py-3 sm:max-w-xl sm:px-6 md:max-w-3xl">
                 <a
                     :href="checkSpecHref"
@@ -345,7 +358,7 @@ function handleTabClick(tabId: string): void {
         </div>
 
         <!-- Tombol sticky ulasan warga & catatan BPD (IDDS) -->
-        <ProjectReviewsFab :project="project" @check-spec="handleCheckSpecClick" />
+        <ProjectReviewsFab :project="project" :can-check-spec="canCheckSpec" @check-spec="handleCheckSpecClick" />
 
         <!-- Dialog: Bantuan -->
         <Dialog :open="showHelpDialog" title="Bantuan & Keterbukaan Informasi" @close="showHelpDialog = false">
