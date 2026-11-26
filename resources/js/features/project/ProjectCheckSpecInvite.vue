@@ -3,16 +3,17 @@
 // Ilustrasi IDDS (figur resmi + gelembung meteran) dibuat oleh design-refs/idds-illustration/to-app.mjs.
 
 import checkSpec from '@/components/ui/illustrations/check-spec.svg';
+import { googleSignIn } from '@/lib/labels';
 
 interface Props {
     citizenCount: number;
+    checkSpecHref: string;
+    showPrivacyHint?: boolean;
 }
 
-defineProps<Props>();
-
-defineEmits<{
-    checkSpec: [];
-}>();
+withDefaults(defineProps<Props>(), {
+    showPrivacyHint: false,
+});
 </script>
 
 <template>
@@ -35,11 +36,10 @@ defineEmits<{
             untuk ikut menjaga dana desa.
         </p>
 
-        <!-- Tombol Aksi Utama -->
-        <button
-            type="button"
+        <!-- Tombol Aksi Utama (plain link agar redirect Google OAuth penuh, F11) -->
+        <a
+            :href="checkSpecHref"
             class="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-content-inverse shadow-xs transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:bg-primary-hover"
-            @click="$emit('checkSpec')"
         >
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path
@@ -50,7 +50,11 @@ defineEmits<{
                 />
             </svg>
             Buka Cek Spek
-        </button>
+        </a>
+
+        <p v-if="showPrivacyHint" class="mt-2.5 text-center text-xs leading-relaxed text-content-tertiary">
+            {{ googleSignIn.privacy }}
+        </p>
 
         <div class="mt-4 flex items-center gap-3">
             <span
