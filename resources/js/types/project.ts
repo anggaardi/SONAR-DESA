@@ -50,6 +50,8 @@ export interface ProjectChangeItem {
 export interface ProjectPublishedReportAnswer {
     id: number;
     measurement_name?: string;
+    target_value?: string | null;
+    target_unit?: string | null;
     answer: string;
     measured_value: string | null;
     measured_unit: string | null;

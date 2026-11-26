@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Audit\Http\Controllers;
 
+use App\Modules\Audit\Actions\AiReadBudget;
 use App\Modules\Audit\Domain\TotalChecker;
 use App\Modules\Audit\Enums\AuditStatus;
 use App\Modules\Audit\Enums\PriceLabel;
@@ -16,6 +17,7 @@ use App\Modules\Project\Actions\PublishProject;
 use App\Modules\Project\Enums\MeasurementOrigin;
 use App\Modules\Project\Enums\ProjectType;
 use App\Modules\Standard\Models\PriceStandard;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -26,8 +28,12 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 final class AuditReviewController
 {
-    public function show(Request $request, Audit $audit, TotalChecker $totalChecker): Response
-    {
+    public function show(
+        Request $request,
+        Audit $audit,
+        TotalChecker $totalChecker,
+        AiReadBudget $budget,
+    ): Response {
         $villageId = app(CurrentVillage::class)->id();
         abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
 
@@ -124,7 +130,9 @@ final class AuditReviewController
             ];
         })->values()->all();
 
-        $year = $audit->project->year ?? (int) date('Y');
+        $displayTimezone = (string) config('sonar.display_timezone', 'Asia/Makassar');
+        $currentYear = (int) CarbonImmutable::now($displayTimezone)->year;
+        $year = $audit->project->year ?? ($request->integer('year') ?: $currentYear);
         $priceStandards = PriceStandard::query()
             ->select(['id', 'code', 'name', 'unit', 'price_rp'])
             ->where('regency', $village->regency)
@@ -216,6 +224,7 @@ final class AuditReviewController
                 'model' => $aiModel,
                 'is_ai_active' => $driver === 'ai' && $hasApiKey,
             ],
+            'aiBudget' => $budget->statusForVillage($villageId),
             'items' => $itemsData,
             'summary' => [
                 'total_items' => count($items),

@@ -37,4 +37,9 @@ final class Village extends Model
             'demo_expires_at' => 'immutable_datetime',
         ];
     }
+
+    public static function isDemoId(int $villageId): bool
+    {
+        return (bool) self::query()->whereKey($villageId)->value('is_demo');
+    }
 }

@@ -114,6 +114,10 @@ final class ProjectResource extends JsonResource
                 'answers' => $r->answers->map(fn ($a) => [
                     'id' => $a->id,
                     'measurement_name' => $a->measurement?->name,
+                    'target_value' => $a->target_value !== null
+                        ? (string) (float) $a->target_value
+                        : ($a->measurement?->value !== null ? (string) (float) $a->measurement->value : null),
+                    'target_unit' => $a->target_unit ?? $a->measurement?->unit,
                     'answer' => $a->answer,
                     'measured_value' => $a->measured_value !== null ? (string) (float) $a->measured_value : null,
                     'measured_unit' => $a->measured_unit,

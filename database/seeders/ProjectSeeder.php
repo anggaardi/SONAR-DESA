@@ -149,6 +149,8 @@ final class ProjectSeeder extends Seeder
                         'answer' => MeasurementAnswer::Mismatch,
                         'measured_value' => $measuredVal,
                         'measured_unit' => $measurement->unit,
+                        'target_value' => $measurement->value,
+                        'target_unit' => $measurement->unit,
                     ],
                 );
             } else {
@@ -158,6 +160,8 @@ final class ProjectSeeder extends Seeder
                         'answer' => MeasurementAnswer::Match,
                         'measured_value' => null,
                         'measured_unit' => null,
+                        'target_value' => $measurement->value,
+                        'target_unit' => $measurement->unit,
                     ],
                 );
             }

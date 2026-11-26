@@ -202,11 +202,11 @@ final class BpdDashboardController
                     'answers' => $r->answers->map(static fn (ReportAnswer $a): array => [
                         'id' => $a->id,
                         'measurement_name' => $a->measurement->name,
-                        'rab_value' => (string) (float) $a->measurement->value,
-                        'rab_unit' => $a->measurement->unit,
+                        'rab_value' => (string) (float) ($a->target_value ?? $a->measurement->value),
+                        'rab_unit' => $a->target_unit ?? $a->measurement->unit,
                         'answer' => $a->answer->value,
                         'measured_value' => $a->measured_value !== null ? (string) (float) $a->measured_value : null,
-                        'measured_unit' => $a->measured_unit ?? $a->measurement->unit,
+                        'measured_unit' => $a->measured_unit ?? $a->target_unit ?? $a->measurement->unit,
                     ])->values()->all(),
                     'photos' => $r->photos->map(static fn (ReportPhoto $p): array => [
                         'id' => $p->id,

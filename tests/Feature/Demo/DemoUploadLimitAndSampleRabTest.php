@@ -11,6 +11,7 @@ use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\Village;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
@@ -59,12 +60,51 @@ it('limits custom AI uploads to 3 per demo session and directs the 4th to sample
         ->assertRedirect('/audits/create')
         ->assertSessionHasErrors('file');
 
-    // Using the built-in sample RAB still works after reaching the custom upload limit.
+    // Using the built-in sample RAB still works after reaching the custom upload limit without queuing AI.
     $this->post('/audits', ['use_sample' => true])
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    Queue::assertPushed(ProcessRabDocumentJob::class, 4);
+    Queue::assertPushed(ProcessRabDocumentJob::class, 3);
+
+    $sampleAudit = Audit::withoutGlobalScopes()
+        ->where('village_id', $demoVillage->id)
+        ->where('source', 'demo_sample')
+        ->latest('id')
+        ->firstOrFail();
+
+    expect($sampleAudit->status)->toBe(AuditStatus::Ready)
+        ->and($sampleAudit->items()->count())->toBe(14)
+        ->and(DB::table('ai_usage')->sum('reads_count'))->toBe(3);
+});
+
+it('serves use_sample via CreateAuditFromFixture without calling AI or burning ai_budget even when RAB_READER=ai and budget=0 (D19)', function () {
+    $this->seed(DatabaseSeeder::class);
+    $this->post('/demo/start/desa');
+
+    config()->set('sonar.rab_reader.driver', 'ai');
+    config()->set('sonar.ai_budget.daily_reads', 0);
+    config()->set('sonar.ai_budget.demo_daily_reads', 0);
+
+    $demoVillage = Village::query()->where('is_demo', true)->sole();
+
+    $response = $this->post('/audits', ['use_sample' => true]);
+
+    $sampleAudit = Audit::withoutGlobalScopes()
+        ->where('village_id', $demoVillage->id)
+        ->where('source', 'demo_sample')
+        ->latest('id')
+        ->firstOrFail();
+
+    $response->assertRedirect(route('audits.show', $sampleAudit))
+        ->assertSessionHasNoErrors();
+
+    Queue::assertNothingPushed();
+
+    expect($sampleAudit->status)->toBe(AuditStatus::Ready)
+        ->and($sampleAudit->items()->count())->toBe(14)
+        ->and($demoVillage->fresh()->demo_ai_uploads_count)->toBe(0)
+        ->and(DB::table('ai_usage')->count())->toBe(0);
 });
 
 it('does not burn demo upload quota when upload validation fails', function () {

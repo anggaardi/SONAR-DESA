@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Modules\Desa\Http\Controllers\DesaDashboardController;
-use App\Modules\Desa\Http\Controllers\DesaProjectController;
 use App\Modules\Desa\Http\Controllers\DesaProjectManageController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,8 +13,7 @@ Route::middleware(['auth', 'village', 'role:desa'])->group(function () {
     Route::get('/desa', [DesaDashboardController::class, 'index'])->name('desa.dashboard');
     Route::get('/desa/dashboard', fn () => redirect()->route('desa.dashboard'));
     Route::get('/audits', fn () => redirect()->route('audits.create'))->name('audits.index');
-    Route::get('/desa/projects/create', [DesaProjectController::class, 'create'])->name('desa.projects.create');
-    Route::post('/desa/projects', [DesaProjectController::class, 'store'])->name('desa.projects.store');
+    Route::get('/desa/projects/create', fn () => redirect()->route('audits.create'))->name('desa.projects.create');
 
     // Kelola Proyek & CCO (Story S4, D10-D14)
     Route::get('/desa/projects/{project}', [DesaProjectManageController::class, 'show'])->name('desa.projects.show');

@@ -10,10 +10,12 @@ use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Audit\Models\Audit;
 use App\Modules\Audit\Models\AuditItem;
 use App\Modules\Core\Village\CurrentVillage;
+use App\Modules\Core\Village\Village;
 use App\Modules\Standard\Models\PriceStandard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 final class AuditItemController
 {
@@ -78,57 +80,16 @@ final class AuditItemController
         abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
         $this->ensureEditable($audit);
 
-        $validated = $request->validate([
-            'raw_name' => ['required', 'string', 'max:255'],
-            'volume' => ['required', 'numeric', 'min:0.0001'],
-            'unit' => ['required', 'string', 'max:32'],
-            'unit_price_rp' => ['required', 'integer', 'min:0'],
-            'amount_rp' => ['nullable', 'integer', 'min:0'],
-            'standard_id' => ['nullable', 'integer', 'exists:price_standards,id'],
-        ], [
-            'raw_name.required' => 'Nama uraian belanja wajib diisi.',
-            'volume.required' => 'Volume belanja wajib diisi.',
-            'unit.required' => 'Satuan belanja wajib diisi.',
-            'unit_price_rp.required' => 'Harga satuan wajib diisi.',
-        ]);
-
-        $standard = ! empty($validated['standard_id'])
-            ? PriceStandard::find($validated['standard_id'])
-            : null;
-
-        $volumeStr = (string) $validated['volume'];
-        $unitPrice = (int) $validated['unit_price_rp'];
-        $amountRp = isset($validated['amount_rp'])
-            ? (int) $validated['amount_rp']
-            : (int) bcmul($volumeStr, (string) $unitPrice, 0);
-
-        $labelResult = $priceLabeler->label(
-            rawName: $validated['raw_name'],
-            volume: $volumeStr,
-            unit: $validated['unit'],
-            unitPriceRp: $unitPrice,
-            amountRp: $amountRp,
-            standardPriceRp: $standard?->price_rp,
-            standardUnit: $standard?->unit,
-            doubtFields: [],
-        );
-
+        /** @var Village $village */
+        $village = Village::findOrFail($villageId);
+        $prepared = $this->validateAndEvaluateItem($request, $village, $priceLabeler);
         $nextPosition = ((int) $audit->items()->max('position')) + 1;
 
-        DB::transaction(function () use ($audit, $validated, $standard, $volumeStr, $unitPrice, $amountRp, $labelResult, $nextPosition): void {
+        DB::transaction(function () use ($audit, $prepared, $nextPosition): void {
             AuditItem::create([
                 'audit_id' => $audit->id,
                 'position' => $nextPosition,
-                'raw_name' => $validated['raw_name'],
-                'volume' => $volumeStr,
-                'unit' => $validated['unit'],
-                'unit_price_rp' => $unitPrice,
-                'amount_rp' => $amountRp,
-                'standard_id' => $standard?->id,
-                'label' => $labelResult->label,
-                'over_pct' => $labelResult->overPct,
-                'diff_rp' => $labelResult->diffRp,
-                'doubt' => $labelResult->reason ? ['reason' => $labelResult->reason] : null,
+                ...$prepared['attributes'],
                 'corrected' => true,
             ]);
 
@@ -152,54 +113,14 @@ final class AuditItemController
         abort_unless($item->audit_id === $audit->id, 404, 'Baris belanja tidak ditemukan dalam audit ini.');
         $this->ensureEditable($audit);
 
-        $validated = $request->validate([
-            'raw_name' => ['required', 'string', 'max:255'],
-            'volume' => ['required', 'numeric', 'min:0.0001'],
-            'unit' => ['required', 'string', 'max:32'],
-            'unit_price_rp' => ['required', 'integer', 'min:0'],
-            'amount_rp' => ['nullable', 'integer', 'min:0'],
-            'standard_id' => ['nullable', 'integer', 'exists:price_standards,id'],
-        ], [
-            'raw_name.required' => 'Nama uraian belanja wajib diisi.',
-            'volume.required' => 'Volume belanja wajib diisi.',
-            'unit.required' => 'Satuan belanja wajib diisi.',
-            'unit_price_rp.required' => 'Harga satuan wajib diisi.',
-        ]);
+        /** @var Village $village */
+        $village = Village::findOrFail($villageId);
+        $prepared = $this->validateAndEvaluateItem($request, $village, $priceLabeler);
 
-        $standard = ! empty($validated['standard_id'])
-            ? PriceStandard::find($validated['standard_id'])
-            : null;
-
-        $volumeStr = (string) $validated['volume'];
-        $unitPrice = (int) $validated['unit_price_rp'];
-        $amountRp = isset($validated['amount_rp'])
-            ? (int) $validated['amount_rp']
-            : (int) bcmul($volumeStr, (string) $unitPrice, 0);
-
-        $labelResult = $priceLabeler->label(
-            rawName: $validated['raw_name'],
-            volume: $volumeStr,
-            unit: $validated['unit'],
-            unitPriceRp: $unitPrice,
-            amountRp: $amountRp,
-            standardPriceRp: $standard?->price_rp,
-            standardUnit: $standard?->unit,
-            doubtFields: [],
-        );
-
-        DB::transaction(function () use ($audit, $item, $validated, $standard, $volumeStr, $unitPrice, $amountRp, $labelResult): void {
+        DB::transaction(function () use ($audit, $item, $prepared): void {
             $item->update([
-                'raw_name' => $validated['raw_name'],
-                'volume' => $volumeStr,
-                'unit' => $validated['unit'],
-                'unit_price_rp' => $unitPrice,
-                'amount_rp' => $amountRp,
-                'standard_id' => $standard?->id,
-                'label' => $labelResult->label,
-                'over_pct' => $labelResult->overPct,
-                'diff_rp' => $labelResult->diffRp,
-                'doubt' => $labelResult->reason ? ['reason' => $labelResult->reason] : null,
-                'corrected' => $labelResult->label !== PriceLabel::NeedsCheck,
+                ...$prepared['attributes'],
+                'corrected' => $prepared['label'] !== PriceLabel::NeedsCheck,
             ]);
 
             $this->updateAuditStatusIfResolved($audit);
@@ -247,5 +168,71 @@ final class AuditItemController
         if (! $hasUncorrectedYellow && $audit->status === AuditStatus::NeedsReview) {
             $audit->update(['status' => AuditStatus::Ready]);
         }
+    }
+
+    /**
+     * Validates request fields against the village's regency catalog and computes deterministic price labels.
+     *
+     * @return array{attributes: array<string, mixed>, label: PriceLabel}
+     */
+    private function validateAndEvaluateItem(
+        Request $request,
+        Village $village,
+        PriceLabeler $priceLabeler,
+    ): array {
+        $validated = $request->validate([
+            'raw_name' => ['required', 'string', 'max:255'],
+            'volume' => ['required', 'numeric', 'min:0.0001'],
+            'unit' => ['required', 'string', 'max:32'],
+            'unit_price_rp' => ['required', 'integer', 'min:0'],
+            'amount_rp' => ['nullable', 'integer', 'min:0'],
+            'standard_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('price_standards', 'id')->where('regency', $village->regency),
+            ],
+        ], [
+            'raw_name.required' => 'Nama uraian belanja wajib diisi.',
+            'volume.required' => 'Volume belanja wajib diisi.',
+            'unit.required' => 'Satuan belanja wajib diisi.',
+            'unit_price_rp.required' => 'Harga satuan wajib diisi.',
+        ]);
+
+        $standard = ! empty($validated['standard_id'])
+            ? PriceStandard::query()->where('regency', $village->regency)->find($validated['standard_id'])
+            : null;
+
+        $volumeStr = (string) $validated['volume'];
+        $unitPrice = (int) $validated['unit_price_rp'];
+        $amountRp = isset($validated['amount_rp'])
+            ? (int) $validated['amount_rp']
+            : (int) bcmul($volumeStr, (string) $unitPrice, 0);
+
+        $labelResult = $priceLabeler->label(
+            rawName: $validated['raw_name'],
+            volume: $volumeStr,
+            unit: $validated['unit'],
+            unitPriceRp: $unitPrice,
+            amountRp: $amountRp,
+            standardPriceRp: $standard?->price_rp,
+            standardUnit: $standard?->unit,
+            doubtFields: [],
+        );
+
+        return [
+            'attributes' => [
+                'raw_name' => $validated['raw_name'],
+                'volume' => $volumeStr,
+                'unit' => $validated['unit'],
+                'unit_price_rp' => $unitPrice,
+                'amount_rp' => $amountRp,
+                'standard_id' => $standard?->id,
+                'label' => $labelResult->label,
+                'over_pct' => $labelResult->overPct,
+                'diff_rp' => $labelResult->diffRp,
+                'doubt' => $labelResult->reason ? ['reason' => $labelResult->reason] : null,
+            ],
+            'label' => $labelResult->label,
+        ];
     }
 }

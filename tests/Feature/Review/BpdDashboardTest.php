@@ -13,14 +13,19 @@ use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
 use App\Modules\Project\Models\ProjectChange;
 use App\Modules\Project\Models\ProjectMeasurement;
+use App\Modules\Report\Actions\SubmitReport;
+use App\Modules\Report\Domain\ReportSubmission;
+use App\Modules\Report\Domain\SubmittedAnswer;
 use App\Modules\Report\Enums\MeasurementAnswer;
 use App\Modules\Report\Enums\ReportKind;
+use App\Modules\Report\Events\ReportSubmitted;
 use App\Modules\Report\Models\Report;
 use App\Modules\Report\Models\ReportAnswer;
 use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Actions\EvaluateReviewThreshold;
 use App\Modules\Review\Enums\ReviewOutcome;
 use App\Modules\Review\Models\ReviewCycle;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -338,4 +343,159 @@ it('displays report measurement answers vs RAB, above-standard items, and serves
     $this->actingAs($otherBpd)
         ->get(route('bpd.photos.show', $photo->id))
         ->assertNotFound();
+});
+
+it('evaluates distinct accounts and distinct devices via listener when ReportSubmitted is dispatched (D16, Adendum v1.2)', function () {
+    [$village] = setupBpdVillage();
+
+    $project = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => auditFor($village),
+        'public_status' => PublicStatus::None,
+        'current_cycle_id' => null,
+        'published_at' => now(),
+    ]);
+
+    $warga1 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $warga2 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $warga3 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+
+    // First cycleless mismatch reports from 2 distinct accounts & devices should open a cycle but stay None.
+    $r1 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => null,
+        'user_id' => $warga1->id,
+        'kind' => ReportKind::Mismatch,
+        'device_hash' => str_repeat('a', 64),
+    ]);
+    $r2 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => null,
+        'user_id' => $warga2->id,
+        'kind' => ReportKind::Mismatch,
+        'device_hash' => str_repeat('b', 64),
+    ]);
+
+    ReportSubmitted::dispatch($r2->id, $project->id);
+    $project->refresh();
+    expect($project->public_status)->toBe(PublicStatus::None)
+        ->and($project->current_cycle_id)->not->toBeNull()
+        ->and($r1->refresh()->cycle_id)->toBe($project->current_cycle_id)
+        ->and($r2->refresh()->cycle_id)->toBe($project->current_cycle_id);
+
+    // 3rd report from a Match reporter with a 3rd device does not trigger InReview.
+    $rMatch = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $project->current_cycle_id,
+        'user_id' => $warga3->id,
+        'kind' => ReportKind::Match,
+        'device_hash' => str_repeat('c', 64),
+    ]);
+    ReportSubmitted::dispatch($rMatch->id, $project->id);
+    expect($project->refresh()->public_status)->toBe(PublicStatus::None);
+
+    // When 3rd reporter submits a valid Mismatch on a 3rd distinct device, listener triggers InReview via EvaluateReviewThreshold.
+    $warga4 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $r3 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $project->current_cycle_id,
+        'user_id' => $warga4->id,
+        'kind' => ReportKind::Mismatch,
+        'device_hash' => str_repeat('d', 64),
+    ]);
+    ReportSubmitted::dispatch($r3->id, $project->id);
+
+    $project->refresh();
+    expect($project->public_status)->toBe(PublicStatus::InReview)
+        ->and($project->currentCycle?->in_review_since)->not->toBeNull();
+});
+
+it('preserves historical target snapshot on citizen reports across subsequent CCO measurement edits (D15, S7)', function () {
+    Storage::fake('local');
+    [$village, $bpd] = setupBpdVillage();
+
+    $project = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => auditFor($village),
+        'public_status' => PublicStatus::None,
+        'published_at' => now(),
+        'lat' => -8.5321,
+        'lng' => 115.3214,
+    ]);
+    $cycle = ReviewCycle::create([
+        'project_id' => $project->id,
+        'opened_at' => now(),
+    ]);
+    $project->update(['current_cycle_id' => $cycle->id]);
+
+    $measurement = ProjectMeasurement::factory()->create([
+        'project_id' => $project->id,
+        'name' => 'Tebal beton',
+        'value' => 12,
+        'unit' => 'cm',
+    ]);
+
+    $warga = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $report = app(SubmitReport::class)->handle(
+        project: $project,
+        citizen: $warga,
+        submission: new ReportSubmission(
+            answers: [new SubmittedAnswer($measurement->id, MeasurementAnswer::Mismatch, '8.5')],
+            note: 'Ketebalan di lapangan lebih tipis.',
+            lat: -8.5321,
+            lng: 115.3214,
+            accuracyMeters: 15,
+            deviceHash: str_repeat('e', 64),
+            photos: [UploadedFile::fake()->image('bukti.jpg', 640, 480)],
+        ),
+    );
+
+    $savedAnswer = $report->answers()->firstOrFail();
+    expect((float) $savedAnswer->target_value)->toBe(12.0)
+        ->and($savedAnswer->target_unit)->toBe('cm');
+
+    // While still PublicStatus::None (D12 allows CCO outside InReview), Desa edits the target measurement via CCO.
+    $desa = User::factory()->create(['village_id' => $village->id, 'role' => Role::Desa]);
+    $this->actingAs($desa)
+        ->post("/desa/projects/{$project->id}/cco/measurements/{$measurement->id}", [
+            'value' => 15,
+            'reason' => 'Penyesuaian spesifikasi kontrak CCO.',
+        ])
+        ->assertRedirect();
+
+    expect((float) $measurement->refresh()->value)->toBe(15.0)
+        ->and($measurement->unit)->toBe('cm');
+
+    // Move to InReview so BPD dashboard shows the historical report.
+    $project->update(['public_status' => PublicStatus::InReview]);
+    $cycle->update(['in_review_since' => now()]);
+
+    // BPD dashboard must still compare the report against its historical 12 cm snapshot, not 15 cm!
+    $this->actingAs($bpd)
+        ->get('/bpd?project='.$project->id)
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('selectedProject.reports.0.answers.0.rab_value', '12')
+            ->where('selectedProject.reports.0.answers.0.rab_unit', 'cm')
+            ->where('selectedProject.reports.0.answers.0.measured_value', '8.5')
+            ->where('selectedProject.reports.0.answers.0.measured_unit', 'cm')
+        );
+
+    // After BPD publishes review outcome, public ProjectResource exposes the snapshot alongside updated measurement.
+    $this->actingAs($bpd)
+        ->post("/bpd/projects/{$project->id}/outcome", [
+            'result' => ReviewOutcome::FollowedUp->value,
+            'note' => 'Sudah ditindaklanjuti sesuai dengan adendum CCO resmi.',
+        ])
+        ->assertRedirect();
+
+    $this->get("/p/{$project->slug}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('project.measurements.0.value', '15')
+            ->where('project.measurements.0.unit', 'cm')
+            ->where('project.published_reports.0.answers.0.target_value', '12')
+            ->where('project.published_reports.0.answers.0.target_unit', 'cm')
+            ->where('project.published_reports.0.answers.0.measured_value', '8.5')
+        );
 });

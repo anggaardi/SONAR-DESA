@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -115,11 +116,17 @@ final class DesaProjectManageController
     ): RedirectResponse {
         Gate::authorize('updateCco', $project);
 
+        $project->loadMissing('village');
+
         $validated = $request->validate([
             'volume' => ['required', 'numeric', 'gt:0'],
             'unit' => ['required', 'string', 'max:50'],
             'unit_price_rp' => ['required', 'integer', 'gt:0'],
-            'standard_id' => ['nullable', 'integer', 'exists:price_standards,id'],
+            'standard_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('price_standards', 'id')->where('regency', $project->village->regency),
+            ],
             'reason' => ['required', 'string', 'min:3', 'max:255'],
         ], [
             'reason.required' => 'Alasan perubahan CCO wajib diisi untuk transparansi riwayat (D13).',

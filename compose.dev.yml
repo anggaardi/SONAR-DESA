@@ -41,7 +41,7 @@ services:
   queue:
     <<: *php
     restart: unless-stopped
-    command: ['php', 'artisan', 'queue:listen', '--tries=1', '--timeout=120']
+    command: ['php', 'artisan', 'queue:listen', '--tries=1', '--timeout=75']
 
   scheduler:
     <<: *php

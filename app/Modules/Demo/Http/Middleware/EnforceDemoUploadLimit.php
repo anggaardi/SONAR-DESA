@@ -63,7 +63,10 @@ final class EnforceDemoUploadLimit
             throw $exception;
         }
 
-        $hasErrors = $request->session()->has('errors') || $request->session()->has('error');
+        $newFlashes = $request->session()->get('_flash.new', []);
+        $hasErrors = is_array($newFlashes)
+            && (in_array('errors', $newFlashes, true) || in_array('error', $newFlashes, true));
+
         if ($hasErrors || $response->getStatusCode() >= 400) {
             $this->releaseSlot($village->id);
         }

@@ -14,7 +14,9 @@ use App\Modules\Audit\Reading\StandardRef;
 use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\Village;
 use App\Modules\Standard\Models\PriceStandard;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Populates an Audit immediately from a pre-cached fixture JSON using deterministic PriceLabeler rules.
@@ -32,17 +34,10 @@ final class CreateAuditFromFixture
         User $owner,
         string $storedFilePath,
         string $source = 'fixture',
+        ?int $year = null,
     ): Audit {
-        $standards = PriceStandard::query()
-            ->where('regency', $village->regency)
-            ->select(['id', 'code', 'name', 'unit', 'price_rp'])
-            ->get();
-
-        if ($standards->isEmpty()) {
-            $standards = PriceStandard::query()
-                ->select(['id', 'code', 'name', 'unit', 'price_rp'])
-                ->get();
-        }
+        $targetYear = $year ?? (int) CarbonImmutable::now((string) config('sonar.display_timezone', 'Asia/Makassar'))->year;
+        $standards = PriceStandard::catalogForRegencyAndYear($village->regency, $targetYear);
 
         $standardRefs = $standards->map(static fn (PriceStandard $s): StandardRef => new StandardRef(
             code: $s->code,
@@ -51,7 +46,11 @@ final class CreateAuditFromFixture
         ))->all();
 
         $standardsByCode = $standards->keyBy('code');
-        $result = $this->reader->read($storedFilePath, $standardRefs);
+        $realPath = file_exists($storedFilePath)
+            ? $storedFilePath
+            : (Storage::disk('local')->exists($storedFilePath) ? Storage::disk('local')->path($storedFilePath) : $storedFilePath);
+
+        $result = $this->reader->read($realPath, $standardRefs);
         $toleranceRp = (int) config('sonar.price.row_tolerance_rp', 1000);
 
         return DB::transaction(function () use ($village, $owner, $storedFilePath, $source, $result, $standardsByCode, $toleranceRp): Audit {

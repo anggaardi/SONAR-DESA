@@ -25,6 +25,8 @@ final class ReportAnswerFactory extends Factory
             'answer' => MeasurementAnswer::Mismatch,
             'measured_value' => '8.000',
             'measured_unit' => 'cm',
+            'target_value' => null,
+            'target_unit' => null,
         ];
     }
 }
