@@ -1,11 +1,13 @@
 # Spesifikasi PRD: Fitur Portal & Alur Kerja Pemerintah Desa (Pemdes)
 
 > **Modul:** M2 (Audit RAB) & M3 (Project Management Pemdes)  
-> **Versi Dokumen:** 1.1 (Revisi: penyelarasan dengan kode & penutupan celah integritas)  
+> **Versi Dokumen:** 1.2 (Revisi: alur unggah RAB & status implementasi per 26 Nov 2026)  
 > **Owner:** Dev 2 (Lead Backend & Alur Pemdes)  
 > **Dokumen Acuan:** PRD Fitur Inti v1.1 (Bagian 3 & 4), PRD Arsitektur v1.2, PRD v1.2 Adendum Strategis  
-> **Status:** Siap Implementasi  
-> **Versi PDF/DOCX:** dibangun dari `docs/prd/generator/generate-pemdes-spec.cjs`. Keputusan D1–D16 lengkap ada di versi PDF Bagian 4.
+> **Status:** Implementasi berjalan. Sisa pekerjaan di Bagian 10 (S6 Dev 1, S7 Dev 2)  
+> **Versi PDF/DOCX:** dibangun dari `docs/prd/generator/generate-pemdes-spec.cjs`. Keputusan D1–D19 lengkap ada di versi PDF Bagian 4, dan status implementasi per area di Bagian 5.
+
+> **Yang berubah di v1.2:** alur unggah RAB ditetapkan (D17–D19): berkas selalu langkah pertama, jalur AI dan Isi Manual bertemu di satu layar review, pembacaan AI asinkron dengan batas waktu tunggal, serta kuota AI & contoh RAB untuk demo. Ditambah status story dan tugas lanjutan (Bagian 10).
 
 > **Yang berubah di v1.1:** prinsip pemilik data (Bagian 8), satu pintu terbit, berkas asli wajib, tanpa unpublish, ukuran Cek Spek tidak bisa dihapus, pembekuan saat Dalam Tinjauan BPD, daftar kolom CCO, label harga oleh kode, snapshot target di jawaban warga, dan pemicu otomatis tinjauan BPD (invarian 6–13, Bagian 6). Ditambah hak & larangan Pemdes per status (Bagian 9) dan AC PD-11 s.d. PD-18.
 
@@ -248,3 +250,66 @@ Setiap data yang tampil di halaman warga harus punya satu pengisi, satu momen ku
 | Proyek terbit, `public_status = none` | Progres & foto, CCO sesuai daftar kolom, cetak poster QR | Unpublish, hapus proyek, hapus ukuran, ganti berkas asli |
 | Proyek `in_review` (Dalam Tinjauan BPD) | Progres & foto, hadir dan memberi klarifikasi di musdes (di luar aplikasi) | CCO item, ukuran, dan GPS, atau menutup tinjauan |
 | Proyek `reviewed` (Ditinjau BPD) | Progres & foto, CCO sesuai daftar kolom (mis. tindak lanjut perbaikan) | Mengubah atau menghapus catatan BPD |
+
+---
+
+## 10. Alur Unggah RAB (v1.2) & Tugas Lanjutan
+
+### 10.1 Keputusan baru
+
+| # | Keputusan | Ringkasan |
+|---|---|---|
+| **D17** | Berkas selalu langkah pertama, satu layar review | Setiap audit dimulai dari unggah berkas di `/audits/create`. Hasil AI maupun Isi Manual (tambah baris di layar review) bertemu di `/audits/{id}`. Metadata, GPS, dan ukuran Cek Spek hanya diisi di wizard terbit. `/desa/projects/create` dipensiunkan. |
+| **D18** | Pembacaan AI asinkron, batas waktu tunggal | Audit `reading` + `ProcessRabDocumentJob` di antrean, layar review melakukan polling. Batas tunggu UI, `$timeout` job, dan `retry_after` antrean diselaraskan dengan `sonar.rab_reader.timeout_seconds` (60 detik). |
+| **D19** | Kuota AI & contoh RAB demo | Desa demo dibatasi `sonar.demo.upload_limit`. "Uji Contoh RAB" memakai fixture tanpa memanggil AI. `sonar.ai_budget` ditegakkan sebelum memanggil AI; jika habis, tawarkan Isi Manual. |
+
+### 10.2 Alur
+
+```
+Dashboard /desa ──[Unggah Dokumen RAB]──► ① Unggah /audits/create (berkas / contoh)
+                                              │ audit = reading, job di antrean
+                                              ▼
+                                         ② Sedang dibaca /audits/{id} (polling, batas 60 detik)
+                                              │ berhasil              │ gagal / kuota habis
+                                              ▼                       ▼
+                                              │              [Coba Lagi]  [Isi Manual: tambah baris]
+                                              ▼                       │
+                                         ③ Review & Gatekeeper /audits/{id}  ◄─┘
+                                              │ 0 baris kuning + centang F3 bila total berbeda
+                                              ▼
+                                         ④ Wizard Terbit: metadata → GPS → ukuran Cek Spek
+                                              ▼  PublishProject
+                                         ⑤ Sukses + QR ──► Kelola Proyek /desa/projects/{id}
+```
+
+### 10.3 Status story per 26 November 2026
+
+| Story | Status | Catatan |
+|---|---|---|
+| S1 Upload RAB, Isi Manual & Review | Selesai | Form lama `/desa/projects/create` masih aktif, dipensiunkan di S6/S7 |
+| S2 Wizard Publikasi & Geofencing | Sebagian | Bug `origin` ukuran kustom di wizard |
+| S3 Poster QR A4 | Selesai | |
+| S4 Progres & CCO | Selesai | |
+| S5 Pemicu Tinjauan BPD | Sebagian | Aturan perangkat berbeda belum diterapkan di listener |
+
+### 10.4 S6: Penyelesaian Frontend & QA (Dev 1)
+
+| Prio | Task | File |
+|---|---|---|
+| P1 | Wizard mengirim `origin: 'custom'`, padahal backend hanya menerima `template`/`desa`, sehingga ukuran kustom gagal divalidasi. Kirim `desa`, dan saat memuat ulang petakan `desa` ke kustom | `resources/js/features/project/PublishWizardModal.vue` |
+| P1 | Pensiunkan form lama (D17): tombol "Isi Manual" di dashboard ke `/audits/create`, hapus tautan ke `/desa/projects/create` | `resources/js/pages/desa/Dashboard.vue`, `ProjectCreate.vue` |
+| P1 | Polling layar review: batas 60 detik (sekarang 180), ikuti status server. Pertimbangkan `usePoll` | `resources/js/pages/audit/Review.vue` |
+| P2 | Baris "Sudah Benar" yang labelnya masih `needs_check` tampil di halaman warga sebagai "Tidak dapat dibandingkan", bukan "Perlu dicek" | `ProjectItems.vue`, `PriceLabel.vue` |
+| P2 | Pesan netral + tombol "Uji Contoh RAB" / "Isi Manual" saat kuota AI demo habis | `resources/js/pages/audit/Create.vue` |
+| QA | Jalankan TC-PD-01 s.d. TC-PD-15 (PDF Bagian 10) di HP 360 px dan desktop, termasuk cetak poster QR | - |
+
+### 10.5 S7: Sisa Backend (Dev 2)
+
+| Prio | Task |
+|---|---|
+| P1 | Hapus jalur `is_published` di `CreateDesaProject` dan route `desa.projects.create/store` setelah S6 |
+| P1 | Satukan logika ambang tinjauan: listener memakai >= 3 akun **dan** >= 3 perangkat (Adendum v1.2 5.2); `EvaluateReviewThreshold` saat ini tidak dipanggil |
+| P1 | Tegakkan `sonar.ai_budget`; "Uji Contoh RAB" di `/audits` memakai fixture, bukan AI |
+| P2 | Selaraskan batas waktu: job 180 detik, worker produksi `--timeout=75`, `retry_after` 90 detik |
+| P2 | Snapshot nilai target di jawaban warga (D15), koordinasi dengan pemilik modul Report |
+| P3 | Filter katalog standar harga per kabupaten & tahun di job AI dan layar review |

@@ -30,7 +30,14 @@ final class CheckSpecController
             ])->toResponse($request)->setStatusCode(404);
         }
 
-        Gate::authorize('create', Report::class);
+        if (Gate::denies('create', Report::class)) {
+            return Inertia::render('report/Forbidden', [
+                'project' => [
+                    'name' => $project->name,
+                    'slug' => $project->slug,
+                ],
+            ])->toResponse($request)->setStatusCode(403);
+        }
 
         app(CurrentVillage::class)->set($project->village_id);
         $project->load('measurements');

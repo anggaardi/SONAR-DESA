@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Modules\Audit\Http\Controllers;
 
+use App\Modules\Audit\Actions\AiReadBudget;
+use App\Modules\Audit\Actions\CreateAuditFromFixture;
 use App\Modules\Audit\Enums\AuditStatus;
 use App\Modules\Audit\Jobs\ProcessRabDocumentJob;
 use App\Modules\Audit\Models\Audit;
+use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +23,7 @@ use Inertia\Response;
 
 final class AuditUploadController
 {
-    public function create(): Response
+    public function create(AiReadBudget $budget): Response
     {
         $villageId = app(CurrentVillage::class)->id();
         /** @var Village $village */
@@ -49,13 +52,18 @@ final class AuditUploadController
                 'model' => $aiModel,
                 'is_ai_active' => $driver === 'ai' && $hasApiKey,
             ],
+            'aiBudget' => $budget->statusForVillage($villageId),
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
-    {
+    public function store(
+        Request $request,
+        AiReadBudget $budget,
+        CreateAuditFromFixture $createFromFixture,
+    ): RedirectResponse {
         $villageId = app(CurrentVillage::class)->id();
         $user = $request->user();
+        abort_unless($user instanceof User, 403);
 
         $useSample = $request->boolean('use_sample');
 
@@ -67,38 +75,52 @@ final class AuditUploadController
 
             $destName = 'audits/demo-sample-'.Str::random(10).'.pdf';
             Storage::disk('local')->put($destName, (string) file_get_contents($sampleSource));
-            $storedPath = $destName;
-        } else {
-            $request->validate([
-                'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
-            ], [
-                'file.required' => 'Pilih berkas dokumen fisik RAB terlebih dahulu.',
-                'file.mimes' => 'Format berkas harus berupa PDF, JPG, JPEG, atau PNG.',
-                'file.max' => 'Ukuran berkas tidak boleh melebihi 10 MB.',
-            ]);
 
-            /** @var UploadedFile $file */
-            $file = $request->file('file');
-            $storedPath = $file->store('audits', 'local');
+            /** @var Village $village */
+            $village = Village::findOrFail($villageId);
+            $audit = $createFromFixture->execute($village, $user, $destName, 'demo_sample');
+
+            return redirect()->route('audits.show', $audit)
+                ->with('success', 'Contoh RAB demo berhasil dimuat tanpa menggunakan kuota AI.');
         }
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+        ], [
+            'file.required' => 'Pilih berkas dokumen fisik RAB terlebih dahulu.',
+            'file.mimes' => 'Format berkas harus berupa PDF, JPG, JPEG, atau PNG.',
+            'file.max' => 'Ukuran berkas tidak boleh melebihi 10 MB.',
+        ]);
+
+        /** @var UploadedFile $file */
+        $file = $request->file('file');
+        $storedPath = $file->store('audits', 'local');
+
+        $hasBudget = $budget->claimForVillage($villageId);
 
         $audit = Audit::create([
             'village_id' => $villageId,
-            'owner_id' => $user !== null ? $user->id : 0,
-            'status' => AuditStatus::Reading,
-            'source' => $useSample ? 'demo_sample' : 'ocr_ai',
+            'owner_id' => $user->id,
+            'status' => $hasBudget ? AuditStatus::Reading : AuditStatus::ReadFailed,
+            'source' => 'ocr_ai',
             'file_path' => $storedPath,
             'written_total_rp' => null,
             'total_ack' => false,
+            'error_code' => $hasBudget ? null : 'AI_BUDGET',
         ]);
 
-        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id);
+        if (! $hasBudget) {
+            return redirect()->route('audits.show', $audit)
+                ->with('error', 'Kuota pembacaan AI harian telah habis. Anda dapat mencoba Contoh RAB atau menambah rincian secara manual.');
+        }
+
+        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id, true);
 
         return redirect()->route('audits.show', $audit)
             ->with('success', 'Dokumen RAB berhasil diunggah. AI sedang mengekstrak data...');
     }
 
-    public function retry(Request $request, Audit $audit): RedirectResponse
+    public function retry(Request $request, Audit $audit, AiReadBudget $budget): RedirectResponse
     {
         $villageId = app(CurrentVillage::class)->id();
         abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
@@ -107,17 +129,37 @@ final class AuditUploadController
             return back()->with('error', 'Dokumen audit yang sudah diterbitkan tidak dapat dibaca ulang.');
         }
 
+        if ($audit->source === 'demo_sample') {
+            $audit->update([
+                'status' => AuditStatus::Reading,
+                'error_code' => null,
+            ]);
+
+            ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id, true);
+
+            return back()->with('success', 'Pembacaan ulang dokumen contoh demo telah dimulai.');
+        }
+
+        if (! $budget->claimForVillage($villageId)) {
+            $audit->update([
+                'status' => AuditStatus::ReadFailed,
+                'error_code' => 'AI_BUDGET',
+            ]);
+
+            return back()->with('error', 'Kuota pembacaan AI harian telah habis. Anda dapat mencoba Contoh RAB atau menambah rincian secara manual.');
+        }
+
         $audit->update([
             'status' => AuditStatus::Reading,
             'error_code' => null,
         ]);
 
-        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id);
+        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id, true);
 
         return back()->with('success', 'Pembacaan ulang dokumen dengan AI telah dimulai.');
     }
 
-    public function replaceFile(Request $request, Audit $audit): RedirectResponse
+    public function replaceFile(Request $request, Audit $audit, AiReadBudget $budget): RedirectResponse
     {
         $villageId = app(CurrentVillage::class)->id();
         abort_unless($audit->village_id === $villageId, 403, 'Akses ditolak.');
@@ -142,17 +184,18 @@ final class AuditUploadController
         $file = $request->file('file');
         $newPath = $file->store('audits', 'local');
         $oldPath = $audit->file_path;
+        $hasBudget = $budget->claimForVillage($villageId);
 
-        DB::transaction(function () use ($audit, $newPath): void {
+        DB::transaction(function () use ($audit, $newPath, $hasBudget): void {
             $audit->items()->delete();
             $audit->update([
-                'status' => AuditStatus::Reading,
+                'status' => $hasBudget ? AuditStatus::Reading : AuditStatus::ReadFailed,
                 'source' => 'ocr_ai',
                 'file_path' => $newPath,
                 'written_total_rp' => null,
                 'total_ack' => false,
                 'read_ms' => null,
-                'error_code' => null,
+                'error_code' => $hasBudget ? null : 'AI_BUDGET',
             ]);
         });
 
@@ -160,7 +203,12 @@ final class AuditUploadController
             Storage::disk('local')->delete($oldPath);
         }
 
-        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id);
+        if (! $hasBudget) {
+            return redirect()->route('audits.show', $audit)
+                ->with('error', 'Kuota pembacaan AI harian telah habis. Anda dapat mencoba Contoh RAB atau menambah rincian secara manual.');
+        }
+
+        ProcessRabDocumentJob::dispatch($audit->id, $audit->village_id, true);
 
         return redirect()->route('audits.show', $audit)
             ->with('success', 'Berkas RAB berhasil diganti. AI sedang mengekstrak ulang dokumen baru...');

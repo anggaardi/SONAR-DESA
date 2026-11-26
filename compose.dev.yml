@@ -40,6 +40,7 @@ services:
   # queue:listen reloads code on every job, so edits apply without a restart.
   queue:
     <<: *php
+    restart: unless-stopped
     command: ['php', 'artisan', 'queue:listen', '--tries=1', '--timeout=75']
 
   scheduler:

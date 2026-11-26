@@ -15,8 +15,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * One checklist answer of a report (PRD Fitur Inti 5.1 step 5, 5.4). measured_value and measured_unit are only set
- * for "Tidak" (C5); the unit is copied from the RAB measurement, never sent by the client.
+ * One checklist answer of a report (PRD Fitur Inti 5.1 step 5, 5.4, D15). measured_value and measured_unit are only
+ * set for "Tidak" (C5); target_value and target_unit snapshot the RAB measurement target at submission time so later
+ * CCO edits never distort historical report comparisons.
  *
  * @property int $id
  * @property int $report_id
@@ -24,8 +25,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property MeasurementAnswer $answer
  * @property string|null $measured_value
  * @property string|null $measured_unit
+ * @property string|null $target_value
+ * @property string|null $target_unit
  */
-#[Fillable(['report_id', 'measurement_id', 'answer', 'measured_value', 'measured_unit'])]
+#[Fillable(['report_id', 'measurement_id', 'answer', 'measured_value', 'measured_unit', 'target_value', 'target_unit'])]
 #[UseFactory(ReportAnswerFactory::class)]
 final class ReportAnswer extends Model implements OwnedThroughParent
 {

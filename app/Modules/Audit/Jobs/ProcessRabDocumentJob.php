@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Modules\Audit\Jobs;
 
+use App\Modules\Audit\Actions\AiReadBudget;
 use App\Modules\Audit\Domain\PriceLabeler;
 use App\Modules\Audit\Enums\AuditStatus;
 use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Audit\Models\Audit;
 use App\Modules\Audit\Models\AuditItem;
+use App\Modules\Audit\Reading\FixtureRabReader;
 use App\Modules\Audit\Reading\RabReader;
 use App\Modules\Audit\Reading\StandardRef;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\WithVillage;
 use App\Modules\Standard\Models\PriceStandard;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\TimeoutExceededException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -25,14 +29,18 @@ final class ProcessRabDocumentJob implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 180;
+    public int $timeout = 75;
 
     public int $tries = 1;
 
     public function __construct(
         public int $auditId,
         public ?int $villageId = null,
-    ) {}
+        public bool $budgetReserved = false,
+    ) {
+        $timeoutSeconds = (int) config('sonar.rab_reader.timeout_seconds', 60);
+        $this->timeout = max(75, $timeoutSeconds + 15);
+    }
 
     /**
      * @return array<int, object>
@@ -48,9 +56,13 @@ final class ProcessRabDocumentJob implements ShouldQueue
         return $audit ? [new WithVillage($audit->village_id)] : [];
     }
 
-    public function handle(RabReader $reader, PriceLabeler $labeler): void
-    {
-        $audit = Audit::withoutGlobalScopes()->find($this->auditId);
+    public function handle(
+        RabReader $reader,
+        PriceLabeler $labeler,
+        ?AiReadBudget $budget = null,
+        ?FixtureRabReader $fixtureReader = null,
+    ): void {
+        $audit = Audit::withoutGlobalScopes()->with(['village', 'project'])->find($this->auditId);
 
         if ($audit === null || $audit->status !== AuditStatus::Reading) {
             return;
@@ -86,10 +98,26 @@ final class ProcessRabDocumentJob implements ShouldQueue
                 return;
             }
 
-            // Sediakan katalog standar harga resmi tanpa harga ke reader AI
-            $standards = PriceStandard::query()
-                ->select(['id', 'code', 'name', 'unit', 'price_rp'])
-                ->get();
+            $isDemoSample = $audit->source === 'demo_sample';
+            if ($isDemoSample) {
+                $activeReader = $fixtureReader ?? app(FixtureRabReader::class);
+            } else {
+                $budget ??= app(AiReadBudget::class);
+                if (! $this->budgetReserved && ! $budget->claimForVillage($audit->village_id)) {
+                    $audit->update([
+                        'status' => AuditStatus::ReadFailed,
+                        'error_code' => 'AI_BUDGET',
+                    ]);
+
+                    return;
+                }
+
+                $activeReader = $reader;
+            }
+
+            $displayTimezone = (string) config('sonar.display_timezone', 'Asia/Makassar');
+            $year = $audit->project->year ?? (int) CarbonImmutable::now($displayTimezone)->year;
+            $standards = PriceStandard::catalogForRegencyAndYear($audit->village->regency, $year);
 
             $standardRefs = $standards->map(static fn (PriceStandard $s): StandardRef => new StandardRef(
                 code: $s->code,
@@ -99,7 +127,7 @@ final class ProcessRabDocumentJob implements ShouldQueue
 
             $standardsByCode = $standards->keyBy('code');
 
-            $result = $reader->read($realPath, $standardRefs);
+            $result = $activeReader->read($realPath, $standardRefs);
 
             if (! $result->isSuccess()) {
                 $audit->update([
@@ -186,5 +214,21 @@ final class ProcessRabDocumentJob implements ShouldQueue
                 $village->clear();
             }
         }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        $audit = Audit::withoutGlobalScopes()->find($this->auditId);
+        if ($audit === null || $audit->status !== AuditStatus::Reading) {
+            return;
+        }
+
+        $isTimeout = $exception instanceof TimeoutExceededException
+            || str_contains(strtolower($exception->getMessage()), 'timed out');
+
+        $audit->update([
+            'status' => AuditStatus::ReadFailed,
+            'error_code' => $isTimeout ? 'AI_TIMEOUT' : 'EXCEPTION_'.class_basename($exception),
+        ]);
     }
 }

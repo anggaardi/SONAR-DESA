@@ -136,30 +136,10 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
         <!-- State 4: Terlalu Lemah (EmptyState IDDS) -->
         <div v-else-if="status === 'too_weak'" class="rounded-2xl border border-stroke bg-surface p-4">
             <EmptyState
+                illustration="location-error"
                 :title="location.tooWeak.title"
                 :description="location.tooWeak.body(Math.round(position?.accuracyMeters ?? 0), maxAccuracyMeters)"
             >
-                <template #illustration>
-                    <!-- Slot Ilustrasi IDDS 4:3 -->
-                    <div
-                        class="flex aspect-4/3 w-full max-w-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-warning-border bg-warning-subtle/40 p-4 text-center"
-                    >
-                        <div
-                            class="flex h-12 w-12 items-center justify-center rounded-full bg-warning-subtle text-warning"
-                            aria-hidden="true"
-                        >
-                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path
-                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                            </svg>
-                        </div>
-                        <p class="mt-2 text-xs font-bold text-warning">[ Slot Ilustrasi: Sinyal GPS Lemah ]</p>
-                        <p class="text-[11px] text-content-tertiary">Proporsi 4:3 IDDS</p>
-                    </div>
-                </template>
                 <Button variant="primary" @click="start">{{ location.retry }}</Button>
             </EmptyState>
         </div>
@@ -169,29 +149,11 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
             v-else-if="status === 'denied' || status === 'unavailable' || status === 'failed'"
             class="rounded-2xl border border-stroke bg-surface p-4"
         >
-            <EmptyState :title="failureText[status].title" :description="failureText[status].body">
-                <template #illustration>
-                    <!-- Slot Ilustrasi IDDS 4:3 -->
-                    <div
-                        class="flex aspect-4/3 w-full max-w-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-warning-border bg-warning-subtle/40 p-4 text-center"
-                    >
-                        <div
-                            class="flex h-12 w-12 items-center justify-center rounded-full bg-warning-subtle text-warning"
-                            aria-hidden="true"
-                        >
-                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path
-                                    d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                />
-                                <path d="M5 5l14 14" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                        </div>
-                        <p class="mt-2 text-xs font-bold text-warning">[ Slot Ilustrasi: Izin Lokasi ]</p>
-                        <p class="text-[11px] text-content-tertiary">Proporsi 4:3 IDDS</p>
-                    </div>
-                </template>
+            <EmptyState
+                illustration="location-error"
+                :title="failureText[status].title"
+                :description="failureText[status].body"
+            >
                 <Button v-if="status !== 'unavailable'" variant="primary" @click="start">{{ location.retry }}</Button>
             </EmptyState>
         </div>
@@ -252,6 +214,7 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
             <!-- ERROR: Di luar radius (EmptyState IDDS) -->
             <div v-else-if="hint" class="rounded-2xl border border-stroke bg-surface p-4">
                 <EmptyState
+                    illustration="location-error"
                     title="Kamu Berada di Luar Lokasi Proyek"
                     :description="
                         hint.distance_m !== null
@@ -259,32 +222,6 @@ const failureText = { denied: location.denied, unavailable: location.unavailable
                             : location.farAwayUnknown(radiusMeters)
                     "
                 >
-                    <template #illustration>
-                        <!-- Slot Ilustrasi IDDS 4:3 -->
-                        <div
-                            class="flex aspect-4/3 w-full max-w-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-warning-border bg-warning-subtle/40 p-4 text-center"
-                        >
-                            <div
-                                class="flex h-12 w-12 items-center justify-center rounded-full bg-warning-subtle text-warning"
-                                aria-hidden="true"
-                            >
-                                <svg
-                                    class="h-6 w-6"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                >
-                                    <circle cx="12" cy="12" r="9" />
-                                    <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
-                                    <circle cx="12" cy="9.5" r="1.5" />
-                                </svg>
-                            </div>
-                            <p class="mt-2 text-xs font-bold text-warning">[ Slot Ilustrasi: Di Luar Radius (4:3) ]</p>
-                            <p class="text-[11px] text-content-tertiary">outOfRadius · Sesuai Desain IDDS</p>
-                        </div>
-                    </template>
-
                     <Button variant="primary" @click="start">
                         <svg
                             class="h-4 w-4 shrink-0"

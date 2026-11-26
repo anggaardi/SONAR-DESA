@@ -14,7 +14,6 @@ import ProjectMeasurements from '@/features/project/ProjectMeasurements.vue';
 import ProjectProgress from '@/features/project/ProjectProgress.vue';
 import ProjectReviewsFab from '@/features/project/ProjectReviewsFab.vue';
 import ProjectStatusNotice from '@/features/project/ProjectStatusNotice.vue';
-import { checkSpec, googleSignIn, location } from '@/lib/labels';
 import type { ProjectDetail } from '@/types/project';
 
 interface Props {
@@ -24,12 +23,15 @@ interface Props {
 const props = defineProps<Props>();
 
 const page = usePage();
+const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
+const isDemo = computed(() => page.props.demo !== null);
+const canCheckSpec = computed(() => activeRole.value === null || activeRole.value === 'warga');
+
 const dashboardLink = computed<{ href: string; label: string } | null>(() => {
-    const role = page.props.auth?.user?.role ?? page.props.demo?.role ?? null;
-    if (role === 'bpd') {
+    if (activeRole.value === 'bpd') {
         return { href: '/bpd', label: 'Kembali ke Dashboard BPD' };
     }
-    if (role === 'desa') {
+    if (activeRole.value === 'desa') {
         return { href: '/desa', label: 'Kembali ke Dashboard Pemdes' };
     }
     return null;
@@ -37,7 +39,8 @@ const dashboardLink = computed<{ href: string; label: string } | null>(() => {
 
 const toastMessage = ref<string | null>(null);
 const activeFilter = ref<BudgetFilter>('all');
-const showCheckSpecDialog = ref(false);
+const checkSpecHref = computed(() => `/p/${props.project.slug}/cek`);
+const showPrivacyHint = computed(() => !page.props.auth?.user && !page.props.demo);
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -86,7 +89,10 @@ const showHelpDialog = ref(false);
 const showQrDialog = ref(false);
 
 function handleCheckSpecClick(): void {
-    showCheckSpecDialog.value = true;
+    if (!canCheckSpec.value) {
+        return;
+    }
+    window.location.assign(checkSpecHref.value);
 }
 
 function handleTabClick(tabId: string): void {
@@ -114,7 +120,7 @@ function handleTabClick(tabId: string): void {
             />
 
             <!-- Main Content Area -->
-            <div class="min-w-0 flex-1 pb-32 lg:pb-16">
+            <div :class="['min-w-0 flex-1', canCheckSpec ? 'pb-32 lg:pb-16' : 'pb-12 lg:pb-16']">
                 <!-- Mobile Header (Sticky agar warga mudah keluar / kembali ke desa) -->
                 <div class="sticky top-0 z-20 md:hidden">
                     <ProjectHeader
@@ -246,7 +252,10 @@ function handleTabClick(tabId: string): void {
                             <div class="lg:hidden">
                                 <ProjectCheckSpecInvite
                                     :citizen-count="project.citizen_reports_count"
-                                    @check-spec="handleCheckSpecClick"
+                                    :check-spec-href="checkSpecHref"
+                                    :show-privacy-hint="showPrivacyHint"
+                                    :can-check-spec="canCheckSpec"
+                                    :is-demo="isDemo"
                                 />
                             </div>
 
@@ -262,7 +271,10 @@ function handleTabClick(tabId: string): void {
                             <!-- 1. Primary Action Hub Card: Cek Spek di Lokasi -->
                             <ProjectCheckSpecInvite
                                 :citizen-count="project.citizen_reports_count"
-                                @check-spec="handleCheckSpecClick"
+                                :check-spec-href="checkSpecHref"
+                                :show-privacy-hint="showPrivacyHint"
+                                :can-check-spec="canCheckSpec"
+                                :is-demo="isDemo"
                             />
 
                             <!-- 2. Dokumen Publik RAB Asli Card -->
@@ -323,12 +335,14 @@ function handleTabClick(tabId: string): void {
         </div>
 
         <!-- Satu tombol utama per layar (PRD 6.1), menempel di bawah (hanya di mobile/tablet; di desktop sudah ada di aside) -->
-        <div class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface/95 backdrop-blur-sm lg:hidden">
+        <div
+            v-if="canCheckSpec"
+            class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface/95 backdrop-blur-sm lg:hidden"
+        >
             <div class="mx-auto max-w-md px-4 py-3 sm:max-w-xl sm:px-6 md:max-w-3xl">
-                <button
-                    type="button"
+                <a
+                    :href="checkSpecHref"
                     class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-content-inverse transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:bg-primary-hover"
-                    @click="handleCheckSpecClick"
                 >
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path
@@ -339,74 +353,12 @@ function handleTabClick(tabId: string): void {
                         />
                     </svg>
                     Cek spek di lokasi
-                </button>
+                </a>
             </div>
         </div>
 
         <!-- Tombol sticky ulasan warga & catatan BPD (IDDS) -->
-        <ProjectReviewsFab :project="project" @check-spec="handleCheckSpecClick" />
-
-        <!-- Dialog: Panduan Cek Spek di Lokasi -->
-        <Dialog :open="showCheckSpecDialog" title="Cek Spek di Lokasi" @close="showCheckSpecDialog = false">
-            <div class="space-y-4 text-sm text-content-secondary">
-                <p>
-                    <strong class="font-semibold text-content">Lewat lokasi proyek ini?</strong>
-                    Bantu desa memverifikasi kesesuaian fisik antara kenyataan lapangan dengan dokumen anggaran resmi
-                    (RAB).
-                </p>
-
-                <div v-if="project.measurements && project.measurements.length > 0" class="space-y-2">
-                    <p class="text-xs font-medium tracking-wider text-content-tertiary uppercase">
-                        Ukuran resmi di RAB:
-                    </p>
-                    <div class="divide-y divide-stroke rounded-xl border border-stroke bg-surface-subtle p-3">
-                        <div
-                            v-for="m in project.measurements"
-                            :key="m.id"
-                            class="flex items-center justify-between py-2 first:pt-0 last:pb-0"
-                        >
-                            <span class="font-medium text-content">{{ m.name }}</span>
-                            <span class="font-bold text-primary tabular-nums">{{ m.value }} {{ m.unit }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- C1: why location is asked, before any permission or Google sign-in. -->
-                <div class="space-y-1.5 rounded-xl border border-stroke bg-surface-subtle p-3">
-                    <p class="font-semibold text-content">{{ location.why.heading }}</p>
-                    <ul class="list-disc space-y-1 pl-5">
-                        <li v-for="point in location.why.points" :key="point">{{ point }}</li>
-                    </ul>
-                    <p>{{ googleSignIn.privacy }}</p>
-                </div>
-
-                <div class="rounded-xl border border-info-border bg-info-subtle p-3 text-xs text-info">
-                    <p class="font-semibold">Tips pengecekan:</p>
-                    <p class="mt-1">
-                        Gunakan meteran fisik untuk mengukur panjang dan lebar di lapangan. Jika menemukan perbedaan
-                        nyata, Anda dapat membawanya ke Musyawarah Desa atau menyampaikannya ke BPD.
-                    </p>
-                </div>
-            </div>
-            <template #actions>
-                <div class="flex w-full flex-col gap-2 sm:flex-row">
-                    <button
-                        type="button"
-                        class="h-10 w-full rounded-md border border-stroke bg-surface px-4 text-sm font-medium text-content hover:bg-surface-muted"
-                        @click="showCheckSpecDialog = false"
-                    >
-                        Tutup
-                    </button>
-                    <!-- Plain link: a guest is redirected off-site to Google, so this must be a full page visit (F11). -->
-                    <a
-                        :href="`/p/${project.slug}/cek`"
-                        class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    >
-                        {{ checkSpec.start }}
-                    </a>
-                </div>
-            </template>
-        </Dialog>
+        <ProjectReviewsFab :project="project" :can-check-spec="canCheckSpec" @check-spec="handleCheckSpecClick" />
 
         <!-- Dialog: Bantuan -->
         <Dialog :open="showHelpDialog" title="Bantuan & Keterbukaan Informasi" @close="showHelpDialog = false">

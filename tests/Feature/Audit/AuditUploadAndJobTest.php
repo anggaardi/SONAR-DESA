@@ -18,6 +18,8 @@ use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
 use App\Modules\Standard\Models\PriceStandard;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Queue\TimeoutExceededException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
@@ -284,4 +286,191 @@ it('allows desa user to delete an unpublished audit and its stored file, but for
             'file' => UploadedFile::fake()->create('hack.pdf', 100, 'application/pdf'),
         ])
         ->assertForbidden();
+});
+
+it('enforces daily global and demo AI read budgets across upload, retry, replace-file, and job execution (D19, S7)', function () {
+    config()->set('sonar.ai_budget.daily_reads', 1);
+    config()->set('sonar.ai_budget.demo_daily_reads', 1);
+
+    // 1st upload from normal village consumes the global daily limit.
+    $file1 = UploadedFile::fake()->create('rab-1.pdf', 200, 'application/pdf');
+    $this->actingAs($this->desaUser)
+        ->post('/audits', ['file' => $file1])
+        ->assertRedirect();
+
+    $firstAudit = Audit::latest('id')->firstOrFail();
+    expect($firstAudit->status)->toBe(AuditStatus::Reading)
+        ->and($firstAudit->error_code)->toBeNull()
+        ->and(DB::table('ai_usage')->sum('reads_count'))->toBe(1);
+
+    // 2nd upload is blocked cleanly without queuing AI and marked AI_BUDGET.
+    $file2 = UploadedFile::fake()->create('rab-2.pdf', 200, 'application/pdf');
+    $this->actingAs($this->desaUser)
+        ->post('/audits', ['file' => $file2])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    $blockedAudit = Audit::latest('id')->firstOrFail();
+    expect($blockedAudit->id)->not->toBe($firstAudit->id)
+        ->and($blockedAudit->status)->toBe(AuditStatus::ReadFailed)
+        ->and($blockedAudit->error_code)->toBe('AI_BUDGET');
+
+    Queue::assertPushed(ProcessRabDocumentJob::class, 1);
+
+    // Retry and replace-file must also respect AI_BUDGET without dispatching jobs.
+    $this->actingAs($this->desaUser)
+        ->post("/audits/{$blockedAudit->id}/retry")
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    $this->actingAs($this->desaUser)
+        ->post("/audits/{$blockedAudit->id}/replace-file", [
+            'file' => UploadedFile::fake()->create('rab-3.pdf', 200, 'application/pdf'),
+        ])
+        ->assertRedirect(route('audits.show', $blockedAudit))
+        ->assertSessionHas('error');
+
+    Queue::assertPushed(ProcessRabDocumentJob::class, 1);
+
+    // Demo village cap is enforced separately from real villages when demo_daily_reads < daily_reads.
+    config()->set('sonar.ai_budget.daily_reads', 5);
+    config()->set('sonar.ai_budget.demo_daily_reads', 1);
+
+    $demoVillage = Village::factory()->create(['is_demo' => true, 'demo_ai_uploads_count' => 0]);
+    $demoDesa = User::factory()->create(['role' => Role::Desa, 'village_id' => $demoVillage->id]);
+
+    $this->actingAs($demoDesa)
+        ->post('/audits', ['file' => UploadedFile::fake()->create('demo-1.pdf', 200, 'application/pdf')])
+        ->assertRedirect();
+    expect(DB::table('ai_usage')->sum('demo_reads_count'))->toBe(1);
+
+    // 2nd demo upload hits demo_daily_reads=1 without burning demo_ai_uploads_count.
+    $this->actingAs($demoDesa)
+        ->post('/audits', ['file' => UploadedFile::fake()->create('demo-2.pdf', 200, 'application/pdf')])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect(Audit::withoutGlobalScopes()->where('village_id', $demoVillage->id)->latest('id')->firstOrFail()->error_code)
+        ->toBe('AI_BUDGET')
+        ->and($demoVillage->fresh()->demo_ai_uploads_count)->toBe(1);
+
+    // Real village can still use remaining global budget (2 < 5).
+    $this->actingAs($this->desaUser)
+        ->post('/audits', ['file' => UploadedFile::fake()->create('real-still-ok.pdf', 200, 'application/pdf')])
+        ->assertRedirect();
+
+    expect(Audit::latest('id')->firstOrFail()->status)->toBe(AuditStatus::Reading);
+
+    // Direct job execution when unreserved enforces AiReadBudget and writes AI_BUDGET.
+    Storage::disk('local')->put('audits/direct.pdf', 'pdf');
+    config()->set('sonar.ai_budget.daily_reads', 0);
+    $directAudit = Audit::factory()->create([
+        'village_id' => $this->village->id,
+        'status' => AuditStatus::Reading,
+        'source' => 'ocr_ai',
+        'file_path' => 'audits/direct.pdf',
+    ]);
+
+    $neverCalledReader = mock(RabReader::class);
+    $neverCalledReader->shouldNotReceive('read');
+
+    (new ProcessRabDocumentJob($directAudit->id))->handle($neverCalledReader, new PriceLabeler);
+
+    expect($directAudit->refresh()->status)->toBe(AuditStatus::ReadFailed)
+        ->and($directAudit->error_code)->toBe('AI_BUDGET');
+});
+
+it('aligns timeout defaults and records AI_TIMEOUT when ProcessRabDocumentJob fails (D18, S7)', function () {
+    expect((int) config('sonar.rab_reader.timeout_seconds'))->toBe(60)
+        ->and((int) config('queue.connections.database.retry_after'))->toBe(120);
+
+    $audit = Audit::factory()->create([
+        'village_id' => $this->village->id,
+        'status' => AuditStatus::Reading,
+        'file_path' => 'audits/slow.pdf',
+    ]);
+
+    $job = new ProcessRabDocumentJob($audit->id);
+    expect($job->timeout)->toBe(75);
+
+    $job->failed(new TimeoutExceededException('Job timed out'));
+
+    expect($audit->refresh()->status)->toBe(AuditStatus::ReadFailed)
+        ->and($audit->error_code)->toBe('AI_TIMEOUT');
+});
+
+it('filters price standards strictly by regency and year in ProcessRabDocumentJob and AuditItemController (S7 P3)', function () {
+    Storage::disk('local')->put('audits/gianyar-doc.pdf', 'fake-pdf');
+
+    $gianyar2026 = PriceStandard::factory()->create([
+        'regency' => 'Gianyar',
+        'year' => 2026,
+        'code' => 'MAT-SMN-01',
+        'name' => 'Semen Gianyar 2026',
+        'unit' => 'sak',
+        'price_rp' => 72000,
+    ]);
+    PriceStandard::factory()->create([
+        'regency' => 'Gianyar',
+        'year' => 2024,
+        'code' => 'MAT-SMN-01',
+        'name' => 'Semen Gianyar 2024',
+        'unit' => 'sak',
+        'price_rp' => 60000,
+    ]);
+    $badung2026 = PriceStandard::factory()->create([
+        'regency' => 'Badung',
+        'year' => 2026,
+        'code' => 'MAT-SMN-01',
+        'name' => 'Semen Badung 2026',
+        'unit' => 'sak',
+        'price_rp' => 85000,
+    ]);
+
+    $this->village->update(['regency' => 'Gianyar']);
+
+    $audit = Audit::factory()->create([
+        'village_id' => $this->village->id,
+        'status' => AuditStatus::Reading,
+        'source' => 'ocr_ai',
+        'file_path' => 'audits/gianyar-doc.pdf',
+    ]);
+
+    $mockReader = mock(RabReader::class);
+    $mockReader->shouldReceive('read')
+        ->once()
+        ->withArgs(fn (string $path, array $refs): bool => count($refs) === 1 && $refs[0]->name === 'Semen Gianyar 2026')
+        ->andReturn(new RabReadResult(
+            rows: [
+                new RabReadRow(
+                    position: 1,
+                    rawName: 'Semen Portland',
+                    volume: '10',
+                    unit: 'sak',
+                    unitPriceRp: 72000,
+                    amountRp: 720000,
+                    standardCode: 'MAT-SMN-01',
+                    doubtFields: [],
+                ),
+            ],
+            writtenTotalRp: 720000,
+            readMs: 500,
+        ));
+
+    (new ProcessRabDocumentJob($audit->id, $audit->village_id, true))->handle($mockReader, new PriceLabeler);
+
+    $item = $audit->items()->firstOrFail();
+    expect($item->standard_id)->toBe($gianyar2026->id)
+        ->and($item->label)->toBe(PriceLabel::WithinStandard);
+
+    // Manual item addition/update must also forbid cross-regency standard_id.
+    $this->actingAs($this->desaUser)
+        ->post("/audits/{$audit->id}/items", [
+            'raw_name' => 'Semen Ilegal',
+            'volume' => '5',
+            'unit' => 'sak',
+            'unit_price_rp' => 70000,
+            'standard_id' => $badung2026->id,
+        ])
+        ->assertSessionHasErrors('standard_id');
 });

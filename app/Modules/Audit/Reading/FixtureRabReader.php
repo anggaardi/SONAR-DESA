@@ -23,9 +23,49 @@ final readonly class FixtureRabReader implements RabReader
     {
         $dir = $this->fixtureDirectory ?? database_path('data/rab-fixtures');
 
-        // Check fixture by md5 file hash, filename, or default fallback
+        // Check fixture by md5 file hash, exact filename, stem filename, or default fallback
         $hash = file_exists($filePath) ? md5_file($filePath) : basename($filePath);
         $fixtureFile = "{$dir}/{$hash}.json";
+
+        // Map known demo sample hashes to fixture files
+        if (! file_exists($fixtureFile) && file_exists($filePath)) {
+            $knownHashes = [
+                'a02d46d4ca558dffe50d4a14db9d86a4' => "{$dir}/sample-rab-melati.json",
+                'bf500fadc02d34fc359f29d4a6288775' => "{$dir}/sample-rab-posyandu.json",
+                'fac58f402f5c6292a72ecb8e830a6d98' => "{$dir}/sample-rab-subak-uma.json",
+            ];
+            $md5 = md5_file($filePath);
+            if (isset($knownHashes[$md5]) && file_exists($knownHashes[$md5])) {
+                $fixtureFile = $knownHashes[$md5];
+            }
+        }
+
+        if (! file_exists($fixtureFile)) {
+            $fileName = strtolower(basename($filePath));
+            if (str_starts_with($fileName, 'demo-sample-') || str_contains($fileName, 'melati')) {
+                $melatiFixture = "{$dir}/sample-rab-melati.json";
+                if (file_exists($melatiFixture)) {
+                    $fixtureFile = $melatiFixture;
+                }
+            } elseif (str_contains($fileName, 'posyandu')) {
+                $posyanduFixture = "{$dir}/sample-rab-posyandu.json";
+                if (file_exists($posyanduFixture)) {
+                    $fixtureFile = $posyanduFixture;
+                }
+            } elseif (str_contains($fileName, 'subak')) {
+                $subakFixture = "{$dir}/sample-rab-subak-uma.json";
+                if (file_exists($subakFixture)) {
+                    $fixtureFile = $subakFixture;
+                }
+            }
+        }
+
+        if (! file_exists($fixtureFile)) {
+            $byStem = "{$dir}/".pathinfo($filePath, PATHINFO_FILENAME).'.json';
+            if (file_exists($byStem)) {
+                $fixtureFile = $byStem;
+            }
+        }
 
         if (! file_exists($fixtureFile)) {
             // Check if there is any json in the fixture directory as fallback

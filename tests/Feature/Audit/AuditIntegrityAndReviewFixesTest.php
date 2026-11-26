@@ -472,7 +472,7 @@ it('stores doubt reason for yellow rows and properly re-evaluates corrected yell
 // -----------------------------------------------------------------------------
 // 8. Sedang 10: Daftar standar harga difilter kabupaten dan tahun
 // -----------------------------------------------------------------------------
-it('filters price standards by regency and year on create, review, and manage (Sedang 10)', function () {
+it('filters price standards by regency and year on review and manage (Sedang 10)', function () {
     // Standard Gianyar 2026 (target)
     $stdGianyar2026 = PriceStandard::factory()->create([
         'regency' => 'Gianyar',
@@ -494,16 +494,7 @@ it('filters price standards by regency and year on create, review, and manage (S
         'name' => 'Batu Kali Gianyar 2024',
     ]);
 
-    // 1. Create page: should only receive Gianyar 2026
-    $this->actingAs($this->desaUser)
-        ->get('/desa/projects/create?year=2026')
-        ->assertOk()
-        ->assertInertia(fn ($page) => $page
-            ->has('priceStandards', 1)
-            ->where('priceStandards.0.name', 'Batu Kali Gianyar 2026')
-        );
-
-    // 2. Review page for an audit
+    // 1. Review page for an audit
     $audit = Audit::factory()->create([
         'village_id' => $this->village->id,
         'file_path' => 'audits/sample.pdf',
@@ -515,6 +506,22 @@ it('filters price standards by regency and year on create, review, and manage (S
         ->assertInertia(fn ($page) => $page
             ->has('priceStandards', 1)
             ->where('priceStandards.0.name', 'Batu Kali Gianyar 2026')
+        );
+
+    // 2. Manage page for a project of year 2026
+    $project = Project::factory()->create([
+        'village_id' => $this->village->id,
+        'audit_id' => $audit->id,
+        'year' => 2026,
+        'published_at' => now(),
+    ]);
+
+    $this->actingAs($this->desaUser)
+        ->get("/desa/projects/{$project->id}")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('standards', 1)
+            ->where('standards.0.name', 'Batu Kali Gianyar 2026')
         );
 });
 

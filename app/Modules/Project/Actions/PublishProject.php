@@ -25,6 +25,7 @@ final class PublishProject
      * @param array{
      *     name: string,
      *     type: ProjectType|string,
+     *     description?: string|null,
      *     fund_source: string,
      *     year: int,
      *     lat?: float|numeric-string|string|null,

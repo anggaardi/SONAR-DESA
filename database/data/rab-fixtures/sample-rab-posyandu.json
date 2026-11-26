@@ -1,0 +1,155 @@
+{
+  "written_total_rp": 68900000,
+  "rows": [
+    {
+      "position": 1,
+      "raw_name": "Galian tanah pondasi bangunan",
+      "volume": "18",
+      "unit": "m3",
+      "unit_price_rp": 85000,
+      "amount_rp": 1530000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 2,
+      "raw_name": "Pasangan batu kali pondasi 1:4",
+      "volume": "16",
+      "unit": "m3",
+      "unit_price_rp": 330000,
+      "amount_rp": 5280000,
+      "standard_code": "MAT-BTK-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 3,
+      "raw_name": "Urugan pasir bawah pondasi t=5cm",
+      "volume": "4",
+      "unit": "m3",
+      "unit_price_rp": 220000,
+      "amount_rp": 880000,
+      "standard_code": "MAT-PSR-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 4,
+      "raw_name": "Semen Portland 50kg",
+      "volume": "110",
+      "unit": "sak",
+      "unit_price_rp": 71000,
+      "amount_rp": 7810000,
+      "standard_code": "MAT-SMN-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 5,
+      "raw_name": "Pasir pasang / cor",
+      "volume": "18",
+      "unit": "m3",
+      "unit_price_rp": 235000,
+      "amount_rp": 4230000,
+      "standard_code": "MAT-PSR-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 6,
+      "raw_name": "Batu split kerikil beton",
+      "volume": "12",
+      "unit": "m3",
+      "unit_price_rp": 285000,
+      "amount_rp": 3420000,
+      "standard_code": "MAT-SPL-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 7,
+      "raw_name": "Besi beton O 10 polos SNI",
+      "volume": "30",
+      "unit": "btg",
+      "unit_price_rp": 76000,
+      "amount_rp": 2280000,
+      "standard_code": "MAT-BSI-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 8,
+      "raw_name": "Bata merah bakar lokal",
+      "volume": "4200",
+      "unit": "bh",
+      "unit_price_rp": 1800,
+      "amount_rp": 7560000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 9,
+      "raw_name": "Keramik lantai 40x40 polos",
+      "volume": "48",
+      "unit": "m2",
+      "unit_price_rp": 75000,
+      "amount_rp": 3600000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 10,
+      "raw_name": "Pengecatan tembok interior & eksterior",
+      "volume": "180",
+      "unit": "m2",
+      "unit_price_rp": 22000,
+      "amount_rp": 3960000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 11,
+      "raw_name": "Kusen dan daun pintu panel kayu",
+      "volume": "2",
+      "unit": "unit",
+      "unit_price_rp": 1200000,
+      "amount_rp": 2400000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 12,
+      "raw_name": "Jendela kaca bingkai kayu",
+      "volume": "4",
+      "unit": "unit",
+      "unit_price_rp": 450000,
+      "amount_rp": 1800000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 13,
+      "raw_name": "Rangka atap baja ringan & genteng",
+      "volume": "60",
+      "unit": "m2",
+      "unit_price_rp": 175000,
+      "amount_rp": 10500000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 14,
+      "raw_name": "Tukang batu & kayu",
+      "volume": "35",
+      "unit": "OH",
+      "unit_price_rp": 150000,
+      "amount_rp": 5250000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 15,
+      "raw_name": "Pekerja terampil",
+      "volume": "70",
+      "unit": "OH",
+      "unit_price_rp": 120000,
+      "amount_rp": 8400000,
+      "standard_code": null,
+      "doubt_fields": []
+    }
+  ]
+}

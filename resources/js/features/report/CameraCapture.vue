@@ -101,28 +101,11 @@ const failureText = { denied: camera.denied, unavailable: camera.unavailable, fa
             v-if="status === 'denied' || status === 'unavailable' || status === 'failed'"
             class="rounded-2xl border border-stroke bg-surface p-4"
         >
-            <EmptyState :title="failureText[status].title" :description="failureText[status].body">
-                <template #illustration>
-                    <!-- Slot Ilustrasi IDDS 4:3 -->
-                    <div
-                        class="flex aspect-4/3 w-full max-w-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-warning-border bg-warning-subtle/40 p-4 text-center"
-                    >
-                        <div
-                            class="flex h-12 w-12 items-center justify-center rounded-full bg-warning-subtle text-warning"
-                            aria-hidden="true"
-                        >
-                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path
-                                    d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-                                />
-                                <circle cx="12" cy="13" r="4" />
-                                <path d="M1 1l22 22" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                        </div>
-                        <p class="mt-2 text-xs font-bold text-warning">[ Slot Ilustrasi: Kamera Ditolak ]</p>
-                        <p class="text-[11px] text-content-tertiary">Proporsi 4:3 IDDS</p>
-                    </div>
-                </template>
+            <EmptyState
+                illustration="camera-error"
+                :title="failureText[status].title"
+                :description="failureText[status].body"
+            >
                 <Button variant="primary" @click="start">{{ camera.retry }}</Button>
             </EmptyState>
         </div>

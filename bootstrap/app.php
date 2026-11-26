@@ -3,6 +3,7 @@
 use App\Modules\Core\Http\Middleware\EnsureRole;
 use App\Modules\Core\Http\Middleware\HandleInertiaRequests;
 use App\Modules\Core\Http\Middleware\SetCurrentVillage;
+use App\Modules\Demo\Http\Middleware\EnforceDemoUploadLimit;
 use Illuminate\Auth\Middleware\Authorize;
 use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Contracts\Session\Middleware\AuthenticatesSessions;
@@ -26,7 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [HandleInertiaRequests::class]);
+        $middleware->web(append: [
+            HandleInertiaRequests::class,
+            EnforceDemoUploadLimit::class,
+        ]);
         $middleware->alias([
             'village' => SetCurrentVillage::class,
             'role' => EnsureRole::class,
@@ -48,6 +52,8 @@ return Application::configure(basePath: dirname(__DIR__))
             AuthenticatesSessions::class,
             SetCurrentVillage::class,
             SubstituteBindings::class,
+            EnsureRole::class,
+            EnforceDemoUploadLimit::class,
             Authorize::class,
         ]);
         // Caddy sits in front of php-fpm on the private compose network.

@@ -116,7 +116,7 @@ final class SubmitReport
         $report->id = $reportId;
         $report->save();
 
-        $this->saveAnswers($report, $project, $submission);
+        $this->saveAnswers($report, $lockedProject, $submission);
 
         foreach ($photoPaths as $index => $path) {
             $report->photos()->create(['path' => $path, 'position' => $index + 1]);
@@ -127,19 +127,25 @@ final class SubmitReport
         return $report;
     }
 
-    /** C5: the measured value is kept only for "Tidak", always in the RAB unit of that measurement. */
+    /**
+     * C5: measured_value is kept only for "Tidak" in the RAB unit.
+     * D15: target_value & target_unit snapshot the locked project measurement at submission time.
+     */
     private function saveAnswers(Report $report, Project $project, ReportSubmission $submission): void
     {
-        $units = $project->measurements->pluck('unit', 'id');
+        $measurements = $project->measurements()->get(['id', 'value', 'unit'])->keyBy('id');
 
         foreach ($submission->answers as $answer) {
+            $measurement = $measurements->get($answer->measurementId);
             $isMismatch = $answer->answer === MeasurementAnswer::Mismatch;
 
             $report->answers()->create([
                 'measurement_id' => $answer->measurementId,
                 'answer' => $answer->answer,
                 'measured_value' => $isMismatch ? $answer->measuredValue : null,
-                'measured_unit' => $isMismatch ? $units->get($answer->measurementId) : null,
+                'measured_unit' => $isMismatch ? $measurement?->unit : null,
+                'target_value' => $measurement?->value,
+                'target_unit' => $measurement?->unit,
             ]);
         }
     }

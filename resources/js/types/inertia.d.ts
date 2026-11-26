@@ -9,11 +9,18 @@ export interface AuthUser {
     role: Role;
 }
 
+export interface DemoContext {
+    role: Role;
+    village_slug?: string | null;
+    uploads_used?: number;
+    upload_limit?: number;
+}
+
 declare module '@inertiajs/core' {
     export interface InertiaConfig {
         sharedPageProps: {
             auth: { user: AuthUser | null };
-            demo: { role: Role; village_slug?: string | null } | null;
+            demo: DemoContext | null;
             app: { commit: string };
             flash?: {
                 success?: string | null;

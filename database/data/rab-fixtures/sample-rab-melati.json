@@ -1,0 +1,145 @@
+{
+  "written_total_rp": 114980000,
+  "rows": [
+    {
+      "position": 1,
+      "raw_name": "Pembersihan dan perataan badan jalan",
+      "volume": "600",
+      "unit": "m2",
+      "unit_price_rp": 12000,
+      "amount_rp": 7200000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 2,
+      "raw_name": "Pemasangan papan nama kegiatan",
+      "volume": "1",
+      "unit": "bh",
+      "unit_price_rp": 150000,
+      "amount_rp": 150000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 3,
+      "raw_name": "Prasasti marmer kegiatan",
+      "volume": "1",
+      "unit": "bh",
+      "unit_price_rp": 250000,
+      "amount_rp": 250000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 4,
+      "raw_name": "Semen Portland Komposit 50kg",
+      "volume": "450",
+      "unit": "sak",
+      "unit_price_rp": 85000,
+      "amount_rp": 38250000,
+      "standard_code": "MAT-SMN-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 5,
+      "raw_name": "Pasir Pasang",
+      "volume": "38",
+      "unit": "m3",
+      "unit_price_rp": 280000,
+      "amount_rp": 10640000,
+      "standard_code": "MAT-PSR-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 6,
+      "raw_name": "Batu Pecah / Split 2/3",
+      "volume": "56",
+      "unit": "m3",
+      "unit_price_rp": 350000,
+      "amount_rp": 19600000,
+      "standard_code": "MAT-BPC-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 7,
+      "raw_name": "Besi Beton Polos dia 10mm",
+      "volume": "40",
+      "unit": "btg",
+      "unit_price_rp": 95000,
+      "amount_rp": 3800000,
+      "standard_code": "MAT-BSI-01",
+      "doubt_fields": []
+    },
+    {
+      "position": 8,
+      "raw_name": "Plastik cor alas beton",
+      "volume": "12",
+      "unit": "rol",
+      "unit_price_rp": 45000,
+      "amount_rp": 540000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 9,
+      "raw_name": "Papan bekisting kayu terentang",
+      "volume": "1.5",
+      "unit": "m3",
+      "unit_price_rp": 3200000,
+      "amount_rp": 4800000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 10,
+      "raw_name": "Paku usuk / reng 5-7 cm",
+      "volume": "10",
+      "unit": "kg",
+      "unit_price_rp": 25000,
+      "amount_rp": 250000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 11,
+      "raw_name": "Air kerja",
+      "volume": "15",
+      "unit": "m3",
+      "unit_price_rp": 50000,
+      "amount_rp": 750000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 12,
+      "raw_name": "Tukang batu",
+      "volume": "45",
+      "unit": "OH",
+      "unit_price_rp": 150000,
+      "amount_rp": 6750000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 13,
+      "raw_name": "Pekerja",
+      "volume": "150",
+      "unit": "OH",
+      "unit_price_rp": 120000,
+      "amount_rp": 18000000,
+      "standard_code": null,
+      "doubt_fields": []
+    },
+    {
+      "position": 14,
+      "raw_name": "Sewa molen beton 0.35 m3",
+      "volume": "10",
+      "unit": "hari",
+      "unit_price_rp": 400000,
+      "amount_rp": 4000000,
+      "standard_code": null,
+      "doubt_fields": []
+    }
+  ]
+}

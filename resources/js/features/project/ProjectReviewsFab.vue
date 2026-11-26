@@ -20,10 +20,12 @@ import { bpdReviewPhotos, citizenReviewPhotos, type ReviewPhoto } from './review
 interface Props {
     project: ProjectDetail;
     hasError?: boolean;
+    canCheckSpec?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     hasError: false,
+    canCheckSpec: true,
 });
 
 const emit = defineEmits<{
@@ -663,6 +665,7 @@ onUnmounted(() => {
                                 </p>
                             </div>
                             <button
+                                v-if="canCheckSpec"
                                 type="button"
                                 class="mt-4 inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 text-xs font-semibold text-content-inverse transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary active:bg-primary-hover"
                                 @click="handleCheckSpecClick"
@@ -692,7 +695,7 @@ onUnmounted(() => {
 
                 <!-- Floating CTA di Mode Layar Penuh -->
                 <div
-                    v-if="isFullscreen && totalCount > 0"
+                    v-if="canCheckSpec && isFullscreen && totalCount > 0"
                     class="sticky bottom-0 z-10 border-t border-stroke bg-surface px-5 py-2.5 sm:px-6"
                     @touchmove.stop
                 >

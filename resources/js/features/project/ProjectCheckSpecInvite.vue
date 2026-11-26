@@ -2,17 +2,29 @@
 // ProjectCheckSpecInvite: ajakan Cek Spek, satu-satunya ilustrasi di halaman rincian proyek.
 // Ilustrasi IDDS (figur resmi + gelembung meteran) dibuat oleh design-refs/idds-illustration/to-app.mjs.
 
+import { router } from '@inertiajs/vue3';
+import Alert from '@/components/ui/Alert.vue';
+import Button from '@/components/ui/Button.vue';
 import checkSpec from '@/components/ui/illustrations/check-spec.svg';
+import { googleSignIn } from '@/lib/labels';
 
 interface Props {
     citizenCount: number;
+    checkSpecHref: string;
+    showPrivacyHint?: boolean;
+    canCheckSpec?: boolean;
+    isDemo?: boolean;
 }
 
-defineProps<Props>();
+withDefaults(defineProps<Props>(), {
+    showPrivacyHint: false,
+    canCheckSpec: true,
+    isDemo: false,
+});
 
-defineEmits<{
-    checkSpec: [];
-}>();
+function switchToWarga(): void {
+    router.post('/demo/switch/warga');
+}
 </script>
 
 <template>
@@ -35,11 +47,11 @@ defineEmits<{
             untuk ikut menjaga dana desa.
         </p>
 
-        <!-- Tombol Aksi Utama -->
-        <button
-            type="button"
+        <!-- Tombol Aksi Utama (plain link agar redirect Google OAuth penuh, F11) -->
+        <a
+            v-if="canCheckSpec"
+            :href="checkSpecHref"
             class="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-content-inverse shadow-xs transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:bg-primary-hover"
-            @click="$emit('checkSpec')"
         >
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path
@@ -50,7 +62,24 @@ defineEmits<{
                 />
             </svg>
             Buka Cek Spek
-        </button>
+        </a>
+
+        <div v-else class="mt-4 space-y-3">
+            <Alert color="info" title="Khusus akun Warga">
+                Laporan Cek Spek di lokasi hanya dapat dikirim oleh Warga. Akun Pemerintah Desa dan BPD tidak dapat
+                mengisi Cek Spek.
+            </Alert>
+            <Button v-if="isDemo" variant="secondary" size="md" class="w-full" @click="switchToWarga">
+                Ganti ke peran Warga
+            </Button>
+        </div>
+
+        <p
+            v-if="canCheckSpec && showPrivacyHint"
+            class="mt-2.5 text-center text-xs leading-relaxed text-content-tertiary"
+        >
+            {{ googleSignIn.privacy }}
+        </p>
 
         <div class="mt-4 flex items-center gap-3">
             <span

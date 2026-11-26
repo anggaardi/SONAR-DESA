@@ -33,4 +33,26 @@ describe('FixtureRabReader', function () {
         expect($kayuRow)->not->toBeNull()
             ->and($kayuRow->doubtFields)->toContain('volume');
     });
+
+    it('matches sample PDF filenames to their dedicated fixture JSON files', function (string $filename, int $expectedTotal, int $expectedCount) {
+        $standards = [
+            new StandardRef(code: 'MAT-SMN-01', name: 'Semen Portland Komposit 50kg', unit: 'sak'),
+            new StandardRef(code: 'MAT-PSR-01', name: 'Pasir Pasang / Pasir Cor', unit: 'm3'),
+            new StandardRef(code: 'MAT-BPC-01', name: 'Batu Pecah 2/3', unit: 'm3'),
+            new StandardRef(code: 'MAT-BSI-01', name: 'Besi Beton Polos dia 10mm', unit: 'btg'),
+            new StandardRef(code: 'MAT-BTK-01', name: 'Batu Kali Bulat', unit: 'm3'),
+            new StandardRef(code: 'MAT-SPL-01', name: 'Batu Split / Kerikil 2/3', unit: 'm3'),
+        ];
+
+        $result = $this->reader->read("audits/{$filename}", $standards);
+
+        expect($result->isSuccess())->toBeTrue()
+            ->and($result->writtenTotalRp)->toBe($expectedTotal)
+            ->and($result->rows)->toHaveCount($expectedCount);
+    })->with([
+        ['sample-rab-melati.pdf', 114_980_000, 14],
+        ['sample-rab-subak-uma.pdf', 64_500_000, 15],
+        ['sample-rab-posyandu.pdf', 68_900_000, 15],
+        ['demo-sample-VOSyRAHDpt.pdf', 114_980_000, 14],
+    ]);
 });

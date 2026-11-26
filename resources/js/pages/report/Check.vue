@@ -8,6 +8,7 @@ import { computed, ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
+import EmptyState from '@/components/ui/EmptyState.vue';
 import { useDemoSample } from '@/features/demo/useDemoSample';
 import { isChecklistComplete, emptyAnswers } from '@/features/report/checkSpecRules';
 import CameraCapture from '@/features/report/CameraCapture.vue';
@@ -193,9 +194,18 @@ function continueToPhotos(): void {
                 </div>
             </div>
 
-            <Alert v-if="checkSpec.measurements.length === 0" color="warning">
-                {{ text.noMeasurements }}
-            </Alert>
+            <div
+                v-if="checkSpec.measurements.length === 0"
+                class="rounded-lg border border-stroke bg-surface px-4"
+                role="status"
+            >
+                <EmptyState
+                    illustration="plang-empty"
+                    compact
+                    title="Ukuran fisik belum tersedia"
+                    :description="text.noMeasurements"
+                />
+            </div>
 
             <!-- Mode Demo Juri Card (IDDS Sandbox Styling) -->
             <div v-if="isDemo" class="space-y-3 rounded-2xl border border-[#c9bfff] bg-demo-subtle p-4 sm:p-5">

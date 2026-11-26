@@ -10,10 +10,12 @@ use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Models\Report;
 use App\Modules\Review\Models\ReviewCycle;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
- * Evaluates whether a project's current review cycle has reached the mismatch threshold (B4, F12).
+ * Evaluates whether a project's current review cycle has reached the mismatch threshold (B4, F12, D16).
  *
+ * Adendum v1.2 §5.2: Requires >= threshold distinct accounts AND >= threshold distinct devices.
  * Rule B5: Once a project is InReview, it never drops back below InReview until BPD submits an outcome.
  */
 final readonly class EvaluateReviewThreshold
@@ -21,7 +23,10 @@ final readonly class EvaluateReviewThreshold
     public function execute(Project $project): bool
     {
         return DB::transaction(function () use ($project): bool {
-            $project = Project::query()->with('currentCycle')->lockForUpdate()->findOrFail($project->id);
+            $project = Project::withoutGlobalScope('village')
+                ->with('currentCycle')
+                ->lockForUpdate()
+                ->findOrFail($project->id);
 
             if ($project->public_status === PublicStatus::InReview) {
                 return true;
@@ -34,6 +39,11 @@ final readonly class EvaluateReviewThreshold
                     'opened_at' => now(),
                 ]);
                 $project->update(['current_cycle_id' => $cycle->id]);
+
+                Report::query()
+                    ->where('project_id', $project->id)
+                    ->whereNull('cycle_id')
+                    ->update(['cycle_id' => $cycle->id]);
             }
 
             $threshold = (int) config('sonar.review.threshold', 3);
@@ -64,6 +74,13 @@ final readonly class EvaluateReviewThreshold
 
             $project->update([
                 'public_status' => PublicStatus::InReview,
+            ]);
+
+            Log::info('review.cycle_opened', [
+                'project_id' => $project->id,
+                'cycle_id' => $cycle->id,
+                'accounts' => $distinctAccounts,
+                'devices' => $distinctDevices,
             ]);
 
             return true;

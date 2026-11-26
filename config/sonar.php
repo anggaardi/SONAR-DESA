@@ -14,7 +14,7 @@ return [
     'rab_reader' => [
         // "ai" in production, "fixture" in tests, CI, and when AI must be switched off.
         'driver' => env('RAB_READER', 'fixture'),
-        'timeout_seconds' => (int) env('RAB_READ_TIMEOUT_SECONDS', 120),
+        'timeout_seconds' => (int) env('RAB_READ_TIMEOUT_SECONDS', 60),
         'ai' => [
             'provider' => env('AI_PROVIDER', 'databyte'),
             'base_url' => env('AI_BASE_URL', 'https://ai.databyte.co.id/gateway/v1'),
