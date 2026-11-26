@@ -187,11 +187,11 @@ terpisah bila disetujui nanti.
   `Http/Requests/SubmitReportRequest.php`, `Policies/ReportPolicy.php`, `Events/ReportSubmitted.php`,
   `routes.php`, `tests/Feature/Report/SubmitReportTest.php`
 - Acceptance criteria
-  - [ ] Happy path: laporan tersimpan, jenis benar, event terkirim.
-  - [ ] F4-2: koordinat palsu dari luar radius dihitung ulang server.
-  - [ ] F4-4: dua kiriman bersamaan dari satu akun = satu laporan aktif.
-  - [ ] C9, C10; 422 untuk validasi; 401/redirect belum login; 404 proyek draf/tidak ada.
-  - [ ] Laporan lama menjadi "digantikan" dan tidak dihitung dua kali.
+  - [x] Happy path: laporan tersimpan, jenis benar, event terkirim.
+  - [x] F4-2: koordinat palsu dari luar radius dihitung ulang server.
+  - [x] F4-4: dua kiriman bersamaan dari satu akun = satu laporan aktif.
+  - [x] C9, C10; 422 untuk validasi; 401/redirect belum login; 404 proyek draf/tidak ada.
+  - [x] Laporan lama menjadi "digantikan" dan tidak dihitung dua kali.
   - [x] Jawaban (`report_answers`, hasil ukur + satuan RAB hanya untuk "Tidak") dan foto (`report_photos`) tersimpan.
   - [x] D-010: perangkat yang sudah dipakai akun lain di siklus yang sama -> 422 `device`; akun yang sama di
         perangkat yang sama menggantikan laporannya sendiri.

@@ -47,18 +47,16 @@ Spec: PRD Arsitektur 8, 13.1
   - [ ] gitleaks berjalan dan scan termasuk history
 
 ### M0-05 · Deploy (VPS + Caddy + Laravel Cloud atau manual)
-- Status: blocked · Ukuran: L · Owner: Dev 1
+- Status: done (live di `https://sonardesa.com`) · Ukuran: L · Owner: Dev 1
 - Spec: PRD Arsitektur 7.4
-- Blocker: **VPS dan domain dari owner proyek**
 - Scope:
-  - `DEPLOY.md`: langkah deploy manual ke VPS (Caddy 2, PHP-FPM Docker, Postgres) atau Laravel Cloud.
-  - Script atau Makefile target `make deploy` (pull image + migrate + restart).
+  - `compose.prod.yml` + `docker/caddy/Caddyfile` + server VPS dengan domain `sonardesa.com` (HTTPS).
   - Env produksi: `APP_ENV=production`, `APP_DEBUG=false`, `LOG_LEVEL=warning`.
-- Files: `DEPLOY.md`, `.github/workflows/deploy.yml` (opsional, CD)
+- Files: `compose.prod.yml`, `docker/caddy/Caddyfile`
 - Acceptance criteria:
-  - [ ] `http://localhost:8080/up` → 200 di server produksi
+  - [x] `/up` → 200 di server produksi (`https://sonardesa.com`)
   - [ ] `make test` di server lulus (Postgres nyata)
-  - [ ] HTTPS aktif, HTTP redirect ke HTTPS
+  - [x] HTTPS aktif, HTTP redirect ke HTTPS
 
 ### M0-06 · Seeders & demo clone
 - Status: done · Ukuran: M · Owner: Dev 1

@@ -37,14 +37,14 @@ tidak saling mengganggu, dan kode fitur M1-M5 tidak pernah tahu sedang demo.
   - Banner tampil di semua halaman lewat `RootLayout` (layout default di `app.ts`), dibaca dari shared prop `demo`.
   - Cek "village demo hanya untuk sesi pemiliknya" dipindah dari 3 controller Project ke
     `Core\Village\VillageVisibility`, supaya modul fitur tidak menyebut demo (F6-4).
-  - Semua peran mendarat di halaman desa demo. TODO(M2-06): desa -> `/audits`. TODO(M5-04): bpd -> `/bpd`.
-  - Halaman depan: 3 pintu (Warga, Pemerintah Desa, BPD). Pintu ke-4 "Coba contoh RAB" datang dengan M2.
+  - Landing per peran: desa -> `/desa`, bpd -> `/bpd`, warga -> `/d/{village}`.
+  - Halaman depan & `/demo`: 3 pintu peran + endpoint `POST /demo/contoh-rab/{1|2|3}` (`OpenSampleRab`).
 - Acceptance criteria
   - [x] M1: masuk dalam 1 klik tanpa daftar (browser: 226 ms sampai halaman desa).
   - [x] M2: banner + "Ganti peran" + "Mulai ulang demo" di semua layar demo.
   - [x] M4: pengunjung lain mendapat 404 untuk desa dan proyek demo milik sesi lain.
   - [x] M5: "Mulai ulang demo" mengembalikan data ke kondisi awal.
-  - [ ] M3, M6, M8: menunggu M2 (contoh RAB, batas unggah) dan M4 (lokasi contoh).
+  - [x] M3, M6, M8 (backend): `OpenSampleRab`, `EnforceDemoUploadLimit` (3 unggah AI), dan `SampleCheckLocation` aktif. Pintu UI Contoh RAB 1/2/3 di halaman depan menunggu penyelesaian UI.
 
 ### M6-04 · PurgeExpiredDemos
 - Status: done · Ukuran: S · Owner: Dev 1
@@ -57,9 +57,9 @@ tidak saling mengganggu, dan kode fitur M1-M5 tidak pernah tahu sedang demo.
   - [x] F6-3: village kedaluwarsa + foldernya terhapus; Desa Contoh dan village yang masih aktif utuh.
 
 ### M6-01 · DemoTemplateSeeder (data awal)
-- Status: todo (M6b, 4-5 Des) · Depends on: M2-M5
-- Saat ini Desa Contoh berisi 1 proyek dari `ProjectSeeder`. Data awal lengkap PRD Fitur 7.3 (4 proyek +
-  Contoh RAB 1/2/3) menunggu M2-M5.
+- Status: done · Depends on: M2-M5
+- `ProjectSeeder` mengisi 4 proyek Desa Contoh + 4 PDF contoh + laporan warga + tinjauan BPD (`DemoTemplateSeedTest`), serta fixture `sample-rab-melati.json`, `sample-rab-subak-uma.json`, dan `sample-rab-posyandu.json`.
 
 ### M6-05 · Foto + lokasi contoh di Cek Spek; batas 3 unggah AI
-- Status: todo · Depends on: M2 (unggah), M4 (Cek Spek)
+- Status: review (backend & Cek Spek selesai; indikator batas unggah UI menyusul) · Depends on: M2 (unggah), M4 (Cek Spek)
+- Files: `app/Modules/Demo/Actions/SampleCheckLocation.php`, `app/Modules/Demo/Http/Middleware/EnforceDemoUploadLimit.php`, `database/migrations/2026_11_25_000001_add_demo_ai_uploads_count_to_villages_table.php`, `tests/Feature/Demo/DemoCheckSpecTest.php`, `tests/Feature/Demo/DemoUploadLimitAndSampleRabTest.php`.
