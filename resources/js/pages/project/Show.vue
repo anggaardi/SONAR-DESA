@@ -278,10 +278,10 @@ function handleTabClick(tabId: string): void {
                             />
 
                             <!-- 2. Dokumen Publik RAB Asli Card -->
-                            <div class="rounded-2xl border border-stroke bg-surface p-5 shadow-xs">
+                            <div class="rounded-lg border border-stroke bg-surface p-5">
                                 <div class="flex items-start gap-3">
                                     <div
-                                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-subtle text-primary"
+                                        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary"
                                     >
                                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path
@@ -301,7 +301,7 @@ function handleTabClick(tabId: string): void {
                                 </div>
                                 <a
                                     :href="`/p/${project.slug}/dokumen`"
-                                    class="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-stroke bg-surface px-4 text-sm font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                    class="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-stroke-strong bg-surface px-4 text-sm font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
@@ -342,7 +342,7 @@ function handleTabClick(tabId: string): void {
             <div class="mx-auto max-w-md px-4 py-3 sm:max-w-xl sm:px-6 md:max-w-3xl">
                 <a
                     :href="checkSpecHref"
-                    class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-content-inverse transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:bg-primary-hover"
+                    class="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-base font-medium text-content-inverse transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:bg-primary-hover"
                 >
                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path

@@ -279,9 +279,13 @@ function filterTabClass(tabId: FilterTab): string {
                                     <div class="font-medium text-content">
                                         {{ item.raw_name }}
                                     </div>
-                                    <div v-if="item.standard" class="mt-0.5 text-xs text-content-tertiary tabular-nums">
-                                        Standar harga: {{ formatRupiah(item.standard.price_rp) }} /
-                                        {{ item.standard.unit }}
+                                    <div
+                                        v-if="item.standard || item.standard_price_rp"
+                                        class="mt-0.5 text-xs text-content-tertiary tabular-nums"
+                                    >
+                                        Standar harga:
+                                        {{ formatRupiah(item.standard_price_rp ?? item.standard?.price_rp ?? 0) }}
+                                        <template v-if="item.standard?.unit"> / {{ item.standard.unit }}</template>
                                     </div>
                                     <div v-else class="mt-0.5 text-xs text-content-tertiary">Tanpa acuan standar</div>
 
@@ -369,8 +373,13 @@ function filterTabClass(tabId: FilterTab): string {
                                 >
                                 {{ item.raw_name }}
                             </p>
-                            <p v-if="item.standard" class="mt-0.5 text-xs text-content-tertiary tabular-nums">
-                                Standar harga: {{ formatRupiah(item.standard.price_rp) }} / {{ item.standard.unit }}
+                            <p
+                                v-if="item.standard || item.standard_price_rp"
+                                class="mt-0.5 text-xs text-content-tertiary tabular-nums"
+                            >
+                                Standar harga:
+                                {{ formatRupiah(item.standard_price_rp ?? item.standard?.price_rp ?? 0) }}
+                                <template v-if="item.standard?.unit"> / {{ item.standard.unit }}</template>
                             </p>
                             <p v-else class="mt-0.5 text-xs text-content-tertiary">Tanpa acuan standar</p>
                         </div>

@@ -34,9 +34,11 @@ final class AuditItemController
             $newLabel = $item->label;
             $overPct = $item->over_pct;
             $diffRp = $item->diff_rp;
+            $standardPriceRp = $item->standard_price_rp;
 
             if ($item->label === PriceLabel::NeedsCheck) {
                 if ($standard && $standard->price_rp > 0) {
+                    $standardPriceRp = $standard->price_rp;
                     if ($item->unit_price_rp > $standard->price_rp) {
                         $diff = $item->unit_price_rp - $standard->price_rp;
                         $pct = (int) ceil(($diff * 100) / $standard->price_rp);
@@ -49,6 +51,7 @@ final class AuditItemController
                         $diffRp = 0;
                     }
                 } else {
+                    $standardPriceRp = null;
                     $newLabel = PriceLabel::NoReference;
                     $overPct = null;
                     $diffRp = null;
@@ -60,6 +63,7 @@ final class AuditItemController
                 'label' => $newLabel,
                 'over_pct' => $overPct,
                 'diff_rp' => $diffRp,
+                'standard_price_rp' => $standardPriceRp,
             ]);
 
             $this->updateAuditStatusIfResolved($audit);
@@ -227,6 +231,7 @@ final class AuditItemController
                 'unit_price_rp' => $unitPrice,
                 'amount_rp' => $amountRp,
                 'standard_id' => $standard?->id,
+                'standard_price_rp' => $standard?->price_rp,
                 'label' => $labelResult->label,
                 'over_pct' => $labelResult->overPct,
                 'diff_rp' => $labelResult->diffRp,

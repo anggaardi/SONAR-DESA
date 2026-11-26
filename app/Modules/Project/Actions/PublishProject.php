@@ -225,6 +225,7 @@ final class PublishProject
             }
 
             // Resolve confirmed yellow rows before publishing so citizen page has pure labels
+            $audit->loadMissing('items.standard');
             foreach ($audit->items as $item) {
                 if ($item->label === PriceLabel::NeedsCheck) {
                     $standard = $item->standard;
@@ -236,6 +237,7 @@ final class PublishProject
                                 'label' => PriceLabel::AboveStandard,
                                 'over_pct' => $pct,
                                 'diff_rp' => (int) bcmul((string) (float) $item->volume, (string) $diff, 0),
+                                'standard_price_rp' => $standard->price_rp,
                                 'corrected' => true,
                             ]);
                         } else {
@@ -243,6 +245,7 @@ final class PublishProject
                                 'label' => PriceLabel::WithinStandard,
                                 'over_pct' => null,
                                 'diff_rp' => 0,
+                                'standard_price_rp' => $standard->price_rp,
                                 'corrected' => true,
                             ]);
                         }
@@ -251,6 +254,7 @@ final class PublishProject
                             'label' => PriceLabel::NoReference,
                             'over_pct' => null,
                             'diff_rp' => null,
+                            'standard_price_rp' => null,
                             'corrected' => true,
                         ]);
                     }

@@ -17,6 +17,7 @@ export interface AuditItemData {
     unit_price_rp: number | null;
     amount_rp: number | null;
     standard_id: number | null;
+    standard_price_rp?: number | null;
     standard: PriceStandardItem | null;
     label: PriceLabelType;
     over_pct: number | null;

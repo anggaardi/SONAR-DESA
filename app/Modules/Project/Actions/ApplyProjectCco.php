@@ -105,6 +105,7 @@ final class ApplyProjectCco
                 'unit_price_rp' => $newPrice,
                 'amount_rp' => $newAmountRp,
                 'standard_id' => $standard?->id,
+                'standard_price_rp' => $standard?->price_rp,
                 'label' => $labelResult->label,
                 'over_pct' => $labelResult->overPct,
                 'diff_rp' => $labelResult->diffRp,

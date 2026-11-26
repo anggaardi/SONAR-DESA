@@ -365,7 +365,7 @@ watch(
         } else if (step === 2) {
             viewMode.value = 'project';
             nextTick(() => {
-                scrollToSection('phone-geofence');
+                scrollToSection('phone-lokasi');
             });
         } else if (step === 3) {
             viewMode.value = 'project';
@@ -386,35 +386,28 @@ watch(
 
 <template>
     <div class="flex flex-col items-center">
-        <!-- Live Preview Header with Mode Controls (Matches Image 3 concept) -->
+        <!-- Preview Header with Mode Controls -->
         <div class="mb-3 flex w-full max-w-[340px] flex-wrap items-center justify-between gap-2 px-1">
-            <div class="flex items-center gap-2">
-                <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-xs">
-                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="2"
-                            d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-                        />
-                    </svg>
-                </div>
-                <div>
-                    <h4 class="flex items-center gap-1.5 text-xs font-bold text-content">
-                        <span>Live Preview</span>
-                    </h4>
-                    <p class="text-[10px] text-content-tertiary">Layar ponsel warga desa</p>
-                </div>
+            <div>
+                <h4 class="flex items-center gap-1.5 text-xs font-semibold text-content">
+                    <span>Pratinjau Warga</span>
+                    <span
+                        class="rounded-full border border-stroke bg-surface px-2 py-0.5 text-xs font-medium text-content-secondary"
+                    >
+                        Simulasi
+                    </span>
+                </h4>
+                <p class="text-xs text-content-tertiary">Tampilan halaman ponsel warga</p>
             </div>
 
             <!-- View Switcher -->
-            <div class="inline-flex rounded-lg border border-stroke bg-surface p-0.5 shadow-2xs">
+            <div class="inline-flex rounded-md border border-stroke bg-surface p-0.5">
                 <button
                     type="button"
                     :class="[
-                        'rounded-md px-2 py-1 text-[10px] font-medium transition-colors',
+                        'rounded-sm px-2.5 py-1 text-xs font-medium transition-colors',
                         viewMode === 'project'
-                            ? 'bg-primary text-white shadow-xs'
+                            ? 'bg-primary text-content-inverse'
                             : 'text-content-secondary hover:text-content',
                     ]"
                     @click="viewMode = 'project'"
@@ -424,9 +417,9 @@ watch(
                 <button
                     type="button"
                     :class="[
-                        'rounded-md px-2 py-1 text-[10px] font-medium transition-colors',
+                        'rounded-sm px-2.5 py-1 text-xs font-medium transition-colors',
                         viewMode === 'check_spec'
-                            ? 'bg-primary text-white shadow-xs'
+                            ? 'bg-primary text-content-inverse'
                             : 'text-content-secondary hover:text-content',
                     ]"
                     @click="viewMode = 'check_spec'"
@@ -436,41 +429,34 @@ watch(
             </div>
         </div>
 
-        <!-- Smartphone Device Mockup Chassis -->
-        <div class="bg-slate-900 ring-slate-800 relative w-full max-w-[340px] rounded-[2.6rem] p-2.5 shadow-2xl ring-1">
-            <!-- Physical External Side Buttons -->
-            <div class="bg-slate-700 absolute top-20 -left-1 h-7 w-1 rounded-l-xs"></div>
-            <div class="bg-slate-700 absolute top-30 -left-1 h-11 w-1 rounded-l-xs"></div>
-            <div class="bg-slate-700 absolute top-24 -right-1 h-12 w-1 rounded-r-xs"></div>
+        <!--
+            Phone mockup. The large radius draws a phone body, not a UI card, so the
+            DESIGN.md radius scale does not apply here. Colours stay on semantic tokens, no shadow.
+        -->
+        <div class="relative w-full max-w-[340px] rounded-[2.5rem] bg-content p-2.5">
+            <!-- Side buttons -->
+            <div class="absolute top-20 -left-1 h-7 w-1 rounded-l-sm bg-content-secondary"></div>
+            <div class="absolute top-32 -left-1 h-11 w-1 rounded-l-sm bg-content-secondary"></div>
+            <div class="absolute top-24 -right-1 h-12 w-1 rounded-r-sm bg-content-secondary"></div>
 
             <!-- Screen Viewport -->
-            <div
-                class="border-slate-800/80 relative flex h-[510px] flex-col overflow-hidden rounded-[2rem] border bg-surface-subtle text-content"
-            >
-                <!-- Dynamic Island / Top Notch -->
-                <div
-                    class="absolute top-1.5 left-1/2 z-40 flex h-4 w-20 -translate-x-1/2 items-center justify-between rounded-full bg-black px-2 shadow-xs"
-                >
-                    <div class="bg-slate-900 ring-slate-800 h-1.5 w-1.5 rounded-full ring-1"></div>
-                    <div class="bg-slate-900 h-1 w-6 rounded-full"></div>
-                </div>
+            <div class="relative flex h-[510px] flex-col overflow-hidden rounded-[2rem] bg-surface-subtle text-content">
+                <!-- Notch -->
+                <div class="absolute top-1.5 left-1/2 z-40 h-5 w-24 -translate-x-1/2 rounded-full bg-content"></div>
 
                 <!-- Status Bar -->
                 <div
-                    class="relative z-30 flex items-center justify-between bg-surface/90 px-4 pt-1.5 pb-1 text-[10px] font-semibold text-content-secondary backdrop-blur-xs select-none"
+                    class="relative z-30 flex h-8 items-center justify-between bg-surface px-6 pt-1 text-xs font-semibold text-content select-none"
                 >
-                    <span>09:41</span>
-                    <div class="flex items-center gap-1.5 text-[9px]">
-                        <span class="font-bold">5G</span>
-                        <svg class="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20">
+                    <span class="tabular-nums">09:41</span>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                             <path
                                 d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"
                             />
                         </svg>
-                        <div class="flex items-center">
-                            <div class="h-2 w-3.5 rounded-xs border border-content-secondary p-0.5">
-                                <div class="rounded-2xs h-full w-full bg-content-secondary"></div>
-                            </div>
+                        <div class="flex h-3 w-5 items-center rounded-sm border border-content p-px">
+                            <div class="h-full w-3/4 rounded-[1px] bg-content"></div>
                         </div>
                     </div>
                 </div>
@@ -478,7 +464,7 @@ watch(
                 <!-- Toast Notification inside phone -->
                 <div
                     v-if="toastMessage"
-                    class="absolute top-8 right-4 left-4 z-50 rounded-lg bg-content px-3 py-1.5 text-center text-[10px] font-medium text-content-inverse shadow-lg transition-all"
+                    class="absolute top-9 right-4 left-4 z-50 rounded-md bg-content px-3 py-1.5 text-center text-xs font-medium text-content-inverse shadow-sm transition-colors"
                 >
                     {{ toastMessage }}
                 </div>
@@ -489,7 +475,7 @@ watch(
                     class="no-scrollbar flex-1 overflow-y-auto overscroll-contain scroll-smooth text-xs"
                 >
                     <!-- ============================================== -->
-                    <!-- VIEW 1: FULL CITIZEN VIEW (MENGACU IMAGE NO 1)  -->
+                    <!-- VIEW 1: FULL CITIZEN VIEW                      -->
                     <!-- ============================================== -->
                     <div v-if="viewMode === 'project'" class="pb-12">
                         <!-- Sticky Mobile Header -->
@@ -505,7 +491,7 @@ watch(
                                         d="M15 19l-7-7 7-7"
                                     />
                                 </svg>
-                                <span class="text-[11px] font-semibold">Rincian proyek</span>
+                                <span class="text-xs font-semibold">Rincian proyek</span>
                             </div>
 
                             <button
@@ -525,10 +511,10 @@ watch(
                             </button>
                         </div>
 
-                        <!-- 1. Project Hero (Image 1 top) -->
+                        <!-- 1. Project Hero -->
                         <section class="border-b border-primary/20 bg-primary-subtle px-3.5 pt-3 pb-3.5">
-                            <p class="flex items-center gap-1 text-[10px] font-medium text-content-secondary">
-                                <svg class="h-3 w-3 shrink-0 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                            <p class="flex items-center gap-1 text-xs font-medium text-content-secondary">
+                                <svg class="h-3.5 w-3.5 shrink-0 text-primary" fill="currentColor" viewBox="0 0 20 20">
                                     <path
                                         fill-rule="evenodd"
                                         d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
@@ -542,46 +528,44 @@ watch(
                                 {{ (projectName || '').trim() || 'Nama Proyek Pembangunan Fisik' }}
                             </h1>
 
-                            <p id="phone-hero-desc" class="mt-1 text-[11px] leading-relaxed text-content-secondary">
+                            <p id="phone-hero-desc" class="mt-1 text-xs leading-relaxed text-content-secondary">
                                 {{ effectiveStoryText }}
                             </p>
 
                             <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
                                 <span
-                                    class="inline-flex items-center rounded-full border border-stroke bg-surface px-2 py-0.5 text-[9px] font-medium text-content"
+                                    class="inline-flex items-center rounded-full border border-stroke bg-surface px-2.5 py-0.5 text-xs font-medium text-content"
                                 >
                                     {{ projectTypeLabel }}
                                 </span>
                                 <span
-                                    class="inline-flex items-center rounded-full border border-info-border bg-surface px-2 py-0.5 text-[9px] font-medium text-primary"
+                                    class="inline-flex items-center rounded-full border border-info-border bg-surface px-2.5 py-0.5 text-xs font-medium text-primary"
                                 >
                                     {{ fundSource }} {{ year }}
                                 </span>
                                 <span
-                                    class="inline-flex items-center rounded-full border border-positive-border bg-positive-subtle px-2 py-0.5 text-[9px] font-semibold text-positive"
+                                    class="inline-flex items-center rounded-full border border-positive-border bg-positive-subtle px-2.5 py-0.5 text-xs font-semibold text-positive"
                                 >
-                                    &check; Terbit Resmi
+                                    &check; Terbit resmi
                                 </span>
                             </div>
                         </section>
 
-                        <!-- 2. Progres Dilaporkan Card (Image 1 - ProjectProgress) -->
+                        <!-- 2. Progres Dilaporkan Card -->
                         <div class="p-3 pb-0">
-                            <div class="rounded-xl border border-stroke bg-surface p-3 shadow-2xs">
-                                <div class="flex items-start justify-between">
+                            <div class="rounded-lg border border-stroke bg-surface p-3">
+                                <div class="flex items-start justify-between gap-2">
                                     <div>
-                                        <p class="text-[10px] font-medium text-content-secondary">Progres dilaporkan</p>
+                                        <p class="text-xs font-medium text-content-secondary">Progres dilaporkan</p>
                                         <div class="mt-0.5 flex items-baseline gap-1.5">
-                                            <span class="text-xl font-extrabold text-content">0%</span>
-                                            <span class="text-[10px] text-content-tertiary"
-                                                >Pekerjaan belum dimulai</span
-                                            >
+                                            <span class="text-xl font-bold text-content tabular-nums">0%</span>
+                                            <span class="text-xs text-content-tertiary">Pekerjaan belum dimulai</span>
                                         </div>
                                     </div>
                                     <span
-                                        class="rounded-full bg-surface-muted px-2 py-0.5 text-[9px] font-medium text-content-secondary"
+                                        class="rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-content-secondary"
                                     >
-                                        Siap Pelaksanaan
+                                        Siap pelaksanaan
                                     </span>
                                 </div>
                                 <!-- Progress Track Bar -->
@@ -589,7 +573,7 @@ watch(
                                     <div class="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
                                         <div class="h-full bg-primary" style="width: 4%"></div>
                                     </div>
-                                    <div class="mt-1 flex justify-between text-[9px] text-content-tertiary">
+                                    <div class="mt-1 flex justify-between text-xs text-content-tertiary tabular-nums">
                                         <span>0%</span>
                                         <span>Target 100%</span>
                                     </div>
@@ -597,41 +581,41 @@ watch(
                             </div>
                         </div>
 
-                        <!-- 3. Section Navigation Pills (Image 1) -->
+                        <!-- 3. Section Navigation Pills -->
                         <div
                             class="sticky top-9 z-10 my-2.5 no-scrollbar flex gap-1.5 overflow-x-auto border-y border-stroke bg-surface px-3 py-1.5"
                         >
                             <button
                                 type="button"
-                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-[10px] font-medium text-content hover:bg-surface-muted"
+                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content hover:bg-surface-muted"
                                 @click="scrollToSection('phone-anggaran')"
                             >
                                 Anggaran
                             </button>
                             <button
                                 type="button"
-                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-[10px] font-medium text-content hover:bg-surface-muted"
+                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content hover:bg-surface-muted"
                                 @click="scrollToSection('phone-harga')"
                             >
                                 Harga
                             </button>
                             <button
                                 type="button"
-                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-[10px] font-medium text-content hover:bg-surface-muted"
+                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content hover:bg-surface-muted"
                                 @click="scrollToSection('phone-ukuran')"
                             >
                                 Ukuran
                             </button>
                             <button
                                 type="button"
-                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-[10px] font-medium text-content hover:bg-surface-muted"
-                                @click="scrollToSection('phone-geofence')"
+                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content hover:bg-surface-muted"
+                                @click="scrollToSection('phone-lokasi')"
                             >
-                                Geofence
+                                Lokasi
                             </button>
                             <button
                                 type="button"
-                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-[10px] font-medium text-content hover:bg-surface-muted"
+                                class="shrink-0 rounded-full border border-stroke bg-surface-subtle px-2.5 py-1 text-xs font-medium text-content hover:bg-surface-muted"
                                 @click="scrollToSection('phone-perjalanan')"
                             >
                                 Perjalanan
@@ -639,27 +623,27 @@ watch(
                         </div>
 
                         <div class="space-y-4 px-3">
-                            <!-- 4. Uangnya untuk apa saja? (Image 1 - ProjectBudget) -->
+                            <!-- 4. Uangnya untuk apa saja? -->
                             <section id="phone-anggaran" class="scroll-mt-20">
-                                <h3 class="text-xs font-bold text-content">Uangnya untuk apa saja?</h3>
-                                <p class="text-[10px] text-content-secondary">
+                                <h3 class="text-sm font-semibold text-content">Uangnya untuk apa saja?</h3>
+                                <p class="text-xs text-content-secondary">
                                     {{ displayItems.length }} baris di RAB, dikelompokkan otomatis
                                 </p>
 
-                                <div class="mt-2 rounded-xl border border-stroke bg-surface p-3 shadow-2xs">
-                                    <p class="text-xl font-extrabold text-content tabular-nums">
+                                <div class="mt-2 rounded-lg border border-stroke bg-surface p-3">
+                                    <p class="text-xl font-bold text-content tabular-nums">
                                         {{ formatRupiah(effectiveWrittenTotalRp) }}
                                     </p>
-                                    <p class="text-[10px] text-content-secondary">Total anggaran (RAB)</p>
+                                    <p class="text-xs text-content-secondary">Total anggaran (RAB)</p>
 
                                     <p
                                         v-if="perMeter"
-                                        class="mt-2 inline-flex items-center rounded-full border border-info-border bg-info-subtle px-2 py-0.5 text-[9px] font-medium text-info tabular-nums"
+                                        class="mt-2 inline-flex items-center rounded-full border border-info-border bg-info-subtle px-2.5 py-0.5 text-xs font-medium text-info tabular-nums"
                                     >
                                         &plusmn; {{ perMeter }} per meter
                                     </p>
 
-                                    <!-- Three-color budget allocation bar (Image 1) -->
+                                    <!-- Three-color budget allocation bar -->
                                     <div
                                         v-if="budgetGroups.length > 1"
                                         class="mt-3 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-surface-muted"
@@ -686,18 +670,18 @@ watch(
                                                 aria-hidden="true"
                                             />
                                             <div class="min-w-0 flex-1">
-                                                <div class="flex items-baseline justify-between text-[10px]">
+                                                <div class="flex items-baseline justify-between text-xs">
                                                     <span class="font-semibold text-content">
                                                         {{ group.label }}
-                                                        <span class="font-normal text-content-tertiary"
-                                                            >({{ group.percent }}%)</span
-                                                        >
+                                                        <span class="font-normal text-content-tertiary tabular-nums">
+                                                            ({{ group.percent }}%)
+                                                        </span>
                                                     </span>
-                                                    <span class="font-bold text-content tabular-nums">
+                                                    <span class="font-semibold text-content tabular-nums">
                                                         {{ formatRupiahShort(group.amountRp) }}
                                                     </span>
                                                 </div>
-                                                <p class="truncate text-[9px] text-content-tertiary">
+                                                <p class="truncate text-xs text-content-tertiary">
                                                     {{ group.itemNames.slice(0, 3).join(', ') }}
                                                 </p>
                                             </div>
@@ -706,28 +690,33 @@ watch(
                                 </div>
                             </section>
 
-                            <!-- 5. Dibandingkan harga standar (Image 1 - ProjectItems) -->
+                            <!-- 5. Dibandingkan harga standar -->
                             <section id="phone-harga" class="scroll-mt-20">
-                                <h3 class="text-xs font-bold text-content">Dibandingkan harga standar</h3>
-                                <p class="text-[10px] text-content-secondary">
+                                <h3 class="text-sm font-semibold text-content">Dibandingkan harga standar</h3>
+                                <p class="text-xs text-content-secondary">
                                     Acuan Standar Harga Kab. {{ village.regency }} {{ year }}
                                 </p>
 
-                                <!-- 3 Stat Summary Tiles (Image 1) -->
+                                <!-- 3 Stat Summary Tiles -->
                                 <div class="mt-2 grid grid-cols-3 gap-1.5 text-center">
                                     <button
                                         type="button"
                                         :class="[
-                                            'rounded-xl border p-2 transition-all',
+                                            'rounded-lg border p-2 transition-colors',
                                             activeFilter === 'above'
-                                                ? 'border-negative bg-negative-subtle ring-2 ring-negative/30'
+                                                ? 'border-negative bg-negative-subtle'
                                                 : 'border-negative-border bg-negative-subtle',
                                         ]"
                                         @click="activeFilter = activeFilter === 'above' ? 'all' : 'above'"
                                     >
                                         <div class="flex items-center justify-center gap-1 text-negative">
-                                            <span class="text-base font-extrabold tabular-nums">{{ aboveCount }}</span>
-                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <span class="text-base font-bold tabular-nums">{{ aboveCount }}</span>
+                                            <svg
+                                                class="h-3.5 w-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
@@ -736,7 +725,7 @@ watch(
                                                 />
                                             </svg>
                                         </div>
-                                        <p class="mt-0.5 text-[9px] leading-tight font-medium text-negative">
+                                        <p class="mt-0.5 text-xs leading-tight font-medium text-negative">
                                             Di atas standar
                                         </p>
                                     </button>
@@ -744,16 +733,21 @@ watch(
                                     <button
                                         type="button"
                                         :class="[
-                                            'rounded-xl border p-2 transition-all',
+                                            'rounded-lg border p-2 transition-colors',
                                             activeFilter === 'within'
-                                                ? 'border-positive bg-positive-subtle ring-2 ring-positive/30'
+                                                ? 'border-positive bg-positive-subtle'
                                                 : 'border-positive-border bg-positive-subtle',
                                         ]"
                                         @click="activeFilter = activeFilter === 'within' ? 'all' : 'within'"
                                     >
                                         <div class="flex items-center justify-center gap-1 text-positive">
-                                            <span class="text-base font-extrabold tabular-nums">{{ withinCount }}</span>
-                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <span class="text-base font-bold tabular-nums">{{ withinCount }}</span>
+                                            <svg
+                                                class="h-3.5 w-3.5"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
@@ -762,76 +756,73 @@ watch(
                                                 />
                                             </svg>
                                         </div>
-                                        <p class="mt-0.5 text-[9px] leading-tight font-medium text-positive">Sesuai</p>
+                                        <p class="mt-0.5 text-xs leading-tight font-medium text-positive">Sesuai</p>
                                     </button>
 
                                     <button
                                         type="button"
                                         :class="[
-                                            'rounded-xl border p-2 transition-all',
+                                            'rounded-lg border p-2 transition-colors',
                                             activeFilter === 'no_ref'
-                                                ? 'border-stroke-strong bg-surface-muted ring-2 ring-stroke-strong/30'
+                                                ? 'border-stroke-strong bg-surface-muted'
                                                 : 'border-stroke bg-surface-muted',
                                         ]"
                                         @click="activeFilter = activeFilter === 'no_ref' ? 'all' : 'no_ref'"
                                     >
                                         <div class="flex items-center justify-center gap-1 text-content-secondary">
-                                            <span class="text-base font-extrabold tabular-nums">{{ noRefCount }}</span>
+                                            <span class="text-base font-bold tabular-nums">{{ noRefCount }}</span>
                                             <span class="text-xs">&minus;</span>
                                         </div>
-                                        <p class="mt-0.5 text-[9px] leading-tight font-medium text-content-secondary">
+                                        <p class="mt-0.5 text-xs leading-tight font-medium text-content-secondary">
                                             Tanpa acuan
                                         </p>
                                     </button>
                                 </div>
 
-                                <p class="mt-1.5 text-[9px] leading-relaxed text-content-tertiary">
-                                    <span v-if="aboveCount > 0"
-                                        >{{ aboveCount }} item di atas standar lebih mahal, telah diverifikasi APBDes
-                                        desa.</span
-                                    >
-                                    <span v-else
-                                        >Semua harga item belanja telah diverifikasi sesuai ketentuan APBDes.</span
-                                    >
+                                <p class="mt-1.5 text-xs leading-relaxed text-content-tertiary">
+                                    <span v-if="aboveCount > 0">
+                                        {{ aboveCount }} item di atas standar acuan; BPD dapat meminta penjelasan desa.
+                                    </span>
+                                    <span v-else> Semua item berada dalam batas atau di bawah standar acuan. </span>
                                 </p>
 
-                                <!-- RAB Items Cards List (Image 1) -->
+                                <!-- RAB Items Cards List -->
                                 <div class="mt-2.5 space-y-1.5">
                                     <div
                                         v-for="item in filteredItems"
                                         :key="item.id"
-                                        class="rounded-xl border border-stroke bg-surface p-2.5 shadow-2xs transition-colors hover:border-primary/40"
+                                        class="rounded-lg border border-stroke bg-surface p-2.5 transition-colors hover:border-primary/40"
                                     >
                                         <div class="flex items-start justify-between gap-2">
                                             <div class="min-w-0 flex-1">
-                                                <h4 class="truncate text-[11px] font-bold text-content">
+                                                <h4 class="truncate text-xs font-semibold text-content">
                                                     {{ item.name }}
                                                 </h4>
-                                                <p class="text-[9px] text-content-tertiary">
+                                                <p class="text-xs text-content-tertiary tabular-nums">
                                                     {{ item.volume || '1' }} {{ item.unit || 'unit' }}
                                                     <template v-if="item.unit_price_rp">
                                                         &middot; @{{ formatRupiahShort(item.unit_price_rp) }}
                                                     </template>
                                                 </p>
                                             </div>
-                                            <span class="shrink-0 text-[11px] font-bold text-content tabular-nums">
+                                            <span class="shrink-0 text-xs font-semibold text-content tabular-nums">
                                                 {{ formatRupiah(item.amount_rp ?? 0) }}
                                             </span>
                                         </div>
 
-                                        <!-- Badge comparison tag (Image 1) -->
+                                        <!-- Badge comparison tag -->
                                         <div
-                                            class="mt-2 flex items-center justify-between border-t border-stroke/60 pt-1.5"
+                                            class="mt-2 flex items-center justify-between border-t border-stroke pt-1.5"
                                         >
                                             <span
                                                 v-if="
                                                     item.label === 'above_standard' ||
                                                     (item.over_pct && item.over_pct > 0)
                                                 "
-                                                class="inline-flex items-center gap-1 rounded-full border border-negative-border bg-negative-subtle px-2 py-0.5 text-[9px] font-semibold text-negative"
+                                                class="inline-flex items-center gap-1 rounded-full border border-negative-border bg-negative-subtle px-2 py-0.5 text-xs font-medium text-negative"
                                             >
                                                 <svg
-                                                    class="h-2.5 w-2.5"
+                                                    class="h-3 w-3"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
                                                     stroke="currentColor"
@@ -847,27 +838,27 @@ watch(
                                             </span>
                                             <span
                                                 v-else-if="item.label === 'within_standard'"
-                                                class="inline-flex items-center gap-1 rounded-full border border-positive-border bg-positive-subtle px-2 py-0.5 text-[9px] font-semibold text-positive"
+                                                class="inline-flex items-center gap-1 rounded-full border border-positive-border bg-positive-subtle px-2 py-0.5 text-xs font-medium text-positive"
                                             >
-                                                &check; Sesuai standar
+                                                &check; Sesuai
                                             </span>
                                             <span
                                                 v-else
-                                                class="inline-flex items-center rounded-full border border-stroke bg-surface-muted px-2 py-0.5 text-[9px] font-medium text-content-secondary"
+                                                class="inline-flex items-center rounded-full border border-stroke bg-surface-muted px-2 py-0.5 text-xs font-medium text-content-secondary"
                                             >
                                                 Tanpa acuan
                                             </span>
 
-                                            <span class="text-[9px] text-content-tertiary"> RAB resmi &rsaquo; </span>
+                                            <span class="text-xs text-content-tertiary">RAB resmi &rsaquo;</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- Official PDF Document Button (Image 1) -->
-                                <div class="mt-3 rounded-xl border border-stroke bg-surface p-3 text-center shadow-2xs">
+                                <!-- Official PDF Document Button -->
+                                <div class="mt-3 rounded-lg border border-stroke bg-surface p-3 text-center">
                                     <button
                                         type="button"
-                                        class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-stroke bg-surface-subtle py-2 text-[10px] font-semibold text-content hover:bg-surface-muted"
+                                        class="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-stroke bg-surface-subtle text-xs font-medium text-content hover:bg-surface-muted"
                                         @click="showToast('Dokumen RAB resmi tersedia setelah terbit!')"
                                     >
                                         <svg
@@ -885,24 +876,22 @@ watch(
                                         </svg>
                                         <span>Unduh dokumen asli</span>
                                     </button>
-                                    <p class="mt-1 text-[9px] text-content-tertiary">
+                                    <p class="mt-1.5 text-xs text-content-tertiary">
                                         Total {{ displayItems.length }} baris item APBDes resmi tercatat
                                     </p>
                                 </div>
                             </section>
 
-                            <!-- 6. Ukuran di RAB (Image 1 - ProjectMeasurements) -->
+                            <!-- 6. Ukuran di RAB -->
                             <section id="phone-ukuran" class="scroll-mt-20">
                                 <div>
-                                    <h3 class="text-xs font-bold text-content">Ukuran di RAB</h3>
-                                    <p class="text-[10px] text-content-secondary">
-                                        Ini yang bisa kamu cocokkan di lokasi
-                                    </p>
+                                    <h3 class="text-sm font-semibold text-content">Ukuran di RAB</h3>
+                                    <p class="text-xs text-content-secondary">Ini yang bisa kamu cocokkan di lokasi</p>
                                 </div>
 
-                                <div class="mt-2 rounded-xl border border-stroke bg-surface p-3 shadow-2xs">
-                                    <!-- 3D Technical Slab Diagram (Image 1) -->
-                                    <div v-if="diagram" class="rounded-lg bg-surface-subtle p-2">
+                                <div class="mt-2 rounded-lg border border-stroke bg-surface p-3">
+                                    <!-- 3D Technical Slab Diagram -->
+                                    <div v-if="diagram" class="rounded-md bg-surface-subtle p-2">
                                         <svg
                                             class="mx-auto block w-full max-w-64"
                                             viewBox="0 0 320 128"
@@ -939,11 +928,11 @@ watch(
                                                 x="154"
                                                 y="106.5"
                                                 text-anchor="middle"
-                                                class="fill-primary text-[11px] font-semibold"
+                                                class="fill-primary text-xs font-semibold"
                                             >
                                                 {{ diagram.length }}
                                             </text>
-                                            <text x="286" y="78" class="fill-primary text-[11px] font-semibold">
+                                            <text x="286" y="78" class="fill-primary text-xs font-semibold">
                                                 {{ diagram.width }}
                                             </text>
                                             <text
@@ -951,36 +940,36 @@ watch(
                                                 x="40"
                                                 y="82.5"
                                                 text-anchor="end"
-                                                class="fill-primary text-[11px] font-semibold"
+                                                class="fill-primary text-xs font-semibold"
                                             >
                                                 {{ diagram.thickness }}
                                             </text>
                                         </svg>
                                     </div>
 
-                                    <!-- Dimension cards grid (Image 1) -->
+                                    <!-- Dimension cards grid -->
                                     <div class="mt-2.5 grid grid-cols-2 gap-2">
                                         <div
                                             v-for="(item, idx) in effectiveMeasurements"
                                             :key="idx"
-                                            class="rounded-lg border border-stroke bg-surface-subtle p-2"
+                                            class="rounded-md border border-stroke bg-surface-subtle p-2"
                                         >
-                                            <p class="truncate text-[9px] text-content-secondary">
+                                            <p class="truncate text-xs text-content-secondary">
                                                 {{ item.name || 'Ukuran' }}
                                             </p>
-                                            <p class="mt-0.5 text-xs font-bold text-content tabular-nums">
+                                            <p class="mt-0.5 text-xs font-semibold text-content tabular-nums">
                                                 {{ item.value }} {{ item.unit }}
                                             </p>
                                         </div>
                                     </div>
 
-                                    <!-- Cara Mengukur (Image 1) -->
+                                    <!-- Cara Mengukur -->
                                     <div
                                         v-if="effectiveMeasurements.some((m) => m.how_to)"
                                         class="mt-3 border-t border-stroke pt-2.5"
                                     >
-                                        <p class="text-[10px] font-bold text-content">Cara mengukur:</p>
-                                        <ul class="mt-1 space-y-1 text-[9px] text-content-secondary">
+                                        <p class="text-xs font-semibold text-content">Cara mengukur:</p>
+                                        <ul class="mt-1 space-y-1 text-xs text-content-secondary">
                                             <li
                                                 v-for="(item, idx) in effectiveMeasurements.filter((m) => m.how_to)"
                                                 :key="idx"
@@ -993,33 +982,33 @@ watch(
                                 </div>
                             </section>
 
-                            <!-- 7. Lokasi & Geofence (Step 2 Focus) -->
-                            <section id="phone-geofence" class="scroll-mt-20">
-                                <div class="rounded-xl border border-stroke bg-surface p-3 shadow-2xs">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-[10px] font-bold tracking-wider text-content uppercase">
-                                            Lokasi & Geofence (300m)
+                            <!-- 7. Lokasi & Radius (Step 2 Focus) -->
+                            <section id="phone-lokasi" class="scroll-mt-20">
+                                <div class="rounded-lg border border-stroke bg-surface p-3">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="text-xs font-semibold text-content">
+                                            Lokasi proyek (radius 300 m)
                                         </span>
                                         <span
                                             v-if="lat && lng"
-                                            class="inline-flex items-center gap-1 rounded-full bg-positive-subtle px-1.5 py-0.5 text-[9px] font-bold text-positive"
+                                            class="inline-flex items-center gap-1 rounded-full bg-positive-subtle px-2 py-0.5 text-xs font-medium text-positive"
                                         >
                                             <span class="h-1.5 w-1.5 rounded-full bg-positive"></span>
                                             Aktif
                                         </span>
                                         <span
                                             v-else
-                                            class="rounded-full bg-warning-subtle px-1.5 py-0.5 text-[9px] font-medium text-warning"
+                                            class="rounded-full bg-warning-subtle px-2 py-0.5 text-xs font-medium text-warning"
                                         >
-                                            Belum Diisi
+                                            Belum diisi
                                         </span>
                                     </div>
 
-                                    <!-- Radar & Coordinate Box -->
-                                    <div class="mt-2 rounded-lg border border-primary/20 bg-primary-subtle/50 p-2.5">
+                                    <!-- Coordinate Box -->
+                                    <div class="mt-2 rounded-md border border-info-border bg-primary-subtle p-2.5">
                                         <div class="flex items-start gap-2.5">
                                             <div
-                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white shadow-xs"
+                                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-content-inverse"
                                             >
                                                 <svg
                                                     class="h-4 w-4"
@@ -1042,21 +1031,23 @@ watch(
                                                 </svg>
                                             </div>
                                             <div class="min-w-0 flex-1">
-                                                <div class="font-mono text-[10px] font-bold text-content">
-                                                    {{ lat || '-8.412400' }}, {{ lng || '115.248200' }}
+                                                <div class="text-xs font-semibold text-content tabular-nums">
+                                                    {{
+                                                        lat && lng ? `${lat}, ${lng}` : 'Titik koordinat belum dipilih'
+                                                    }}
                                                 </div>
-                                                <p class="mt-0.5 text-[10px] leading-tight text-content-secondary">
+                                                <p class="mt-0.5 text-xs leading-tight text-content-secondary">
                                                     {{ villageDisplayName }}, Kab. {{ village.regency }}
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div
-                                            class="mt-2 border-t border-primary/15 pt-2 text-[10px] text-content-secondary"
+                                            class="mt-2 border-t border-info-border pt-2 text-xs text-content-secondary"
                                         >
                                             <div class="flex items-center gap-1 font-semibold text-primary">
                                                 <svg
-                                                    class="h-3 w-3 shrink-0"
+                                                    class="h-3.5 w-3.5 shrink-0"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
                                                     stroke="currentColor"
@@ -1068,22 +1059,21 @@ watch(
                                                         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                                                     />
                                                 </svg>
-                                                <span>Radius Validasi: &le; 300 meter</span>
+                                                <span>Radius lokasi: &le; 300 meter</span>
                                             </div>
-                                            <p class="mt-0.5 text-[9px] text-content-tertiary">
-                                                Warga hanya dapat mengisi Cek Spek jika posisi GPS fisiknya berada di
-                                                dalam radius ini.
+                                            <p class="mt-0.5 text-xs text-content-tertiary">
+                                                Warga hanya dapat mengirim Cek Spek jika berada di dalam radius ini.
                                             </p>
                                         </div>
                                     </div>
 
                                     <button
                                         type="button"
-                                        class="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 py-1.5 text-[10px] font-bold text-primary transition-colors hover:bg-primary/10"
+                                        class="mt-2.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-info-border bg-primary-subtle text-xs font-medium text-primary transition-colors hover:bg-surface-muted"
                                         @click="viewMode = 'check_spec'"
                                     >
-                                        <span>Buka Simulasi Layar Cek Spek & GPS</span>
-                                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <span>Buka simulasi Cek Spek &amp; lokasi</span>
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path
                                                 stroke-linecap="round"
                                                 stroke-linejoin="round"
@@ -1095,10 +1085,10 @@ watch(
                                 </div>
                             </section>
 
-                            <!-- 8. Lewat lokasi proyek ini? (Image 1 - ProjectCheckSpecInvite) -->
+                            <!-- 8. Lewat lokasi proyek ini? -->
                             <section
                                 id="phone-invite"
-                                class="rounded-xl border border-info-border bg-primary-subtle p-3 text-center"
+                                class="rounded-lg border border-info-border bg-primary-subtle p-3 text-center"
                             >
                                 <img
                                     :src="checkSpecSvg"
@@ -1108,14 +1098,14 @@ watch(
                                 />
 
                                 <h4 class="mt-2 text-xs font-bold text-content">Lewat lokasi proyek ini?</h4>
-                                <p class="mt-1 text-[10px] leading-relaxed text-content-secondary">
+                                <p class="mt-1 text-xs leading-relaxed text-content-secondary">
                                     Ukur panjang dan lebarnya dengan meteran, ambil foto, lalu bandingkan dengan RAB.
                                     Cukup sekitar 5 menit untuk ikut menjaga dana desa.
                                 </p>
 
                                 <button
                                     type="button"
-                                    class="mt-2.5 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-white shadow-xs transition-colors hover:bg-primary-hover active:scale-[0.98]"
+                                    class="mt-2.5 inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-content-inverse transition-colors hover:bg-primary-hover"
                                     @click="viewMode = 'check_spec'"
                                 >
                                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1129,50 +1119,48 @@ watch(
                                     <span>Buka Cek Spek</span>
                                 </button>
 
-                                <p class="mt-2 text-[9px] text-content-tertiary">
+                                <p class="mt-2 text-xs text-content-tertiary">
                                     Belum ada warga yang cek &middot; Kamu bisa jadi yang pertama
                                 </p>
                             </section>
 
-                            <!-- 9. Perjalanan proyek (Image 1 - ProjectJourney) -->
+                            <!-- 9. Perjalanan proyek -->
                             <section
                                 id="phone-perjalanan"
-                                class="scroll-mt-20 rounded-xl border border-stroke bg-surface p-3"
+                                class="scroll-mt-20 rounded-lg border border-stroke bg-surface p-3"
                             >
-                                <h3 class="text-xs font-bold text-content">Perjalanan proyek</h3>
-                                <p class="text-[10px] text-content-secondary">
-                                    Dari perencanaan desa sampai diawasi warga
-                                </p>
+                                <h3 class="text-sm font-semibold text-content">Perjalanan proyek</h3>
+                                <p class="text-xs text-content-secondary">Dari perencanaan desa sampai diawasi warga</p>
 
                                 <div class="mt-2.5 space-y-2 border-l-2 border-primary/30 pl-3">
                                     <div class="relative">
                                         <span
-                                            class="absolute top-1 -left-[17px] h-2 w-2 rounded-full bg-primary"
+                                            class="absolute top-1.5 -left-[17px] h-2 w-2 rounded-full bg-primary"
                                         ></span>
-                                        <p class="text-[10px] font-bold text-content">Perencanaan APBDes</p>
-                                        <p class="text-[9px] text-content-tertiary">Disahkan musyawarah desa</p>
+                                        <p class="text-xs font-semibold text-content">Perencanaan APBDes</p>
+                                        <p class="text-xs text-content-tertiary">Disahkan musyawarah desa</p>
                                     </div>
                                     <div class="relative">
                                         <span
-                                            class="absolute top-1 -left-[17px] h-2 w-2 rounded-full bg-primary"
+                                            class="absolute top-1.5 -left-[17px] h-2 w-2 rounded-full bg-primary"
                                         ></span>
-                                        <p class="text-[10px] font-bold text-content">Publikasi Transparansi</p>
-                                        <p class="text-[9px] text-content-tertiary">Penerbitan resmi di Sonar Desa</p>
+                                        <p class="text-xs font-semibold text-content">Publikasi transparansi</p>
+                                        <p class="text-xs text-content-tertiary">Penerbitan resmi di Sonar Desa</p>
                                     </div>
                                     <div class="relative">
                                         <span
-                                            class="absolute top-1 -left-[17px] h-2 w-2 rounded-full border border-stroke bg-surface-muted"
+                                            class="absolute top-1.5 -left-[17px] h-2 w-2 rounded-full border border-stroke bg-surface-muted"
                                         ></span>
-                                        <p class="text-[10px] font-bold text-content-secondary">
-                                            Pengawasan Fisik Warga
+                                        <p class="text-xs font-semibold text-content-secondary">
+                                            Pengawasan fisik warga
                                         </p>
-                                        <p class="text-[9px] text-content-tertiary">Menunggu partisipasi warga</p>
+                                        <p class="text-xs text-content-tertiary">Menunggu partisipasi warga</p>
                                     </div>
                                 </div>
                             </section>
 
-                            <!-- 10. Footer (Image 1) -->
-                            <div class="border-t border-stroke pt-3 text-center text-[9px] text-content-tertiary">
+                            <!-- 10. Footer -->
+                            <div class="border-t border-stroke pt-3 text-center text-xs text-content-tertiary">
                                 <p class="font-semibold text-content-secondary">
                                     Sonar Desa &middot; Sistem Transparansi Publik Desa
                                 </p>
@@ -1180,14 +1168,14 @@ watch(
                             </div>
                         </div>
 
-                        <!-- Sticky Mobile Action Button at bottom (Image 1) -->
+                        <!-- Sticky Mobile Action Button at bottom (muted inside simulation) -->
                         <div
                             class="sticky bottom-0 z-20 mt-4 border-t border-stroke bg-surface/95 p-2 backdrop-blur-xs"
                         >
                             <button
                                 type="button"
-                                class="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary text-xs font-bold text-white shadow-xs hover:bg-primary-hover"
-                                @click="showToast('Tautan proyek siap dibagikan!')"
+                                class="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-stroke bg-surface-subtle text-xs font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content"
+                                @click="showToast('Simulasi: Tautan proyek siap dibagikan!')"
                             >
                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path
@@ -1209,7 +1197,7 @@ watch(
                         <!-- Top back button -->
                         <button
                             type="button"
-                            class="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                            class="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                             @click="viewMode = 'project'"
                         >
                             <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1224,24 +1212,26 @@ watch(
                         </button>
 
                         <div class="mt-2.5">
-                            <h2 class="text-xs font-bold text-content">Cek Spek: Verifikasi Lokasi</h2>
-                            <p class="text-[10px] text-content-secondary">
+                            <h2 class="text-sm font-semibold text-content">Cek Spek: Verifikasi lokasi</h2>
+                            <p class="text-xs text-content-secondary">
                                 Memastikan pengawasan dilakukan langsung di lapangan
                             </p>
                         </div>
 
                         <!-- Stepper Mock -->
-                        <div class="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-surface-subtle p-1.5 text-center">
-                            <div class="rounded bg-primary py-1 text-[9px] font-bold text-white">1. Lokasi</div>
-                            <div class="rounded py-1 text-[9px] font-medium text-content-tertiary">2. Ukur</div>
-                            <div class="rounded py-1 text-[9px] font-medium text-content-tertiary">3. Foto</div>
+                        <div class="mt-2 grid grid-cols-3 gap-1 rounded-md bg-surface-subtle p-1.5 text-center">
+                            <div class="rounded-sm bg-primary py-1 text-xs font-medium text-content-inverse">
+                                1. Lokasi
+                            </div>
+                            <div class="rounded-sm py-1 text-xs font-medium text-content-tertiary">2. Ukur</div>
+                            <div class="rounded-sm py-1 text-xs font-medium text-content-tertiary">3. Foto</div>
                         </div>
 
                         <!-- Location Gate Trust Card (Matches LocationGate.vue) -->
-                        <div class="mt-3 rounded-xl border border-stroke bg-surface p-3">
+                        <div class="mt-3 rounded-lg border border-stroke bg-surface p-3">
                             <div class="flex items-center gap-2">
                                 <div
-                                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary"
+                                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary-subtle text-primary"
                                 >
                                     <svg
                                         class="h-4 w-4"
@@ -1259,35 +1249,33 @@ watch(
                                     </svg>
                                 </div>
                                 <div>
-                                    <h4 class="text-[11px] font-bold text-content">Verifikasi GPS Anda</h4>
-                                    <p class="text-[9px] text-content-secondary">Geofence radius maksimal 300 meter</p>
+                                    <h4 class="text-xs font-semibold text-content">Verifikasi lokasi GPS</h4>
+                                    <p class="text-xs text-content-secondary">Radius lokasi maksimal 300 meter</p>
                                 </div>
                             </div>
 
                             <!-- Live Simulation Status -->
-                            <div class="mt-2.5 rounded-lg border border-positive-border bg-positive-subtle p-2">
+                            <div class="mt-2.5 rounded-md border border-positive-border bg-positive-subtle p-2">
                                 <div class="flex items-center gap-1.5">
-                                    <span class="relative flex h-2 w-2">
-                                        <span
-                                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-positive opacity-75"
-                                        ></span>
-                                        <span class="relative inline-flex h-2 w-2 rounded-full bg-positive"></span>
-                                    </span>
-                                    <span class="text-[10px] font-bold text-positive">Posisi Lolos Verifikasi</span>
+                                    <span class="h-2 w-2 rounded-full bg-positive-solid"></span>
+                                    <span class="text-xs font-semibold text-positive">Posisi dalam radius</span>
                                 </div>
-                                <p class="mt-1 font-mono text-[9px] text-positive">
-                                    Jarak terdeteksi: ~15 meter dari titik proyek (Lat: {{ lat || '-8.4124' }}, Lng:
-                                    {{ lng || '115.2482' }})
+                                <p class="mt-1 text-xs text-positive tabular-nums">
+                                    {{
+                                        lat && lng
+                                            ? `Jarak terdeteksi: ~15 meter dari titik proyek (${lat}, ${lng})`
+                                            : 'Pilih titik lokasi proyek di langkah 2 untuk mengaktifkan radius lokasi.'
+                                    }}
                                 </p>
                             </div>
 
                             <!-- IDDS 3 Principles -->
                             <div
-                                class="mt-2.5 space-y-1.5 rounded-lg bg-surface-subtle p-2 text-[9px] text-content-secondary"
+                                class="mt-2.5 space-y-1.5 rounded-md bg-surface-subtle p-2 text-xs text-content-secondary"
                             >
                                 <div class="flex items-start gap-1.5">
                                     <span class="font-bold text-primary">1.</span>
-                                    <span>GPS hanya dibaca saat memvalidasi keberadaan di lokasi</span>
+                                    <span>GPS hanya dibaca saat memeriksa keberadaan di lokasi</span>
                                 </div>
                                 <div class="flex items-start gap-1.5">
                                     <span class="font-bold text-primary">2.</span>
@@ -1301,37 +1289,35 @@ watch(
 
                             <!-- Target Parameters Checklist -->
                             <div class="mt-3 border-t border-stroke pt-2.5">
-                                <span class="text-[10px] font-bold text-content">Parameter yang akan diuji warga:</span>
-                                <ul class="mt-1 space-y-1 text-[10px]">
+                                <span class="text-xs font-semibold text-content">Parameter yang akan diuji warga:</span>
+                                <ul class="mt-1 space-y-1 text-xs">
                                     <li
                                         v-for="(item, idx) in effectiveMeasurements"
                                         :key="idx"
                                         class="flex items-center justify-between text-content-secondary"
                                     >
                                         <span>&bull; {{ item.name || 'Parameter' }}</span>
-                                        <span class="font-mono font-semibold text-content"
-                                            >{{ item.value }} {{ item.unit }}</span
-                                        >
+                                        <span class="font-semibold text-content tabular-nums">
+                                            {{ item.value }} {{ item.unit }}
+                                        </span>
                                     </li>
                                 </ul>
                             </div>
 
                             <button
                                 type="button"
-                                class="mt-3 w-full rounded-lg bg-primary py-2 text-center text-[10px] font-bold text-white shadow-xs hover:bg-primary-hover"
+                                class="mt-3 h-9 w-full rounded-md bg-primary text-center text-xs font-medium text-content-inverse transition-colors hover:bg-primary-hover"
                                 @click="showToast('Simulasi pengujian selesai!')"
                             >
-                                Lanjut Uji Meteran (Simulasi)
+                                Lanjut uji meteran (simulasi)
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Bottom Home Bar Indicator -->
-                <div
-                    class="relative z-30 flex items-center justify-center bg-surface/90 py-1.5 backdrop-blur-xs select-none"
-                >
-                    <div class="bg-slate-400 h-1 w-24 rounded-full"></div>
+                <!-- Home indicator -->
+                <div class="relative z-30 flex items-center justify-center bg-surface pt-1.5 pb-2 select-none">
+                    <div class="h-1 w-24 rounded-full bg-content"></div>
                 </div>
             </div>
         </div>

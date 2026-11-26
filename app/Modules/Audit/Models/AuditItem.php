@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $unit_price_rp
  * @property int|null $amount_rp
  * @property int|null $standard_id
+ * @property int|null $standard_price_rp
  * @property array<string, mixed>|null $doubt
  * @property PriceLabel $label
  * @property int|null $over_pct
@@ -39,6 +40,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'unit_price_rp',
     'amount_rp',
     'standard_id',
+    'standard_price_rp',
     'doubt',
     'label',
     'over_pct',
@@ -57,6 +59,7 @@ final class AuditItem extends Model implements OwnedThroughParent
             'position' => 'integer',
             'unit_price_rp' => 'integer',
             'amount_rp' => 'integer',
+            'standard_price_rp' => 'integer',
             'diff_rp' => 'integer',
             'over_pct' => 'integer',
             'corrected' => 'boolean',

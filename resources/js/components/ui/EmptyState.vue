@@ -1,23 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import bpdEmpty from './illustrations/bpd-empty.svg';
-import cameraError from './illustrations/ilustrasi-1-kamera.svg';
-import documentError from './illustrations/ilustrasi-2-dokumen.svg';
-import locationError from './illustrations/ilustrasi-3-lokasi.svg';
-import notFound from './illustrations/not-found.svg';
-import plangEmpty from './illustrations/plang-empty.svg';
-import searchEmpty from './illustrations/search-empty.svg';
-import successSeal from './illustrations/success-seal.svg';
+import { illustrationSources, type IllustrationType } from './illustrations';
 
-export type IllustrationType =
-    | 'plang-empty'
-    | 'not-found'
-    | 'search-empty'
-    | 'success-seal'
-    | 'bpd-empty'
-    | 'camera-error'
-    | 'document-error'
-    | 'location-error';
+export type { IllustrationType };
 
 interface Props {
     title: string;
@@ -32,18 +17,7 @@ const props = withDefaults(defineProps<Props>(), {
     compact: false,
 });
 
-const sources: Record<IllustrationType, string> = {
-    'plang-empty': plangEmpty,
-    'not-found': notFound,
-    'search-empty': searchEmpty,
-    'success-seal': successSeal,
-    'bpd-empty': bpdEmpty,
-    'camera-error': cameraError,
-    'document-error': documentError,
-    'location-error': locationError,
-};
-
-const src = computed(() => sources[props.illustration]);
+const src = computed(() => illustrationSources[props.illustration]);
 </script>
 
 <template>
@@ -53,7 +27,7 @@ const src = computed(() => sources[props.illustration]);
             aria-hidden="true"
         >
             <slot name="illustration">
-                <img :src="src" alt="" width="280" height="210" class="h-full w-full object-contain" />
+                <img :src="src" alt="" width="280" height="210" decoding="sync" class="h-full w-full object-contain" />
             </slot>
         </div>
 

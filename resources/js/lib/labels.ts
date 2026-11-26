@@ -120,6 +120,7 @@ export const location = {
     retry: 'Coba lagi',
     continue: 'Lanjut',
     locating: 'Mencari lokasimu...',
+    waitingSignal: 'Menunggu sinyal GPS yang lebih teliti...',
     weak: {
         title: 'Sinyal lokasi lemah',
         body: (accuracyMeters: number) =>

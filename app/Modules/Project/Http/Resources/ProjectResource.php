@@ -40,9 +40,9 @@ final class ProjectResource extends JsonResource
         foreach ($items as $item) {
             $lbl = $item->label;
             if ($lbl === PriceLabel::NeedsCheck) {
-                $std = $item->standard;
-                if ($std && $std->price_rp > 0) {
-                    $lbl = $item->unit_price_rp > $std->price_rp
+                $stdPrice = $item->standard_price_rp;
+                if ($stdPrice !== null && $stdPrice > 0) {
+                    $lbl = $item->unit_price_rp > $stdPrice
                         ? PriceLabel::AboveStandard
                         : PriceLabel::WithinStandard;
                 } else {
@@ -140,12 +140,12 @@ final class ProjectResource extends JsonResource
                 'origin' => $m->origin->value,
             ])->all(),
             'items' => $items->map(function ($item) use ($project) {
-                $standard = $item->standard;
                 $label = $item->label;
 
                 if ($label === PriceLabel::NeedsCheck) {
-                    if ($standard && $standard->price_rp > 0) {
-                        $label = $item->unit_price_rp > $standard->price_rp
+                    $stdPrice = $item->standard_price_rp;
+                    if ($stdPrice !== null && $stdPrice > 0) {
+                        $label = $item->unit_price_rp > $stdPrice
                             ? PriceLabel::AboveStandard
                             : PriceLabel::WithinStandard;
                     } else {
@@ -159,6 +159,8 @@ final class ProjectResource extends JsonResource
                     default => null,
                 };
 
+                $standard = $item->standard;
+
                 return [
                     'id' => $item->id,
                     'position' => $item->position,
@@ -167,8 +169,8 @@ final class ProjectResource extends JsonResource
                     'unit' => $item->unit,
                     'unit_price_rp' => $item->unit_price_rp,
                     'amount_rp' => $item->amount_rp,
-                    'standard_price_rp' => $standard?->price_rp,
-                    'unit_diff_rp' => $item->unit_price_rp && $standard?->price_rp ? max(0, $item->unit_price_rp - $standard->price_rp) : null,
+                    'standard_price_rp' => $item->standard_price_rp,
+                    'unit_diff_rp' => $item->unit_price_rp && $item->standard_price_rp ? max(0, $item->unit_price_rp - $item->standard_price_rp) : null,
                     'total_diff_rp' => $item->diff_rp,
                     'over_pct' => $item->over_pct,
                     'label' => $label->value,

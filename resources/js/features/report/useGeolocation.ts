@@ -18,10 +18,15 @@ export interface UseGeolocationOptions {
     timeoutMs?: number;
     /** How long start() keeps watching before it gives up on a fix that never gets accurate enough. */
     giveUpAfterMs?: number;
+    /** Shorter wait when fixes stay extremely coarse (e.g. laptop IP geolocation around 25 km). */
+    coarseGiveUpAfterMs?: number;
+    coarseAccuracyMeters?: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_GIVE_UP_AFTER_MS = 30_000;
+const DEFAULT_COARSE_GIVE_UP_AFTER_MS = 5_000;
+const DEFAULT_COARSE_ACCURACY_METERS = 5_000;
 const PERMISSION_DENIED = 1;
 
 function toGeoPosition(position: GeolocationPosition): GeoPosition {
@@ -35,12 +40,16 @@ function toGeoPosition(position: GeolocationPosition): GeoPosition {
 export function useGeolocation(options: UseGeolocationOptions) {
     const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const giveUpAfterMs = options.giveUpAfterMs ?? DEFAULT_GIVE_UP_AFTER_MS;
+    const coarseGiveUpAfterMs = options.coarseGiveUpAfterMs ?? DEFAULT_COARSE_GIVE_UP_AFTER_MS;
+    const coarseAccuracyMeters = options.coarseAccuracyMeters ?? DEFAULT_COARSE_ACCURACY_METERS;
     const geolocationOptions: PositionOptions = { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 };
 
     const status = ref<LocationStatus>('idle');
     const position = ref<GeoPosition | null>(null);
     let watchId: number | null = null;
     let giveUpTimer: ReturnType<typeof setTimeout> | null = null;
+    let fullDeadlineAt = 0;
+    let coarseDeadlineAt: number | null = null;
 
     const isReady = computed(() => status.value === 'ready');
 
@@ -50,9 +59,35 @@ export function useGeolocation(options: UseGeolocationOptions) {
             giveUpTimer = null;
         }
 
+        coarseDeadlineAt = null;
+
         if (watchId !== null) {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
+        }
+    }
+
+    function scheduleGiveUp(deadlineAt: number): void {
+        if (giveUpTimer !== null) {
+            clearTimeout(giveUpTimer);
+        }
+
+        giveUpTimer = setTimeout(giveUp, Math.max(0, deadlineAt - Date.now()));
+    }
+
+    function adjustGiveUpForWeakFix(accuracyMeters: number): void {
+        if (accuracyMeters >= coarseAccuracyMeters) {
+            if (coarseDeadlineAt === null) {
+                coarseDeadlineAt = Math.min(fullDeadlineAt, Date.now() + coarseGiveUpAfterMs);
+                scheduleGiveUp(coarseDeadlineAt);
+            }
+            return;
+        }
+
+        // A meaningfully better fix arrived (< coarseAccuracyMeters), so allow the full GPS warm-up window.
+        if (coarseDeadlineAt !== null) {
+            coarseDeadlineAt = null;
+            scheduleGiveUp(fullDeadlineAt);
         }
     }
 
@@ -74,7 +109,8 @@ export function useGeolocation(options: UseGeolocationOptions) {
     /**
      * Watches until a fix is accurate enough, then stops (battery). While the fix is too coarse the status is
      * "weak", so the screen can say "tunggu sebentar" and the user sees it improve on its own (C7). After
-     * giveUpAfterMs it stops: "too_weak" when only coarse fixes came in, "failed" when none came in.
+     * giveUpAfterMs (or coarseGiveUpAfterMs for extreme IP/macro-cell fixes) it stops: "too_weak" when only
+     * coarse fixes came in, "failed" when none came in.
      */
     function start(): void {
         if (status.value === 'locating' || status.value === 'weak') {
@@ -89,6 +125,7 @@ export function useGeolocation(options: UseGeolocationOptions) {
         clearWatch();
         position.value = null;
         status.value = 'locating';
+        fullDeadlineAt = Date.now() + giveUpAfterMs;
 
         watchId = navigator.geolocation.watchPosition(
             (raw) => {
@@ -97,6 +134,7 @@ export function useGeolocation(options: UseGeolocationOptions) {
 
                 if (fix.accuracyMeters > options.maxAccuracyMeters) {
                     status.value = 'weak';
+                    adjustGiveUpForWeakFix(fix.accuracyMeters);
                     return;
                 }
 
@@ -106,7 +144,10 @@ export function useGeolocation(options: UseGeolocationOptions) {
             handleError,
             geolocationOptions,
         );
-        giveUpTimer = setTimeout(giveUp, giveUpAfterMs);
+
+        if (status.value === 'locating') {
+            scheduleGiveUp(fullDeadlineAt);
+        }
     }
 
     function stop(): void {

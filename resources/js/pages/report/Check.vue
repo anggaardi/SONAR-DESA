@@ -4,11 +4,12 @@
 // Redesain mobile sesuai standar INA Digital Design System (IDDS) dengan Visual Stepper dan tata letak humanis.
 
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { preloadIllustrations } from '@/components/ui/illustrations';
 import { useDemoSample } from '@/features/demo/useDemoSample';
 import { isChecklistComplete, emptyAnswers } from '@/features/report/checkSpecRules';
 import CameraCapture from '@/features/report/CameraCapture.vue';
@@ -115,6 +116,10 @@ function continueToPhotos(): void {
 
     step.value = 'photo';
 }
+
+onMounted(() => {
+    preloadIllustrations(['location-error', 'camera-error']);
+});
 </script>
 
 <template>

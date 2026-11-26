@@ -28,6 +28,11 @@ final class AuditItemFactory extends Factory
             'unit_price_rp' => 85_000,
             'amount_rp' => 32_300_000,
             'standard_id' => PriceStandard::factory(),
+            'standard_price_rp' => fn (array $attributes): ?int => match (true) {
+                ($attributes['standard_id'] ?? null) === null => null,
+                is_int($attributes['standard_id']) => PriceStandard::query()->whereKey($attributes['standard_id'])->value('price_rp'),
+                default => 65_000,
+            },
             'doubt' => null,
             'label' => PriceLabel::AboveStandard,
             'over_pct' => 31,

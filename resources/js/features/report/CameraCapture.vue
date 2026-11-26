@@ -3,10 +3,11 @@
 // Kamera baru dibuka setelah warga menekan "Buka kamera", sesudah penjelasan lokasi dan izin (C1).
 // Mengikuti standar INA Digital Design System (IDDS) dengan EmptyState bimbingan untuk state error kamera.
 
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { preloadIllustrations } from '@/components/ui/illustrations';
 import { camera } from '@/lib/labels';
 
 import { DEFAULT_MAX_PHOTOS, MIN_PHOTOS, useCamera } from './useCamera';
@@ -62,6 +63,10 @@ async function takePhoto(): Promise<void> {
 }
 
 const failureText = { denied: camera.denied, unavailable: camera.unavailable, failed: camera.failed } as const;
+
+onMounted(() => {
+    preloadIllustrations(['camera-error']);
+});
 </script>
 
 <template>
