@@ -489,9 +489,31 @@ it('preserves historical target snapshot on citizen reports across subsequent CC
         ])
         ->assertRedirect();
 
+    $this->actingAs($bpd)
+        ->post("/bpd/cycles/{$cycle->id}/notes", [
+            'note' => 'Pemdes telah menyesuaikan dokumen kontrak dan berita acara lapangan.',
+        ])
+        ->assertRedirect();
+
+    // A brand-new report in the newly opened cycle must not appear in published_reports until reviewed.
+    $newCycleCitizen = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $project->fresh()->current_cycle_id,
+        'user_id' => $newCycleCitizen->id,
+        'kind' => ReportKind::Match,
+        'note' => 'Laporan siklus baru yang belum ditinjau BPD.',
+    ]);
+
     $this->get("/p/{$project->slug}")
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
+            ->where('project.public_status', 'reviewed')
+            ->where('project.in_review_since', fn ($value) => is_string($value) && $value !== '')
+            ->where('project.review.outcome', 'followed_up')
+            ->where('project.review.note', 'Sudah ditindaklanjuti sesuai dengan adendum CCO resmi.')
+            ->where('project.review.notes.0.note', 'Pemdes telah menyesuaikan dokumen kontrak dan berita acara lapangan.')
+            ->has('project.published_reports', 1)
             ->where('project.measurements.0.value', '15')
             ->where('project.measurements.0.unit', 'cm')
             ->where('project.published_reports.0.answers.0.target_value', '12')

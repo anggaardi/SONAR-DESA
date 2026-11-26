@@ -434,7 +434,26 @@ it('requires answers, a photo, and the location', function () {
     expect(Report::query()->count())->toBe(0);
 });
 
-it('requires the measured value for a "Tidak" answer (C5)', function (string $measuredValue, string $message) {
+it('accepts an optional empty measured value for a "Tidak" answer and snapshots target (D15)', function () {
+    $project = projectWithMeasurements();
+    $answers = answersFor($project, 'mismatch', 'unmeasurable');
+    $answers[0]['measured_value'] = '';
+
+    $this->actingAs(citizen())
+        ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, $answers))
+        ->assertSessionHasNoErrors();
+
+    $report = Report::query()->sole();
+    $saved = ReportAnswer::query()->where('report_id', $report->id)->orderBy('measurement_id')->get();
+    expect($report->kind)->toBe(ReportKind::Mismatch)
+        ->and($saved[0]->answer)->toBe(MeasurementAnswer::Mismatch)
+        ->and($saved[0]->measured_value)->toBeNull()
+        ->and($saved[0]->measured_unit)->toBeNull()
+        ->and($saved[0]->target_value)->not->toBeNull()
+        ->and($saved[0]->target_unit)->toBe('cm');
+});
+
+it('rejects an invalid non-empty measured value for a "Tidak" answer', function (string $measuredValue, string $message) {
     $project = projectWithMeasurements();
     $answers = answersFor($project, 'mismatch', 'match');
     $answers[0]['measured_value'] = $measuredValue;
@@ -443,7 +462,6 @@ it('requires the measured value for a "Tidak" answer (C5)', function (string $me
         ->post(route('reports.store', SUBMIT_SLUG), reportPayload($project, $answers))
         ->assertSessionHasErrors(['answers.0.measured_value' => $message]);
 })->with([
-    'empty' => ['', 'Isi hasil ukurmu untuk jawaban "Tidak".'],
     'not a number' => ['delapan', 'Hasil ukur harus berupa angka, contoh: 8 atau 8,5.'],
     'zero' => ['0', 'Hasil ukur harus lebih dari 0.'],
 ]);

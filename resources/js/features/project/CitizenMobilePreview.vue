@@ -882,11 +882,13 @@ watch(
                                 </div>
                             </section>
 
-                            <!-- 6. Ukuran di RAB -->
+                            <!-- 6. Yang bisa kamu cek di lokasi -->
                             <section id="phone-ukuran" class="scroll-mt-20">
                                 <div>
-                                    <h3 class="text-sm font-semibold text-content">Ukuran di RAB</h3>
-                                    <p class="text-xs text-content-secondary">Ini yang bisa kamu cocokkan di lokasi</p>
+                                    <h3 class="text-sm font-semibold text-content">Yang bisa kamu cek di lokasi</h3>
+                                    <p class="text-xs text-content-secondary">
+                                        Ukuran di RAB dan cara mencocokkannya di lapangan
+                                    </p>
                                 </div>
 
                                 <div class="mt-2 rounded-lg border border-stroke bg-surface p-3">

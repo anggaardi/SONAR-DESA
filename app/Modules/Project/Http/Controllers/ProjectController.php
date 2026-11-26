@@ -34,7 +34,9 @@ final class ProjectController
             'progressPhotos',
             'projectChanges',
             'reports.answers.measurement',
+            'reports.photos',
             'currentCycle.notes',
+            'reviewCycles.notes',
         ]);
 
         return Inertia::render('project/Show', [

@@ -15,10 +15,12 @@ use App\Modules\Project\Models\ProjectMeasurement;
 use App\Modules\Report\Enums\ReportKind;
 use App\Modules\Report\Models\Report;
 use App\Modules\Report\Models\ReportAnswer;
+use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Enums\ReviewOutcome;
 use App\Modules\Review\Models\ReviewCycle;
 use App\Modules\Review\Models\ReviewNote;
 use App\Modules\Standard\Models\PriceStandard;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
 
 it('renders the public project page without authentication (P1)', function () {
@@ -282,4 +284,83 @@ it('exposes published citizen reports and BPD review notes only when project is 
     expect($content)->not->toContain('citizen_secret@example.com');
     expect($content)->not->toContain('-8.5430000');
     expect($content)->not->toContain('115.3230000');
+});
+
+it('serves published report photos only for closed cycles on reviewed projects and hides invalid/unreviewed photos (C11)', function () {
+    Storage::fake('local');
+    Storage::disk('local')->put('reports/reviewed-ok.webp', 'valid-webp');
+    Storage::disk('local')->put('reports/invalid-report.webp', 'invalid-webp');
+    Storage::disk('local')->put('reports/in-review.webp', 'in-review-webp');
+
+    $village = Village::factory()->create();
+    $audit = Audit::factory()->create(['village_id' => $village->id]);
+
+    $reviewedProject = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => $audit->id,
+        'slug' => 'posyandu-reviewed-photo',
+        'public_status' => PublicStatus::Reviewed,
+        'published_at' => now(),
+    ]);
+
+    $closedCycle = ReviewCycle::query()->create([
+        'project_id' => $reviewedProject->id,
+        'opened_at' => now()->subDays(5),
+        'in_review_since' => now()->subDays(4),
+        'closed_at' => now()->subDay(),
+        'result' => ReviewOutcome::NoMismatch,
+        'note' => 'Sudah diperiksa BPD dan sesuai spesifikasi rencana.',
+    ]);
+    $openCycle = ReviewCycle::query()->create([
+        'project_id' => $reviewedProject->id,
+        'opened_at' => now(),
+    ]);
+    $reviewedProject->update(['current_cycle_id' => $openCycle->id]);
+
+    $validReport = Report::factory()->create([
+        'project_id' => $reviewedProject->id,
+        'cycle_id' => $closedCycle->id,
+        'kind' => ReportKind::Match,
+    ]);
+    $validPhoto = ReportPhoto::factory()->create([
+        'report_id' => $validReport->id,
+        'position' => 1,
+        'path' => 'reports/reviewed-ok.webp',
+    ]);
+
+    $invalidReport = Report::factory()->create([
+        'project_id' => $reviewedProject->id,
+        'cycle_id' => $closedCycle->id,
+        'invalid_reason' => 'Foto tidak relevan',
+    ]);
+    $invalidPhoto = ReportPhoto::factory()->create([
+        'report_id' => $invalidReport->id,
+        'position' => 1,
+        'path' => 'reports/invalid-report.webp',
+    ]);
+
+    $unreviewedReport = Report::factory()->create([
+        'project_id' => $reviewedProject->id,
+        'cycle_id' => $openCycle->id,
+    ]);
+    $unreviewedPhoto = ReportPhoto::factory()->create([
+        'report_id' => $unreviewedReport->id,
+        'position' => 1,
+        'path' => 'reports/in-review.webp',
+    ]);
+
+    $this->get('/p/posyandu-reviewed-photo')
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('project.published_reports', 1)
+            ->has('project.published_reports.0.photos', 1)
+            ->where('project.published_reports.0.photos.0.id', $validPhoto->id)
+            ->where('project.published_reports.0.photos.0.url', route('media.report-photo', $validPhoto->id)));
+
+    $this->get(route('media.report-photo', $validPhoto->id))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/webp');
+
+    $this->get(route('media.report-photo', $invalidPhoto->id))->assertNotFound();
+    $this->get(route('media.report-photo', $unreviewedPhoto->id))->assertNotFound();
 });

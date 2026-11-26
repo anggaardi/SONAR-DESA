@@ -66,7 +66,7 @@ final class SubmitReportRequest extends FormRequest
         return $user;
     }
 
-    /** "8,5" is accepted like on the screen (checkSpecRules.ts parseMeasuredValue). */
+    /** "8,5" is accepted like on the screen (checkSpecRules.ts parseMeasuredValue). Empty strings become null. */
     protected function prepareForValidation(): void
     {
         $answers = $this->input('answers');
@@ -78,7 +78,8 @@ final class SubmitReportRequest extends FormRequest
         $this->merge([
             'answers' => array_map(static function (mixed $answer): mixed {
                 if (is_array($answer) && is_string($answer['measured_value'] ?? null)) {
-                    $answer['measured_value'] = str_replace(',', '.', trim($answer['measured_value']));
+                    $trimmed = trim($answer['measured_value']);
+                    $answer['measured_value'] = $trimmed === '' ? null : str_replace(',', '.', $trimmed);
                 }
 
                 return $answer;
@@ -94,15 +95,15 @@ final class SubmitReportRequest extends FormRequest
         $measurementIds = $this->project()->measurements->pluck('id')->all();
 
         return [
-            // C4: every measurement of this project is answered exactly once, and only those.
+            // C4: every measurement of this project is accounted for once, and only those.
             'answers' => ['required', 'array', 'size:'.count($measurementIds)],
             'answers.*' => ['required', 'array:measurement_id,answer,measured_value'],
             'answers.*.measurement_id' => ['required', 'integer', 'distinct', Rule::in($measurementIds)],
             'answers.*.answer' => ['required', Rule::enum(MeasurementAnswer::class)],
-            // C5: "Tidak" needs the measured value; for other answers it is dropped.
+            // Measured value is optional on mismatch; for other answers it is dropped.
             'answers.*.measured_value' => [
                 'exclude_unless:answers.*.answer,'.MeasurementAnswer::Mismatch->value,
-                'required',
+                'nullable',
                 'string',
                 'regex:'.self::MEASURED_VALUE_PATTERN,
                 'numeric',

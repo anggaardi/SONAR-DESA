@@ -57,12 +57,19 @@ export interface ProjectPublishedReportAnswer {
     measured_unit: string | null;
 }
 
+export interface ProjectPublishedReportPhoto {
+    id: number;
+    position: number;
+    url: string;
+}
+
 export interface ProjectPublishedReport {
     id: number;
     reporter_label: string;
     kind: 'match' | 'mismatch' | 'unmeasurable';
     note: string | null;
     created_at: string;
+    photos?: ProjectPublishedReportPhoto[];
     answers: ProjectPublishedReportAnswer[];
 }
 

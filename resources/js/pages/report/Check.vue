@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// Cek Spek (PRD Fitur Inti 5.1, 5.5): lokasi -> ukur -> foto & catatan. Hanya menyusun; logika di features/report.
+// Cek Spek (2 langkah): lokasi -> foto & temuan. Hanya menyusun; logika di features/report.
 // Warga sudah masuk Google sebelum halaman ini (F11). Angka jarak dan batas datang dari server.
-// Redesain mobile sesuai standar INA Digital Design System (IDDS) dengan Visual Stepper dan tata letak humanis.
 
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref } from 'vue';
@@ -11,8 +10,14 @@ import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import { preloadIllustrations } from '@/components/ui/illustrations';
 import { useDemoSample } from '@/features/demo/useDemoSample';
-import { isChecklistComplete, emptyAnswers } from '@/features/report/checkSpecRules';
 import CameraCapture from '@/features/report/CameraCapture.vue';
+import {
+    buildSubmissionAnswers,
+    emptyChecklistState,
+    isFindingComplete,
+    type ChecklistAnswer,
+    type ChecklistState,
+} from '@/features/report/checkSpecRules';
 import LocationGate from '@/features/report/LocationGate.vue';
 import MeasurementChecklist from '@/features/report/MeasurementChecklist.vue';
 import { MIN_PHOTOS } from '@/features/report/useCamera';
@@ -23,20 +28,21 @@ import type { CheckSpecPage } from '@/types/report';
 
 const props = defineProps<{ checkSpec: CheckSpecPage }>();
 
-type Step = 'location' | 'measure' | 'photo';
-const steps: Step[] = ['location', 'measure', 'photo'];
+type Step = 'location' | 'report';
+const steps: Step[] = ['location', 'report'];
 const step = ref<Step>('location');
+const showGuide = ref(false);
 const showChecklistErrors = ref(false);
+const checklistState = ref<ChecklistState>(emptyChecklistState());
 
 const stepTitles: Record<Step, string> = {
     location: text.steps.location,
-    measure: text.steps.measure,
-    photo: text.steps.photo,
+    report: text.steps.report,
 };
 
 // The server re-checks everything and recomputes the distance (SubmitReportRequest, SubmitReport).
 const form = useForm({
-    answers: emptyAnswers(props.checkSpec.measurements.map((measurement) => measurement.id)),
+    answers: [] as ChecklistAnswer[],
     photos: [] as Blob[],
     note: '',
     lat: null as number | null,
@@ -65,12 +71,28 @@ const { readFresh } = useGeolocation({ maxAccuracyMeters: props.checkSpec.limits
 const isReadingLocation = ref(false);
 const sendFailed = ref(false);
 
+const isChecklistOk = computed(() => isFindingComplete(checklistState.value, props.checkSpec.measurements.length));
 const isSending = computed(() => isReadingLocation.value || form.processing);
-const canSend = computed(
+const canSubmitBase = computed(
     () =>
-        !isSending.value && form.lat !== null && form.photos.length >= MIN_PHOTOS && isChecklistComplete(form.answers),
+        !isSending.value &&
+        form.lat !== null &&
+        form.photos.length >= MIN_PHOTOS &&
+        props.checkSpec.measurements.length > 0,
 );
 const serverErrors = computed(() => [...new Set(Object.values(form.errors))]);
+
+function isGuideChecked(id: number): boolean {
+    return checklistState.value.checkedIds.includes(id);
+}
+
+function toggleGuideChecked(id: number): void {
+    const next = isGuideChecked(id)
+        ? checklistState.value.checkedIds.filter((item) => item !== id)
+        : [...checklistState.value.checkedIds, id];
+
+    checklistState.value = { ...checklistState.value, checkedIds: next };
+}
 
 /** Network or server failure: the answers, photos, and note stay, and the button becomes "Kirim lagi". */
 function markSendFailed(): boolean {
@@ -80,10 +102,16 @@ function markSendFailed(): boolean {
 }
 
 async function send(): Promise<void> {
-    if (!canSend.value) {
+    if (!canSubmitBase.value) {
         return;
     }
 
+    if (!isChecklistOk.value) {
+        showChecklistErrors.value = true;
+        return;
+    }
+
+    showChecklistErrors.value = false;
     sendFailed.value = false;
     isReadingLocation.value = true;
 
@@ -96,8 +124,11 @@ async function send(): Promise<void> {
         rememberPosition(fresh);
     }
 
+    const measurementIds = props.checkSpec.measurements.map((measurement) => measurement.id);
+
     form.transform((data) => ({
         ...data,
+        answers: buildSubmissionAnswers(measurementIds, checklistState.value),
         photos: data.photos.map(
             (blob, index) => new File([blob], `foto-${index + 1}.jpg`, { type: blob.type || 'image/jpeg' }),
         ),
@@ -106,15 +137,6 @@ async function send(): Promise<void> {
         onNetworkError: markSendFailed,
         onHttpException: markSendFailed,
     });
-}
-
-function continueToPhotos(): void {
-    if (!isChecklistComplete(form.answers)) {
-        showChecklistErrors.value = true;
-        return;
-    }
-
-    step.value = 'photo';
 }
 
 onMounted(() => {
@@ -144,7 +166,7 @@ onMounted(() => {
                 </span>
             </div>
 
-            <!-- Kartu Konteks Proyek (Ringkas & Informatif ala IDDS) -->
+            <!-- Kartu Konteks Proyek -->
             <div
                 class="flex items-center justify-between gap-3 rounded-2xl border border-stroke bg-surface p-4 shadow-2xs"
             >
@@ -168,7 +190,7 @@ onMounted(() => {
                 </div>
             </div>
 
-            <!-- Visual Stepper IDDS (3 Langkah) -->
+            <!-- Visual Stepper IDDS (2 Langkah) -->
             <div
                 class="space-y-2 rounded-2xl border border-stroke bg-surface-subtle p-3.5"
                 aria-label="Tahapan Cek Spek"
@@ -182,8 +204,8 @@ onMounted(() => {
                     </span>
                 </div>
 
-                <!-- 3 Segmen Progress Bar -->
-                <div class="grid grid-cols-3 gap-2" aria-hidden="true">
+                <!-- 2 Segmen Progress Bar -->
+                <div class="grid grid-cols-2 gap-2" aria-hidden="true">
                     <div
                         v-for="(st, idx) in steps"
                         :key="st"
@@ -300,68 +322,107 @@ onMounted(() => {
                     :distance-url="checkSpec.urls.distance"
                     :fixed-position="samplePosition"
                     @position="rememberPosition"
-                    @continue="step = 'measure'"
+                    @continue="step = 'report'"
                 />
             </div>
 
-            <!-- LANGKAH 2: UKUR (Form Checklist RAB) -->
-            <section v-show="step === 'measure'" class="space-y-5" aria-labelledby="langkah-ukur">
-                <h2 id="langkah-ukur" class="sr-only">{{ text.steps.measure }}</h2>
+            <!-- LANGKAH 2: FOTO & TEMUAN -->
+            <section v-show="step === 'report'" class="space-y-5" aria-labelledby="langkah-laporan">
+                <h2 id="langkah-laporan" class="sr-only">{{ text.steps.report }}</h2>
 
-                <!-- Panduan Langkah Ukur -->
-                <div class="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary-subtle p-4">
-                    <div
-                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-content-inverse"
-                        aria-hidden="true"
+                <!-- Panduan Ukuran RAB (Dilipat Opsional) -->
+                <div
+                    v-if="checkSpec.measurements.length > 0"
+                    class="overflow-hidden rounded-2xl border border-primary/20 bg-primary-subtle/50"
+                >
+                    <button
+                        type="button"
+                        class="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        :aria-expanded="showGuide"
+                        @click="showGuide = !showGuide"
                     >
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="12" y1="16" x2="12" y2="12" />
-                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-info">
+                                {{ text.recommendations.toggleTitle(checkSpec.measurements.length) }}
+                            </p>
+                            <p class="mt-0.5 text-xs text-content-secondary">
+                                {{ text.recommendations.toggleHint }}
+                            </p>
+                        </div>
+                        <svg
+                            class="h-5 w-5 shrink-0 text-primary transition-transform"
+                            :class="showGuide ? 'rotate-180' : ''"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                        >
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 8l4 4 4-4" />
                         </svg>
-                    </div>
-                    <div>
-                        <p class="text-xs font-bold text-info sm:text-sm">Bandingkan Kondisi Lapangan dengan RAB</p>
-                        <p class="mt-0.5 text-xs text-content-secondary">
-                            Jika fisik tidak sesuai dokumen, masukkan angka riil yang kamu temukan di lapangan.
-                        </p>
-                    </div>
+                    </button>
+
+                    <ol v-show="showGuide" class="space-y-2.5 border-t border-primary/15 bg-surface p-3.5 sm:p-4">
+                        <li v-for="(measurement, index) in checkSpec.measurements" :key="measurement.id">
+                            <label
+                                class="flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors select-none"
+                                :class="
+                                    isGuideChecked(measurement.id)
+                                        ? 'border-positive-border bg-positive-subtle/20'
+                                        : 'border-stroke bg-surface-subtle/50 hover:bg-surface-subtle'
+                                "
+                            >
+                                <input
+                                    type="checkbox"
+                                    class="mt-0.5 h-5 w-5 shrink-0 rounded border-stroke-strong text-positive focus:ring-positive"
+                                    :checked="isGuideChecked(measurement.id)"
+                                    @change="toggleGuideChecked(measurement.id)"
+                                />
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-baseline justify-between gap-2">
+                                        <span class="text-sm font-bold text-content">
+                                            {{ index + 1 }}. {{ measurement.name }}
+                                        </span>
+                                        <span
+                                            class="inline-flex items-center rounded-md border border-primary/20 bg-primary-subtle px-2 py-0.5 text-xs font-bold text-primary tabular-nums"
+                                        >
+                                            {{ text.rabValue(measurement.value, measurement.unit) }}
+                                        </span>
+                                    </div>
+                                    <p
+                                        v-if="measurement.how_to"
+                                        class="mt-1 text-xs leading-relaxed text-content-secondary"
+                                    >
+                                        <span class="font-medium text-content">
+                                            {{ text.recommendations.howToPrefix }}
+                                        </span>
+                                        {{ measurement.how_to }}
+                                    </p>
+                                    <p
+                                        v-if="isGuideChecked(measurement.id)"
+                                        class="mt-1 text-xs font-semibold text-positive"
+                                    >
+                                        ✓ {{ text.recommendations.checkedLabel }}
+                                    </p>
+                                </div>
+                            </label>
+                        </li>
+                    </ol>
                 </div>
 
-                <MeasurementChecklist
-                    v-model="form.answers"
-                    :measurements="checkSpec.measurements"
-                    :show-errors="showChecklistErrors"
-                />
-
-                <Alert v-if="showChecklistErrors && !isChecklistComplete(form.answers)" color="warning">
-                    {{ text.checklistIncomplete }}
-                </Alert>
-
-                <!-- Tombol Navigasi Bawah Langkah Ukur (Sticky/Fixed di HP) -->
-                <div class="flex gap-3 pt-2">
-                    <Button variant="secondary" class="flex-1 sm:flex-initial" @click="step = 'location'">
-                        {{ text.previous }}
-                    </Button>
-                    <Button
-                        variant="primary"
-                        :disabled="checkSpec.measurements.length === 0"
-                        class="flex-2 sm:flex-initial"
-                        @click="continueToPhotos"
-                    >
-                        {{ text.next }} &rarr;
-                    </Button>
-                </div>
-            </section>
-
-            <!-- LANGKAH 3: FOTO & CATATAN -->
-            <section v-show="step === 'photo'" class="space-y-5" aria-labelledby="langkah-foto">
-                <h2 id="langkah-foto" class="sr-only">{{ text.steps.photo }}</h2>
-
+                <!-- Foto Lokasi (Wajib) -->
                 <CameraCapture
                     :max-photos="checkSpec.limits.max_photos"
                     :extra-photo="samplePhoto"
                     @change="(blobs) => (form.photos = blobs)"
+                />
+
+                <!-- Satu Pertanyaan Penutup: Apa yang kamu temukan? -->
+                <MeasurementChecklist
+                    v-if="checkSpec.measurements.length > 0"
+                    v-model="checklistState"
+                    :measurements="checkSpec.measurements"
+                    :show-errors="showChecklistErrors"
                 />
 
                 <!-- Form Catatan Tambahan -->
@@ -384,7 +445,7 @@ onMounted(() => {
                         class="mt-1 w-full rounded-xl border border-stroke-strong bg-surface p-3 text-sm leading-relaxed text-content transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:text-base"
                     />
                     <p class="text-xs text-content-secondary">
-                        Catatan ini akan diteruskan ke Badan Permusyawaratan Desa (BPD) bersama laporan ukuran.
+                        Catatan ini akan diteruskan ke Badan Permusyawaratan Desa (BPD) bersama hasil temuan.
                     </p>
                 </div>
 
@@ -415,6 +476,10 @@ onMounted(() => {
                     ⚠️ {{ text.photoRequired }}
                 </p>
 
+                <Alert v-if="showChecklistErrors && !isChecklistOk" color="warning">
+                    {{ text.checklistIncomplete }}
+                </Alert>
+
                 <!-- Error saat Kirim -->
                 <Alert v-if="sendFailed" color="warning" :title="text.sendFailed.title">
                     {{ text.sendFailed.body }}
@@ -431,13 +496,13 @@ onMounted(() => {
                         variant="secondary"
                         :disabled="isSending"
                         class="flex-1 sm:flex-initial"
-                        @click="step = 'measure'"
+                        @click="step = 'location'"
                     >
                         {{ text.previous }}
                     </Button>
                     <Button
                         variant="primary"
-                        :disabled="!canSend"
+                        :disabled="!canSubmitBase"
                         :loading="isSending"
                         class="flex-2 sm:flex-initial"
                         @click="send"

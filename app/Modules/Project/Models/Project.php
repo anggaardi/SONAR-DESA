@@ -124,6 +124,12 @@ final class Project extends Model
         return $this->belongsTo(ReviewCycle::class, 'current_cycle_id');
     }
 
+    /** @return HasMany<ReviewCycle, $this> */
+    public function reviewCycles(): HasMany
+    {
+        return $this->hasMany(ReviewCycle::class);
+    }
+
     public function isPublished(): bool
     {
         return $this->published_at !== null;
