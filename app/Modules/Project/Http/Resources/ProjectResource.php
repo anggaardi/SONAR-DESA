@@ -8,6 +8,8 @@ use App\Modules\Audit\Enums\PriceLabel;
 use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
 use App\Modules\Report\Enums\ReportKind;
+use App\Modules\Review\Models\ReviewCycle;
+use App\Modules\Review\Models\ReviewNote;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -59,16 +61,33 @@ final class ProjectResource extends JsonResource
         }
 
         $currentCycle = $project->currentCycle;
+        $reviewCycles = $project->relationLoaded('reviewCycles')
+            ? $project->reviewCycles
+            : $project->reviewCycles()->with('notes')->get();
+
+        $closedCycles = $reviewCycles
+            ->filter(static fn (ReviewCycle $cycle): bool => $cycle->closed_at !== null)
+            ->sortByDesc(static fn (ReviewCycle $cycle): array => [$cycle->closed_at?->getTimestamp() ?? 0, $cycle->id])
+            ->values();
+
+        if ($closedCycles->isEmpty() && $currentCycle?->closed_at !== null) {
+            $currentCycle->loadMissing('notes');
+            $closedCycles = collect([$currentCycle]);
+        }
+
+        $reviewedCycle = $closedCycles->first();
+        $closedCycleIds = $closedCycles->pluck('id')->all();
 
         $publishedReports = collect();
         if ($project->public_status === PublicStatus::Reviewed) {
             $reportsCollection = $project->relationLoaded('reports')
                 ? $project->reports
-                : $project->reports()->with(['answers.measurement'])->get();
+                : $project->reports()->with(['answers.measurement', 'photos'])->get();
 
             $publishedReports = $reportsCollection
                 ->whereNull('invalid_reason')
                 ->whereNull('superseded_by')
+                ->filter(static fn ($report): bool => $closedCycleIds === [] || in_array($report->cycle_id, $closedCycleIds, true))
                 ->sortByDesc('created_at')
                 ->values();
         }
@@ -77,6 +96,10 @@ final class ProjectResource extends JsonResource
         foreach ($publishedReports as $report) {
             $publishedReportCounts[$report->kind->value]++;
         }
+
+        $inReviewSince = $project->public_status === PublicStatus::InReview
+            ? $currentCycle?->in_review_since
+            : $reviewedCycle?->in_review_since;
 
         return [
             'id' => $project->id,
@@ -95,15 +118,18 @@ final class ProjectResource extends JsonResource
             'progress_pct' => $project->progress_pct,
             'last_photo_date' => $latestPhoto?->taken_at?->toIso8601String(),
             'public_status' => $project->public_status->value,
-            'in_review_since' => $currentCycle?->in_review_since?->toIso8601String(),
-            'review' => $currentCycle && $project->public_status === PublicStatus::Reviewed ? [
-                'outcome' => $currentCycle->result?->value,
-                'note' => $currentCycle->note,
-                'reviewed_at' => $currentCycle->closed_at?->toIso8601String(),
-                'notes' => $currentCycle->notes->map(fn ($n) => [
-                    'note' => $n->note,
-                    'created_at' => $n->created_at->toIso8601String(),
-                ])->all(),
+            'in_review_since' => $inReviewSince?->toIso8601String(),
+            'review' => $reviewedCycle !== null && $project->public_status === PublicStatus::Reviewed ? [
+                'outcome' => $reviewedCycle->result?->value,
+                'note' => $reviewedCycle->note,
+                'reviewed_at' => $reviewedCycle->closed_at?->toIso8601String(),
+                'notes' => $reviewedCycle->notes
+                    ->sortBy('created_at')
+                    ->values()
+                    ->map(fn (ReviewNote $n): array => [
+                        'note' => $n->note,
+                        'created_at' => $n->created_at?->toIso8601String(),
+                    ])->all(),
             ] : null,
             'published_reports' => $publishedReports->map(fn ($r, $idx) => [
                 'id' => $r->id,
@@ -111,6 +137,14 @@ final class ProjectResource extends JsonResource
                 'kind' => $r->kind->value,
                 'note' => $r->note,
                 'created_at' => $r->created_at->toIso8601String(),
+                'photos' => $r->photos
+                    ->sortBy('position')
+                    ->values()
+                    ->map(fn ($p): array => [
+                        'id' => $p->id,
+                        'position' => $p->position,
+                        'url' => route('media.report-photo', $p->id),
+                    ])->all(),
                 'answers' => $r->answers->map(fn ($a) => [
                     'id' => $a->id,
                     'measurement_name' => $a->measurement?->name,

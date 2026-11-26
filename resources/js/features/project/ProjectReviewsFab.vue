@@ -1,8 +1,6 @@
 <script setup lang="ts">
 // ProjectReviewsFab: bottom sheet (mobile) / dialog (desktop) with the BPD review notes and the citizen
-// reports BPD published. Text and counts come from the project props: no ratings, counters, or reporter
-// identities are made up here (ENGINEERING.md §2, numbers by code). The field photos are still dummy
-// (reviewPhotos.ts) until BPD can publish citizen report photos.
+// reports BPD published. Photos are loaded from reviewed citizen reports via the server endpoint.
 
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import Badge from '@/components/ui/Badge.vue';
@@ -12,10 +10,8 @@ import plangEmpty from '@/components/ui/illustrations/plang-empty.svg';
 import searchEmpty from '@/components/ui/illustrations/search-empty.svg';
 import { formatDate } from '@/lib/format';
 import { projectReviews, reportType, reviewOutcome, type ReviewOutcome } from '@/lib/labels';
-import type { ProjectDetail, ProjectPublishedReport } from '@/types/project';
+import type { ProjectDetail, ProjectPublishedReport, ProjectPublishedReportPhoto } from '@/types/project';
 import ReviewPhotoGrid from './ReviewPhotoGrid.vue';
-import ReviewPhotoIllustration from './ReviewPhotoIllustration.vue';
-import { bpdReviewPhotos, citizenReviewPhotos, type ReviewPhoto } from './reviewPhotos';
 
 interface Props {
     project: ProjectDetail;
@@ -36,13 +32,23 @@ const emit = defineEmits<{
 type TabType = 'all' | 'bpd' | 'reports';
 type ReportKind = ProjectPublishedReport['kind'];
 
+interface ActivePhoto {
+    url: string;
+    title: string;
+    subtitle: string;
+}
+
 const isOpen = ref(false);
 const isFullscreen = ref(false);
 const activeTab = ref<TabType>('all');
-const activePhoto = ref<ReviewPhoto | null>(null);
+const activePhoto = ref<ActivePhoto | null>(null);
 
-function openPhoto(photo: ReviewPhoto): void {
-    activePhoto.value = photo;
+function openPhoto(report: ProjectPublishedReport, photo: ProjectPublishedReportPhoto): void {
+    activePhoto.value = {
+        url: photo.url,
+        title: `${report.reporter_label} — Foto ${photo.position}`,
+        subtitle: `${reportType[report.kind]} · ${formatDate(report.created_at)}`,
+    };
 }
 
 function closePhoto(): void {
@@ -512,8 +518,6 @@ onUnmounted(() => {
                                 <p class="text-sm leading-relaxed text-content">
                                     {{ project.review.note }}
                                 </p>
-
-                                <ReviewPhotoGrid :photos="bpdReviewPhotos" @open="openPhoto" />
                             </article>
 
                             <!-- Catatan Tindak Lanjut BPD -->
@@ -596,7 +600,12 @@ onUnmounted(() => {
                                     {{ report.note }}
                                 </p>
 
-                                <ReviewPhotoGrid :photos="citizenReviewPhotos(report.kind)" @open="openPhoto" />
+                                <ReviewPhotoGrid
+                                    v-if="report.photos && report.photos.length > 0"
+                                    :photos="report.photos"
+                                    :reporter-label="report.reporter_label"
+                                    @open="(photo) => openPhoto(report, photo)"
+                                />
 
                                 <!-- Hasil ukur per spesifikasi -->
                                 <ul v-if="report.answers && report.answers.length > 0" class="flex flex-wrap gap-1.5">
@@ -776,8 +785,12 @@ onUnmounted(() => {
                         </button>
                     </div>
 
-                    <div class="aspect-4/3 w-full overflow-hidden bg-surface-muted">
-                        <ReviewPhotoIllustration :scene="activePhoto.scene" class="h-full w-full" />
+                    <div class="flex max-h-[75vh] items-center justify-center bg-black p-2">
+                        <img
+                            :src="activePhoto.url"
+                            :alt="activePhoto.title"
+                            class="max-h-[70vh] w-auto max-w-full object-contain"
+                        />
                     </div>
 
                     <p class="bg-surface-subtle px-4 py-3 text-xs text-content-secondary">

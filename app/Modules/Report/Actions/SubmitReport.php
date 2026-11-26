@@ -128,7 +128,7 @@ final class SubmitReport
     }
 
     /**
-     * C5: measured_value is kept only for "Tidak" in the RAB unit.
+     * C5: measured_value is kept only for "Tidak" in the RAB unit (optional if omitted).
      * D15: target_value & target_unit snapshot the locked project measurement at submission time.
      */
     private function saveAnswers(Report $report, Project $project, ReportSubmission $submission): void
@@ -137,13 +137,15 @@ final class SubmitReport
 
         foreach ($submission->answers as $answer) {
             $measurement = $measurements->get($answer->measurementId);
-            $isMismatch = $answer->answer === MeasurementAnswer::Mismatch;
+            $hasMeasuredValue = $answer->answer === MeasurementAnswer::Mismatch
+                && $answer->measuredValue !== null
+                && $answer->measuredValue !== '';
 
             $report->answers()->create([
                 'measurement_id' => $answer->measurementId,
                 'answer' => $answer->answer,
-                'measured_value' => $isMismatch ? $answer->measuredValue : null,
-                'measured_unit' => $isMismatch ? $measurement?->unit : null,
+                'measured_value' => $hasMeasuredValue ? $answer->measuredValue : null,
+                'measured_unit' => $hasMeasuredValue ? $measurement?->unit : null,
                 'target_value' => $measurement?->value,
                 'target_unit' => $measurement?->unit,
             ]);

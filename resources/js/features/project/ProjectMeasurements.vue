@@ -32,14 +32,14 @@ const diagram = computed(() => {
         thickness: thickness ? display(thickness) : null,
     };
 });
-
-const howTos = computed(() => props.project.measurements.filter((m) => m.how_to));
 </script>
 
 <template>
     <section id="ukuran" class="scroll-mt-20">
-        <h2 class="text-xl font-semibold text-content">Ukuran di RAB</h2>
-        <p class="text-sm text-content-secondary">Ini yang bisa kamu cocokkan di lokasi</p>
+        <h2 class="text-xl font-semibold text-content">Yang bisa kamu cek di lokasi</h2>
+        <p class="text-sm text-content-secondary">
+            Ukuran di RAB dan cara mencocokkannya di lapangan — langsung bisa dibaca tanpa login.
+        </p>
 
         <div
             v-if="project.measurements.length > 0"
@@ -47,7 +47,7 @@ const howTos = computed(() => props.project.measurements.filter((m) => m.how_to)
         >
             <div :class="[diagram ? 'md:grid md:grid-cols-12 md:items-center md:gap-6' : '']">
                 <!-- Gambar teknis lempeng (proyeksi miring). -->
-                <div v-if="diagram" class="md:col-span-6">
+                <div v-if="diagram" class="md:col-span-5">
                     <svg class="mx-auto block w-full max-w-80" viewBox="0 0 320 128" aria-hidden="true">
                         <path d="M62 70H246L292 36H108Z" class="fill-content-tertiary" />
                         <path d="M62 70H246V86H62Z" class="fill-content-secondary" />
@@ -75,36 +75,29 @@ const howTos = computed(() => props.project.measurements.filter((m) => m.how_to)
                     </svg>
                 </div>
 
-                <div :class="[diagram ? 'mt-4 md:col-span-6 md:mt-0' : '']">
-                    <dl
-                        class="grid gap-2.5"
-                        :class="[
-                            project.measurements.length >= 3
-                                ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-2'
-                                : 'grid-cols-2',
-                        ]"
-                    >
-                        <div
+                <div :class="[diagram ? 'mt-4 md:col-span-7 md:mt-0' : '']">
+                    <ul class="grid gap-2.5 sm:grid-cols-2">
+                        <li
                             v-for="m in project.measurements"
                             :key="m.id"
-                            class="rounded-xl border border-stroke bg-surface p-3"
+                            class="rounded-xl border border-stroke bg-surface p-3.5"
                         >
-                            <dt class="text-xs font-medium text-content-secondary sm:text-sm">{{ m.name }}</dt>
-                            <dd class="mt-1 text-lg font-bold text-content tabular-nums sm:text-xl">
-                                {{ display(m) }}
-                            </dd>
-                        </div>
-                    </dl>
+                            <div class="flex items-baseline justify-between gap-2">
+                                <span class="text-xs font-semibold text-content-secondary sm:text-sm">{{
+                                    m.name
+                                }}</span>
+                                <span
+                                    class="shrink-0 rounded-md border border-primary/20 bg-primary-subtle px-2 py-0.5 text-xs font-bold text-primary tabular-nums sm:text-sm"
+                                >
+                                    {{ display(m) }}
+                                </span>
+                            </div>
+                            <p v-if="m.how_to" class="mt-2 text-xs leading-relaxed text-content-secondary">
+                                <span class="font-medium text-content">Cara cek:</span> {{ m.how_to }}
+                            </p>
+                        </li>
+                    </ul>
                 </div>
-            </div>
-
-            <div v-if="howTos.length > 0" class="mt-4 border-t border-stroke pt-3.5">
-                <p class="text-sm font-semibold text-content">Cara mengukur</p>
-                <ul class="mt-2 flex flex-col gap-1.5 text-sm text-content-secondary">
-                    <li v-for="m in howTos" :key="m.id">
-                        <span class="font-medium text-content">{{ m.name }}:</span> {{ m.how_to }}
-                    </li>
-                </ul>
             </div>
         </div>
 

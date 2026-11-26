@@ -995,8 +995,11 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                     <span class="font-medium">{{ ans.measurement_name }}:</span>
                                                     <template v-if="ans.answer === 'mismatch'">
                                                         <span class="font-semibold">
-                                                            {{ ans.measured_value ?? '-' }}
-                                                            {{ ans.measured_unit ?? '' }}
+                                                            {{
+                                                                ans.measured_value !== null
+                                                                    ? `${ans.measured_value} ${ans.measured_unit ?? ''}`.trim()
+                                                                    : 'Tidak sesuai'
+                                                            }}
                                                         </span>
                                                         <span
                                                             v-if="ans.rab_value !== null"
