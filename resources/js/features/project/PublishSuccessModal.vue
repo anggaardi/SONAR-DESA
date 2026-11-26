@@ -52,15 +52,11 @@ async function copyUrl(): Promise<void> {
     <Teleport to="body">
         <div v-if="open && project" class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <!-- Backdrop -->
-            <div
-                class="fixed inset-0 bg-content/60 backdrop-blur-xs transition-opacity"
-                aria-hidden="true"
-                @click="emit('close')"
-            />
+            <div class="fixed inset-0 bg-content/50" aria-hidden="true" @click="emit('close')" />
 
             <!-- Modal Panel -->
             <div
-                class="relative z-10 max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-stroke bg-surface p-6 shadow-xl sm:p-8"
+                class="relative z-10 max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-stroke bg-surface p-6 shadow-sm sm:p-8"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="success-modal-title"
@@ -123,7 +119,7 @@ async function copyUrl(): Promise<void> {
                                 d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
                             />
                         </svg>
-                        <span class="truncate font-mono text-xs font-semibold text-content sm:text-sm">
+                        <span class="truncate text-xs font-medium text-content sm:text-sm">
                             {{ project.public_url }}
                         </span>
                     </div>
@@ -139,38 +135,38 @@ async function copyUrl(): Promise<void> {
                 <!-- A4 Poster Preview Card -->
                 <div class="mt-6 flex justify-center">
                     <div
-                        class="border-stone-300 text-stone-900 w-full max-w-sm rounded-lg border-2 bg-white p-5 text-center shadow-md"
+                        class="w-full max-w-sm rounded-lg border-2 border-stroke-strong bg-surface p-5 text-center text-content"
                     >
                         <!-- A4 Header -->
-                        <div class="border-stone-900 border-b-2 pb-2">
-                            <h3 class="text-stone-900 text-xs font-bold tracking-wider uppercase">
+                        <div class="border-b-2 border-content pb-2">
+                            <h3 class="text-xs font-bold tracking-wider text-content uppercase">
                                 PEMERINTAH {{ villageName }}
                             </h3>
-                            <p class="text-stone-600 text-[10px] font-semibold">
+                            <p class="text-xs font-semibold text-content-secondary">
                                 KABUPATEN {{ villageRegency.toUpperCase() }} · APBDES TAHUN {{ project.year }}
                             </p>
                         </div>
 
                         <!-- Project Name & Location -->
                         <div class="mt-3">
-                            <h4 class="text-stone-900 text-sm font-bold">
+                            <h4 class="text-sm font-bold text-content">
                                 {{ project.name }}
                             </h4>
-                            <p class="text-stone-600 text-xs">{{ villageName }}, Kab. {{ villageRegency }}</p>
+                            <p class="text-xs text-content-secondary">{{ villageName }}, Kab. {{ villageRegency }}</p>
                         </div>
 
                         <!-- Pagu Box -->
-                        <div class="border-stone-200 bg-stone-50 my-3 rounded border px-3 py-2">
-                            <p class="text-xs font-bold text-primary">
+                        <div class="my-3 rounded-md border border-stroke bg-surface-subtle px-3 py-2">
+                            <p class="text-xs font-bold text-primary tabular-nums">
                                 PAGU ANGGARAN: {{ formatRupiah(project.total_amount_rp) }}
                             </p>
-                            <p class="text-stone-500 text-[10px]">Sumber: {{ project.fund_source }}</p>
+                            <p class="text-xs text-content-secondary">Sumber: {{ project.fund_source }}</p>
                         </div>
 
                         <!-- QR Code Area -->
                         <div class="my-3 flex justify-center">
                             <div
-                                class="border-stone-800 flex h-36 w-36 items-center justify-center rounded-lg border-2 bg-white p-2 shadow-xs"
+                                class="flex h-36 w-36 items-center justify-center rounded-lg border-2 border-content bg-surface p-2"
                             >
                                 <!-- eslint-disable vue/no-v-html -->
                                 <div
@@ -179,21 +175,19 @@ async function copyUrl(): Promise<void> {
                                     v-html="project.qr_svg"
                                 />
                                 <!-- eslint-enable vue/no-v-html -->
-                                <div v-else class="text-stone-400 text-xs font-bold">QR CODE</div>
+                                <div v-else class="text-xs font-bold text-content-tertiary">QR CODE</div>
                             </div>
                         </div>
 
                         <!-- CTA Pengawasan Warga -->
-                        <div class="text-stone-800 mt-2">
-                            <p class="text-[10px] font-bold tracking-wide uppercase">
-                                Ajakan Pengawasan Warga (Cek Spek)
-                            </p>
-                            <p class="text-stone-600 mt-0.5 text-[9px]">
+                        <div class="mt-2 text-content">
+                            <p class="text-xs font-bold tracking-wide uppercase">Ajakan Pengawasan Warga (Cek Spek)</p>
+                            <p class="mt-0.5 text-xs text-content-secondary">
                                 Pindai kode QR ini di lokasi proyek dengan kamera HP untuk menguji ketebalan, lebar, dan
                                 transparansi anggaran fisik.
                             </p>
                             <p
-                                class="border-stone-300 text-stone-500 mt-2 border-t border-dashed pt-1 text-[8.5px] font-medium"
+                                class="mt-2 border-t border-dashed border-stroke-strong pt-1 text-xs font-medium text-content-secondary"
                             >
                                 Dipasang pada Plang Fisik Proyek Desa · Pasang di Lokasi
                             </p>
@@ -206,7 +200,7 @@ async function copyUrl(): Promise<void> {
                     <a
                         :href="project.qr_poster_url"
                         target="_blank"
-                        class="inline-flex w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-content-inverse shadow-sm transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        class="inline-flex h-10 w-full max-w-sm items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-content-inverse transition-colors hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
                     >
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path

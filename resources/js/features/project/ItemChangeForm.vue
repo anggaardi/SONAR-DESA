@@ -20,6 +20,7 @@ export interface ProjectAuditItem {
     diff_rp: number;
     over_pct: number | null;
     standard_id: number | null;
+    standard_price_rp?: number | null;
     standard?: {
         id: number;
         name: string;
@@ -120,10 +121,18 @@ function submitItemChange(): void {
                         <tr v-for="item in items" :key="item.id" class="hover:bg-surface-muted">
                             <td class="px-3 py-3">
                                 <p class="font-medium text-content">{{ item.raw_name }}</p>
-                                <p v-if="item.standard" class="text-xs text-content-tertiary tabular-nums">
-                                    Standar: {{ item.standard.name }} ({{ formatRupiah(item.standard.price_rp) }}/{{
-                                        item.standard.unit
-                                    }})
+                                <p
+                                    v-if="item.standard || item.standard_price_rp"
+                                    class="text-xs text-content-tertiary tabular-nums"
+                                >
+                                    <template v-if="item.standard">
+                                        Standar: {{ item.standard.name }} ({{
+                                            formatRupiah(item.standard_price_rp ?? item.standard.price_rp)
+                                        }}/{{ item.standard.unit }})
+                                    </template>
+                                    <template v-else>
+                                        Standar: {{ formatRupiah(item.standard_price_rp ?? 0) }}
+                                    </template>
                                 </p>
                             </td>
                             <td class="px-3 py-3 text-right text-sm text-content tabular-nums">
@@ -163,10 +172,16 @@ function submitItemChange(): void {
                     <div class="flex items-start justify-between gap-2">
                         <div>
                             <p class="text-sm font-medium text-content">{{ item.raw_name }}</p>
-                            <p v-if="item.standard" class="text-xs text-content-tertiary tabular-nums">
-                                Standar: {{ item.standard.name }} ({{ formatRupiah(item.standard.price_rp) }}/{{
-                                    item.standard.unit
-                                }})
+                            <p
+                                v-if="item.standard || item.standard_price_rp"
+                                class="text-xs text-content-tertiary tabular-nums"
+                            >
+                                <template v-if="item.standard">
+                                    Standar: {{ item.standard.name }} ({{
+                                        formatRupiah(item.standard_price_rp ?? item.standard.price_rp)
+                                    }}/{{ item.standard.unit }})
+                                </template>
+                                <template v-else> Standar: {{ formatRupiah(item.standard_price_rp ?? 0) }} </template>
                             </p>
                         </div>
                         <PriceLabel :label="item.label" :percent-above="item.over_pct ? `+${item.over_pct}%` : null" />

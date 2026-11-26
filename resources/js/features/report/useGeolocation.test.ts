@@ -170,6 +170,50 @@ describe('giving up', () => {
         expect(clearWatch).toHaveBeenCalledWith(7);
     });
 
+    it('gives up sooner when accuracy stays extremely coarse (e.g. 25000 m laptop IP fix)', () => {
+        const geo = useGeolocation({
+            maxAccuracyMeters: 100,
+            giveUpAfterMs: 30_000,
+            coarseGiveUpAfterMs: 5_000,
+            coarseAccuracyMeters: 5_000,
+        });
+        geo.start();
+        onSuccess(fix(25_000));
+
+        vi.advanceTimersByTime(2_000);
+        // Repeated extreme coarse updates must not push back the shortened deadline.
+        onSuccess(fix(25_000));
+        expect(geo.status.value).toBe('weak');
+
+        vi.advanceTimersByTime(2_999);
+        expect(geo.status.value).toBe('weak');
+
+        vi.advanceTimersByTime(1);
+        expect(geo.status.value).toBe('too_weak');
+        expect(geo.position.value?.accuracyMeters).toBe(25_000);
+        expect(clearWatch).toHaveBeenCalledWith(7);
+    });
+
+    it('restores the full wait window when an extreme coarse fix improves below coarseAccuracyMeters', () => {
+        const geo = useGeolocation({
+            maxAccuracyMeters: 100,
+            giveUpAfterMs: 30_000,
+            coarseGiveUpAfterMs: 5_000,
+            coarseAccuracyMeters: 5_000,
+        });
+        geo.start();
+        onSuccess(fix(25_000));
+
+        vi.advanceTimersByTime(2_000);
+        onSuccess(fix(800));
+
+        vi.advanceTimersByTime(10_000);
+        expect(geo.status.value).toBe('weak');
+
+        onSuccess(fix(25));
+        expect(geo.status.value).toBe('ready');
+    });
+
     it('fails when the browser never answers at all', () => {
         const geo = useGeolocation({ maxAccuracyMeters: 100, giveUpAfterMs: 30_000 });
         geo.start();

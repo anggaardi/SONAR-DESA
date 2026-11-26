@@ -176,6 +176,7 @@ final class ProcessRabDocumentJob implements ShouldQueue
                         'unit_price_rp' => $row->unitPriceRp ?? 0,
                         'amount_rp' => $amountRp,
                         'standard_id' => $standard?->id,
+                        'standard_price_rp' => $standard?->price_rp,
                         'doubt' => $labelResult->reason ? [
                             'reason' => $labelResult->reason,
                             'fields' => $labelResult->doubtFields,

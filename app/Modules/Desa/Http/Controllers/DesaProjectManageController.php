@@ -73,8 +73,9 @@ final class DesaProjectManageController
                             'name' => $item->standard->name,
                             'code' => $item->standard->code,
                             'unit' => $item->standard->unit,
-                            'price_rp' => $item->standard->price_rp,
+                            'price_rp' => $item->standard_price_rp ?? $item->standard->price_rp,
                         ] : null,
+                        'standard_price_rp' => $item->standard_price_rp,
                     ]),
                 ] : null,
                 'measurements' => $project->measurements->map(fn (ProjectMeasurement $m) => [
