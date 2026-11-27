@@ -5,6 +5,20 @@ export const DISPLAY_TIMEZONE = 'Asia/Makassar';
 
 const rupiahFull = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 const decimalOne = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
+const decimalThree = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 });
+
+/** Format angka atau string numerik dengan pemisah desimal koma Indonesia (maks. 3 angka di belakang koma). */
+export function formatNumber(value: number | string): string {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? decimalThree.format(value) : String(value);
+    }
+    const trimmed = value.trim();
+    if (!/^-?\d+([.,]\d+)?$/.test(trimmed)) {
+        return value;
+    }
+    const parsed = Number(trimmed.replace(',', '.'));
+    return Number.isFinite(parsed) ? decimalThree.format(parsed) : value;
+}
 
 /** PRD Fitur 8.1: "Rp85.000". No space after "Rp", dot as thousands separator. */
 export function formatRupiah(amount: number): string {
@@ -64,10 +78,11 @@ export function formatDateTime(iso: string): string {
     return `${formatDate(iso)}, ${p.hour}.${p.minute} WITA`;
 }
 
-/** Panjang dalam meter untuk warga: "350 m", "2,5 m"; di bawah 1 meter memakai cm ("15 cm"). */
+/** Panjang dalam meter untuk warga: "350 m", "2,5 m"; di bawah 1 meter memakai cm ("15 cm", "12,5 cm"). */
 export function formatLength(meters: number): string {
     if (meters > 0 && meters < 1) {
-        return `${Math.round(meters * 100)} cm`;
+        const cm = Number((meters * 100).toPrecision(12));
+        return `${decimalThree.format(cm)} cm`;
     }
-    return `${decimalOne.format(meters)} m`;
+    return `${decimalThree.format(meters)} m`;
 }

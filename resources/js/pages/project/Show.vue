@@ -12,18 +12,25 @@ import ProjectHero from '@/features/project/ProjectHero.vue';
 import ProjectItems, { type BudgetFilter } from '@/features/project/ProjectItems.vue';
 import ProjectJourney from '@/features/project/ProjectJourney.vue';
 import ProjectMeasurements from '@/features/project/ProjectMeasurements.vue';
+import ProjectPlangDialog from '@/features/project/ProjectPlangDialog.vue';
 import ProjectProgress from '@/features/project/ProjectProgress.vue';
 import ProjectReviewsFab from '@/features/project/ProjectReviewsFab.vue';
 import ProjectStatusNotice from '@/features/project/ProjectStatusNotice.vue';
+import QrScannerDialog from '@/features/project/QrScannerDialog.vue';
 import { formatDate } from '@/lib/format';
 import { reportType, reviewOutcome, type ReviewOutcome } from '@/lib/labels';
-import type { ProjectDetail } from '@/types/project';
+import type { ProjectDetail, ProjectPlangInfo } from '@/types/project';
 
 interface Props {
     project: ProjectDetail;
+    checkSpecRadiusM?: number;
+    plang?: ProjectPlangInfo;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    checkSpecRadiusM: 300,
+    plang: undefined,
+});
 
 const page = usePage();
 const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
@@ -90,6 +97,27 @@ const sectionLinks = [
 
 const showHelpDialog = ref(false);
 const showQrDialog = ref(false);
+const showPlangDialog = ref(false);
+
+const plangProjects = computed(() => [
+    {
+        id: props.project.id,
+        slug: props.project.slug,
+        name: props.project.name,
+        type: props.project.type,
+        fund_source: props.project.fund_source,
+        year: props.project.year,
+        total_amount_rp: props.project.total_amount_rp,
+        progress_pct: props.project.progress_pct,
+    },
+]);
+
+const plangsMap = computed<Record<number, ProjectPlangInfo>>(() => {
+    if (!props.plang) {
+        return {};
+    }
+    return { [props.project.id]: props.plang };
+});
 
 function handleCheckSpecClick(): void {
     if (!canCheckSpec.value) {
@@ -103,6 +131,8 @@ function handleTabClick(tabId: string): void {
         showHelpDialog.value = true;
     } else if (tabId === 'pindai-qr') {
         showQrDialog.value = true;
+    } else if (tabId === 'plang') {
+        showPlangDialog.value = true;
     }
 }
 </script>
@@ -114,7 +144,7 @@ function handleTabClick(tabId: string): void {
         <div class="flex min-h-screen">
             <!-- Desktop Sidebar -->
             <DesktopSidebar
-                active-tab="cari-desa"
+                active-tab="cari-proyek"
                 :village-name="project.village.name"
                 :village-slug="project.village.slug"
                 :regency="project.village.regency"
@@ -123,7 +153,7 @@ function handleTabClick(tabId: string): void {
             />
 
             <!-- Main Content Area -->
-            <div :class="['min-w-0 flex-1', canCheckSpec ? 'pb-32 lg:pb-16' : 'pb-12 lg:pb-16']">
+            <div :class="['min-w-0 flex-1', canCheckSpec ? 'pb-32 xl:pb-16' : 'pb-12 xl:pb-16']">
                 <!-- Mobile Header (Sticky agar warga mudah keluar / kembali ke desa) -->
                 <div class="sticky top-0 z-20 md:hidden">
                     <ProjectHeader
@@ -225,16 +255,18 @@ function handleTabClick(tabId: string): void {
 
                 <ProjectHero :project="project" />
 
-                <main class="mx-auto -mt-8 max-w-md px-4 sm:max-w-xl sm:px-6 md:max-w-3xl lg:max-w-7xl lg:px-8">
+                <main
+                    class="mx-auto -mt-8 max-w-md px-4 sm:max-w-xl sm:px-6 md:max-w-3xl lg:max-w-5xl xl:max-w-7xl xl:px-8"
+                >
                     <!-- Two-column desktop grid: Left narrative & data (8 col), Right sticky action rail (4 col) -->
-                    <div class="lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+                    <div class="xl:grid xl:grid-cols-12 xl:items-start xl:gap-8">
                         <!-- Left Column (8 cols on desktop) -->
-                        <div class="flex flex-col gap-6 lg:col-span-8">
+                        <div class="@container flex flex-col gap-6 xl:col-span-8">
                             <ProjectProgress :project="project" />
 
                             <nav
                                 aria-label="Bagian halaman"
-                                class="-mx-4 -mt-2 no-scrollbar flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:px-0"
+                                class="-mx-4 -mt-2 no-scrollbar flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:px-0"
                             >
                                 <a
                                     v-for="link in sectionLinks"
@@ -251,11 +283,12 @@ function handleTabClick(tabId: string): void {
                             <ProjectItems v-model:active-filter="activeFilter" :project="project" />
                             <ProjectMeasurements :project="project" />
 
-                            <!-- Mobile-only Cek Spek invite (on desktop, lives in sticky right rail) -->
-                            <div class="lg:hidden">
+                            <!-- Mobile/tablet Cek Spek invite (on xl desktop, lives in sticky right rail) -->
+                            <div class="xl:hidden">
                                 <ProjectCheckSpecInvite
                                     :citizen-count="project.citizen_reports_count"
                                     :check-spec-href="checkSpecHref"
+                                    :radius-meters="checkSpecRadiusM"
                                     :show-privacy-hint="showPrivacyHint"
                                     :can-check-spec="canCheckSpec"
                                     :is-demo="isDemo"
@@ -418,12 +451,13 @@ function handleTabClick(tabId: string): void {
                         <!-- Right Column: Sticky Action Rail (4 cols on desktop) -->
                         <aside
                             aria-label="Aksi dan informasi pendukung"
-                            class="hidden lg:sticky lg:top-20 lg:col-span-4 lg:flex lg:flex-col lg:gap-6"
+                            class="hidden xl:sticky xl:top-20 xl:col-span-4 xl:flex xl:flex-col xl:gap-6"
                         >
                             <!-- 1. Primary Action Hub Card: Cek Spek di Lokasi -->
                             <ProjectCheckSpecInvite
                                 :citizen-count="project.citizen_reports_count"
                                 :check-spec-href="checkSpecHref"
+                                :radius-meters="checkSpecRadiusM"
                                 :show-privacy-hint="showPrivacyHint"
                                 :can-check-spec="canCheckSpec"
                                 :is-demo="isDemo"
@@ -486,10 +520,10 @@ function handleTabClick(tabId: string): void {
             </div>
         </div>
 
-        <!-- Satu tombol utama per layar (PRD 6.1), menempel di bawah (hanya di mobile/tablet; di desktop sudah ada di aside) -->
+        <!-- Satu tombol utama per layar (PRD 6.1), menempel di bawah (hanya di mobile/tablet; di xl desktop sudah ada di aside) -->
         <div
             v-if="canCheckSpec"
-            class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface/95 backdrop-blur-sm lg:hidden"
+            class="fixed inset-x-0 bottom-0 z-30 border-t border-stroke bg-surface/95 backdrop-blur-sm md:left-[260px] xl:hidden"
         >
             <div class="mx-auto max-w-md px-4 py-3 sm:max-w-xl sm:px-6 md:max-w-3xl">
                 <a
@@ -539,24 +573,28 @@ function handleTabClick(tabId: string): void {
         </Dialog>
 
         <!-- Dialog: Pindai QR -->
-        <Dialog :open="showQrDialog" title="Pindai QR Plang Proyek" @close="showQrDialog = false">
-            <div class="space-y-3 text-sm text-content-secondary">
-                <p>Setiap plang proyek fisik di desa memiliki kode QR unik Sonar Desa.</p>
-                <p>
-                    Gunakan kamera ponsel Anda untuk memindai kode QR pada plang di lokasi pembangunan untuk langsung
-                    membuka rincian anggaran dan spesifikasi proyek.
-                </p>
-            </div>
-            <template #actions>
-                <button
-                    type="button"
-                    class="h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    @click="showQrDialog = false"
-                >
-                    Mengerti
-                </button>
-            </template>
-        </Dialog>
+        <QrScannerDialog
+            :open="showQrDialog"
+            :village-name="project.village.name"
+            :village-slug="project.village.slug"
+            is-project-page
+            @close="showQrDialog = false"
+            @open-plang="showPlangDialog = true"
+        />
+
+        <!-- Dialog: Plang Proyek Digital -->
+        <ProjectPlangDialog
+            :open="showPlangDialog"
+            :village-name="project.village.name"
+            :regency="project.village.regency"
+            :projects="plangProjects"
+            :plangs="plangsMap"
+            :initial-project-id="project.id"
+            :can-print-poster="activeRole === 'desa'"
+            is-single-project
+            @close="showPlangDialog = false"
+            @copied="showToast"
+        />
 
         <!-- Toast feedback -->
         <div

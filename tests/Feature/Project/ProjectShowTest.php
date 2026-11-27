@@ -73,7 +73,10 @@ it('renders the public project page without authentication (P1)', function () {
             ->where('project.items.0.unit_diff_rp', 20_000)
             ->has('project.measurements', 1)
             ->where('project.measurements.0.name', 'Tebal beton')
-            ->where('project.measurements.0.value', '12'));
+            ->where('project.measurements.0.value', '12')
+            ->where('checkSpecRadiusM', (int) config('sonar.report.radius_m'))
+            ->has('plang.qr_svg')
+            ->where('plang.short_url', url('/p/rabat-beton-melati')));
 });
 
 it('returns friendly not found page when project is draft or does not exist (P10)', function () {

@@ -6,6 +6,8 @@ import PublicLayout from '@/layouts/PublicLayout.vue';
 
 const page = usePage();
 const demo = computed(() => page.props.demo);
+const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
+const showMyReportsShortcut = computed(() => activeRole.value === null || activeRole.value === 'warga');
 const opening = ref(false);
 
 /**
@@ -118,10 +120,20 @@ function openSampleVillage(): void {
                 </Card>
             </section>
 
-            <p class="text-sm text-content-secondary">
-                Pemerintah Desa atau BPD dengan akun asli?
-                <Link href="/login" class="font-medium text-primary underline underline-offset-2">Masuk di sini</Link>
-            </p>
+            <div class="flex flex-col gap-2 text-sm text-content-secondary">
+                <p v-if="showMyReportsShortcut">
+                    Sudah mengirim Cek Spek?
+                    <Link href="/laporan-saya" class="font-medium text-primary underline underline-offset-2">
+                        Lihat Laporan Saya
+                    </Link>
+                </p>
+                <p>
+                    Pemerintah Desa atau BPD dengan akun asli?
+                    <Link href="/login" class="font-medium text-primary underline underline-offset-2"
+                        >Masuk di sini</Link
+                    >
+                </p>
+            </div>
         </div>
 
         <footer class="mt-10 text-xs text-content-tertiary">

@@ -61,8 +61,8 @@ const swatch: Record<BudgetGroupKey, string> = {
                     />
                 </div>
 
-                <!-- Desktop Cards Grid (md:grid) -->
-                <div class="mt-4 hidden md:grid md:grid-cols-3 md:gap-3">
+                <!-- Desktop Cards Grid (@lg:grid) -->
+                <div class="mt-4 hidden @lg:grid @lg:grid-cols-3 @lg:gap-3">
                     <div
                         v-for="group in groups"
                         :key="group.key"
@@ -86,8 +86,8 @@ const swatch: Record<BudgetGroupKey, string> = {
                     </div>
                 </div>
 
-                <!-- Mobile Compact List (md:hidden) -->
-                <ul class="mt-4 flex flex-col gap-3 md:hidden">
+                <!-- Mobile Compact List (@lg:hidden) -->
+                <ul class="mt-4 flex flex-col gap-3 @lg:hidden">
                     <li v-for="group in groups" :key="group.key" class="flex items-start gap-3">
                         <span
                             class="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm"

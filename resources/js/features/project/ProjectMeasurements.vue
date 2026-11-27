@@ -4,7 +4,7 @@
 
 import { computed } from 'vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import { formatLength } from '@/lib/format';
+import { formatLength, formatNumber } from '@/lib/format';
 import { findMeasurement, measurementInMeters } from '@/lib/projectStory';
 import type { ProjectDetail, ProjectMeasurementItem } from '@/types/project';
 
@@ -16,7 +16,7 @@ const props = defineProps<Props>();
 
 function display(m: ProjectMeasurementItem): string {
     const meters = measurementInMeters(m);
-    return meters !== null ? formatLength(meters) : `${m.value} ${m.unit}`;
+    return meters !== null ? formatLength(meters) : `${formatNumber(m.value)} ${m.unit}`;
 }
 
 const diagram = computed(() => {
@@ -45,9 +45,9 @@ const diagram = computed(() => {
             v-if="project.measurements.length > 0"
             class="mt-3 rounded-2xl border border-stroke bg-surface-subtle p-4 sm:p-5"
         >
-            <div :class="[diagram ? 'md:grid md:grid-cols-12 md:items-center md:gap-6' : '']">
+            <div :class="[diagram ? '@2xl:grid @2xl:grid-cols-12 @2xl:items-center @2xl:gap-6' : '']">
                 <!-- Gambar teknis lempeng (proyeksi miring). -->
-                <div v-if="diagram" class="md:col-span-5">
+                <div v-if="diagram" class="@2xl:col-span-5">
                     <svg class="mx-auto block w-full max-w-80" viewBox="0 0 320 128" aria-hidden="true">
                         <path d="M62 70H246L292 36H108Z" class="fill-content-tertiary" />
                         <path d="M62 70H246V86H62Z" class="fill-content-secondary" />
@@ -75,8 +75,8 @@ const diagram = computed(() => {
                     </svg>
                 </div>
 
-                <div :class="[diagram ? 'mt-4 md:col-span-7 md:mt-0' : '']">
-                    <ul class="grid gap-2.5 sm:grid-cols-2">
+                <div :class="[diagram ? 'mt-4 @2xl:col-span-7 @2xl:mt-0' : '']">
+                    <ul class="grid gap-2.5 @md:grid-cols-2">
                         <li
                             v-for="m in project.measurements"
                             :key="m.id"

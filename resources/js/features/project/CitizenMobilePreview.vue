@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import checkSpecSvg from '@/components/ui/illustrations/check-spec.svg';
-import { formatLength, formatRupiah, formatRupiahShort } from '@/lib/format';
+import { formatLength, formatNumber, formatRupiah, formatRupiahShort } from '@/lib/format';
 import { type BudgetGroupKey, fundingLabel, groupBudget } from '@/lib/projectStory';
 
 interface BudgetItem {
@@ -293,7 +293,7 @@ function itemInMeters(item: MeasurementItem | undefined): number | null {
 
 function displayMeasurement(m: MeasurementItem): string {
     const meters = itemInMeters(m);
-    return meters !== null ? formatLength(meters) : `${m.value ?? ''} ${m.unit ?? ''}`.trim();
+    return meters !== null ? formatLength(meters) : `${formatNumber(m.value ?? '')} ${m.unit ?? ''}`.trim();
 }
 
 const diagram = computed(() => {
@@ -301,9 +301,9 @@ const diagram = computed(() => {
     const width = findItem('lebar');
     if (!length || !width) {
         return {
-            length: '450.0 m',
-            width: '2.5 m',
-            thickness: '12.0 cm',
+            length: '450 m',
+            width: '2,5 m',
+            thickness: '12 cm',
         };
     }
     const thickness = findItem('tebal') || findItem('tinggi') || findItem('kedalaman');
@@ -544,9 +544,9 @@ watch(
                                     {{ fundSource }} {{ year }}
                                 </span>
                                 <span
-                                    class="inline-flex items-center rounded-full border border-positive-border bg-positive-subtle px-2.5 py-0.5 text-xs font-semibold text-positive"
+                                    class="inline-flex items-center rounded-full border border-stroke bg-surface px-2.5 py-0.5 text-xs font-semibold text-content-secondary"
                                 >
-                                    &check; Terbit resmi
+                                    Terbit resmi
                                 </span>
                             </div>
                         </section>
@@ -799,7 +799,8 @@ watch(
                                                     {{ item.name }}
                                                 </h4>
                                                 <p class="text-xs text-content-tertiary tabular-nums">
-                                                    {{ item.volume || '1' }} {{ item.unit || 'unit' }}
+                                                    {{ item.volume ? formatNumber(item.volume) : '1' }}
+                                                    {{ item.unit || 'unit' }}
                                                     <template v-if="item.unit_price_rp">
                                                         &middot; @{{ formatRupiahShort(item.unit_price_rp) }}
                                                     </template>
@@ -960,7 +961,7 @@ watch(
                                                 {{ item.name || 'Ukuran' }}
                                             </p>
                                             <p class="mt-0.5 text-xs font-semibold text-content tabular-nums">
-                                                {{ item.value }} {{ item.unit }}
+                                                {{ formatNumber(item.value) }} {{ item.unit }}
                                             </p>
                                         </div>
                                     </div>
@@ -1300,7 +1301,7 @@ watch(
                                     >
                                         <span>&bull; {{ item.name || 'Parameter' }}</span>
                                         <span class="font-semibold text-content tabular-nums">
-                                            {{ item.value }} {{ item.unit }}
+                                            {{ formatNumber(item.value) }} {{ item.unit }}
                                         </span>
                                     </li>
                                 </ul>

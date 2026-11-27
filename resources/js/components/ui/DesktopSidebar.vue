@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
-import { demo as demoLabels } from '@/lib/labels';
+import { demo as demoLabels, myReports as myReportsLabels } from '@/lib/labels';
 import type { Role } from '@/types/inertia';
 
 interface Props {
@@ -9,13 +9,15 @@ interface Props {
     villageName?: string;
     villageSlug?: string;
     regency?: string;
+    isVillagePage?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-    activeTab: 'cari-desa',
+    activeTab: 'cari-proyek',
     villageName: '',
     villageSlug: '',
     regency: '',
+    isVillagePage: false,
 });
 
 const emit = defineEmits<{
@@ -26,6 +28,11 @@ const emit = defineEmits<{
 const page = usePage();
 const demo = computed(() => page.props.demo);
 const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
+const showMyReports = computed(() => activeRole.value === null || activeRole.value === 'warga');
+const villageExploreHref = computed(() => {
+    const slug = props.villageSlug || demo.value?.village_slug;
+    return slug ? `/d/${slug}` : null;
+});
 const dashboardLink = computed<{ href: string; label: string } | null>(() => {
     if (activeRole.value === 'bpd') {
         return { href: '/bpd', label: 'Kembali ke Dashboard BPD' };
@@ -107,12 +114,55 @@ function restartDemo(): void {
                 MENU UTAMA
             </p>
 
-            <!-- Cari Desa -->
+            <!-- Beranda -->
             <Link
                 href="/"
                 :class="[
                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
-                    activeTab === 'cari-desa'
+                    activeTab === 'beranda'
+                        ? 'bg-primary-subtle font-semibold text-primary'
+                        : 'text-content-secondary hover:bg-surface-muted hover:text-content',
+                ]"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 10.5 12 3l9 7.5M5 9v11a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V9"
+                    />
+                </svg>
+                <span>Beranda</span>
+            </Link>
+
+            <!-- Cari Proyek / Daftar Proyek Desa -->
+            <button
+                v-if="isVillagePage"
+                type="button"
+                :class="[
+                    'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
+                    activeTab === 'cari-proyek' || activeTab === 'cari-desa'
+                        ? 'bg-primary-subtle font-semibold text-primary'
+                        : 'text-content-secondary hover:bg-surface-muted hover:text-content',
+                ]"
+                @click="emit('tabClick', 'cari-proyek')"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4"
+                    />
+                </svg>
+                <span>Cari Proyek</span>
+            </button>
+            <Link
+                v-else-if="villageExploreHref"
+                :href="villageExploreHref"
+                :class="[
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
+                    activeTab === 'cari-proyek' || activeTab === 'cari-desa'
                         ? 'bg-primary-subtle font-semibold text-primary'
                         : 'text-content-secondary hover:bg-surface-muted hover:text-content',
                 ]"
@@ -125,7 +175,29 @@ function restartDemo(): void {
                         d="M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4"
                     />
                 </svg>
-                <span>Cari Desa</span>
+                <span>Daftar Proyek Desa</span>
+            </Link>
+
+            <!-- Laporan Saya (khusus warga & tamu) -->
+            <Link
+                v-if="showMyReports"
+                href="/laporan-saya"
+                :class="[
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
+                    activeTab === 'laporan-saya'
+                        ? 'bg-primary-subtle font-semibold text-primary'
+                        : 'text-content-secondary hover:bg-surface-muted hover:text-content',
+                ]"
+            >
+                <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                    />
+                </svg>
+                <span>{{ myReportsLabels.navLabel }}</span>
             </Link>
 
             <!-- Pindai QR -->

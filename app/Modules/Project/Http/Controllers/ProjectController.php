@@ -6,6 +6,7 @@ namespace App\Modules\Project\Http\Controllers;
 
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Project\Actions\FindPublicProject;
+use App\Modules\Project\Actions\GenerateProjectQrSvg;
 use App\Modules\Project\Http\Resources\ProjectResource;
 use App\Modules\Project\Models\Project;
 use Illuminate\Http\Request;
@@ -15,8 +16,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 final class ProjectController
 {
-    public function show(Request $request, string $slug, FindPublicProject $findProject): Response|InertiaResponse
-    {
+    public function show(
+        Request $request,
+        string $slug,
+        FindPublicProject $findProject,
+        GenerateProjectQrSvg $qrAction,
+    ): Response|InertiaResponse {
         $project = $findProject->handle($request, $slug);
 
         // PRD Fitur Inti 4.2 (P10): non-existent or unpublished project displays friendly message instead of 500 error.
@@ -41,6 +46,11 @@ final class ProjectController
 
         return Inertia::render('project/Show', [
             'project' => (new ProjectResource($project))->resolve($request),
+            'checkSpecRadiusM' => (int) config('sonar.report.radius_m'),
+            'plang' => [
+                'qr_svg' => $qrAction->handle($project),
+                'short_url' => url('/p/'.$project->slug),
+            ],
         ]);
     }
 }

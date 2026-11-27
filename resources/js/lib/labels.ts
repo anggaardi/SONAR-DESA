@@ -1,4 +1,4 @@
-import { formatDate, formatPercentAbove } from './format';
+import { formatDate, formatNumber, formatPercentAbove } from './format';
 
 export const priceLabel = {
     within_standard: 'Sesuai',
@@ -54,7 +54,7 @@ export interface Measurement {
 
 /** PRD Fitur 8.2: "Ukuran di RAB: panjang 200 m, lebar 3 m, tebal 12 cm". */
 export const measurementsInRab = (items: Measurement[]) =>
-    `Ukuran di RAB: ${items.map((m) => `${m.name} ${m.value} ${m.unit}`).join(', ')}`;
+    `Ukuran di RAB: ${items.map((m) => `${m.name} ${formatNumber(m.value)} ${m.unit}`).join(', ')}`;
 
 export const document = {
     viewOriginal: 'Lihat dokumen asli',
@@ -184,6 +184,7 @@ export type GoogleSignInFailure = keyof typeof googleSignIn.reasons;
 export const checkSpec = {
     title: 'Cek Spek',
     start: 'Mulai Cek Spek',
+    locationHint: (radiusMeters: number) => `Lokasi dicek saat melapor (radius ${radiusMeters} m)`,
     back: 'Kembali ke halaman proyek',
     step: (current: number, total: number, name: string) => `Langkah ${current} dari ${total} · ${name}`,
     steps: { location: 'Lokasi', report: 'Foto & temuan' },
@@ -218,7 +219,7 @@ export const checkSpec = {
         missingMismatchItems: 'Pilih minimal satu item yang tidak sesuai.',
         measuredInvalidOptional: 'Isi angka lebih dari 0 (contoh: 8 atau 8,5), atau kosongkan jika tidak mengukur.',
     },
-    rabValue: (value: string, unit: string) => `RAB: ${value} ${unit}`,
+    rabValue: (value: string | number, unit: string) => `RAB: ${formatNumber(value)} ${unit}`,
     measuredLabel: (unit: string) => `Hasil ukur dalam ${unit} (opsional)`,
     unanswered: 'Pilih salah satu jawaban.',
     measuredInvalid: 'Isi hasil ukur dengan angka lebih dari 0.',
@@ -263,6 +264,108 @@ export const reportSubmitted = {
     replaceHint: 'Mengirim lagi akan menggantikan laporanmu sebelumnya pada proyek ini.',
     backToProject: 'Kembali ke halaman proyek',
     sendAgain: 'Kirim laporan baru',
+    viewMyReports: 'Lihat di Laporan Saya',
+} as const;
+
+/** PRD Fitur Laporan Saya (/laporan-saya): menutup siklus pengawasan warga. */
+export const myReports = {
+    navLabel: 'Laporan Saya',
+    title: 'Laporan Saya',
+    subtitle: 'Pantau status laporan Cek Spek dan tindak lanjut BPD pada proyek yang kamu awasi.',
+    eyebrow: 'Pengawasan Partisipatif Warga',
+    eyebrowVillage: (villageName: string) =>
+        `Pengawasan Warga · ${villageName.startsWith('Desa ') ? villageName : `Desa ${villageName}`}`,
+    backHome: 'Beranda',
+    viewVillageProjects: 'Lihat daftar proyek desa',
+    listHeading: (count: number) => `Riwayat laporan (${count})`,
+    filters: {
+        all: 'Semua',
+        active: 'Aktif',
+        bpd: 'Dalam & Ditinjau BPD',
+    },
+    summary: {
+        total: 'Total laporan',
+        active: 'Aktif dihitung',
+        bpd: 'Tindak lanjut BPD',
+    },
+    summaryHelpers: {
+        total: 'Riwayat Cek Spek terkirim',
+        active: 'Masuk hitungan siklus aktif',
+        bpd: 'Dalam tinjauan atau selesai',
+    },
+    guide: {
+        title: 'Alur tinjauan laporan BPD',
+        items: [
+            {
+                term: 'Aktif dihitung',
+                detail: 'Laporan valid terbarumu pada siklus proyek ini masuk hitungan ambang.',
+            },
+            {
+                term: 'Ambang 3 warga',
+                detail: 'Tinjauan BPD dimulai otomatis saat 3 warga berbeda mengirim laporan selisih dari lokasi.',
+            },
+            {
+                term: 'Putusan & catatan BPD',
+                detail: 'Hasil tinjauan serta catatan lanjutan resmi BPD tampil di sini dan di halaman proyek.',
+            },
+        ],
+        privacy:
+            'Identitas dan email pelapor dijaga kerahasiaannya serta tidak pernah ditampilkan ke publik maupun BPD.',
+    },
+    status: {
+        active: 'Aktif dihitung',
+        superseded: 'Digantikan',
+        not_counted: 'Tidak dihitung',
+    },
+    statusHints: {
+        activeMismatch: 'Masuk hitungan progres ambang tinjauan BPD.',
+        activeOther: 'Laporan tercatat aktif; tinjauan BPD dipicu oleh laporan selisih.',
+        superseded: 'Digantikan oleh laporan terbarumu pada siklus proyek ini.',
+        notCounted: 'Tidak masuk hitungan ambang tinjauan oleh BPD.',
+    },
+    card: {
+        reportedAt: 'Dikirim',
+        kindLabel: 'Jenis laporan',
+        statusLabel: 'Status laporan',
+        yourNote: 'Catatanmu',
+        thresholdTitle: 'Progres ambang proyek',
+        thresholdFraction: (current: number, threshold: number) => `${current} dari ${threshold} warga`,
+        bpdSectionTitle: 'Status Tindak Lanjut BPD',
+        bpdWaiting:
+            'Belum masuk tinjauan BPD. Tinjauan dimulai otomatis bila terdapat 3 pelapor selisih valid dari lokasi.',
+        bpdInReviewBody: 'Laporan warga pada proyek ini sedang diperiksa oleh BPD.',
+        bpdFollowUpTitle: 'Catatan lanjutan resmi BPD',
+        bpdAfterReviewHint: 'Laporan ini dikirim pada siklus setelah putusan di atas dicatat.',
+        viewProject: 'Lihat rincian proyek',
+        sendNew: 'Kirim laporan baru',
+    },
+    session: {
+        googleTitle: 'Masuk dengan Google',
+        googleHint: 'Akun Google dipakai agar setiap warga dihitung satu kali. Namamu tidak pernah tampil ke publik.',
+        logout: 'Keluar',
+        loggingOut: 'Keluar...',
+    },
+    guest: {
+        title: 'Masuk untuk melihat riwayat laporanmu',
+        description:
+            'Masuk dengan akun Google yang sama saat kamu mengirim Cek Spek untuk memantau progres ambang dan hasil tinjauan BPD.',
+        privacy: 'Tanpa NIK atau KTP. Email hanya dipakai membedakan akun.',
+        loginGoogle: 'Masuk dengan Google',
+        tryDemo: 'Coba lewat Mode Demo',
+    },
+    empty: {
+        title: 'Kamu belum mengirim laporan Cek Spek',
+        description:
+            'Ikut awasi pembangunan fisik desa langsung dari lokasi. Setiap laporan yang kamu kirim dapat dipantau tindak lanjut BPD-nya di sini.',
+        demoCta: (projectName: string) => `Coba Cek Spek: ${projectName}`,
+        demoVillageCta: 'Lihat daftar proyek desa',
+        exploreCta: 'Jelajahi proyek desa',
+    },
+    emptyFiltered: {
+        title: 'Tidak ada laporan di kategori ini',
+        description: 'Pilih filter "Semua" untuk melihat seluruh riwayat laporanmu.',
+        reset: 'Tampilkan semua',
+    },
 } as const;
 
 /** PRD Fitur Inti 6: Ulasan warga yang diterbitkan BPD & catatan resmi BPD. */

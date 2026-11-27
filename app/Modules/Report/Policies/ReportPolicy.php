@@ -14,4 +14,10 @@ final class ReportPolicy
     {
         return $user->hasRole(Role::Warga);
     }
+
+    /** Only warga have a personal Cek Spek report history (/laporan-saya). */
+    public function viewOwn(User $user): bool
+    {
+        return $user->hasRole(Role::Warga);
+    }
 }

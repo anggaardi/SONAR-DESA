@@ -42,6 +42,7 @@ final class SubmittedReportResource extends JsonResource
             'urls' => [
                 'project' => route('projects.show', $this->project->slug),
                 'check' => route('reports.check', $this->project->slug),
+                'my_reports' => route('reports.mine'),
             ],
         ];
     }

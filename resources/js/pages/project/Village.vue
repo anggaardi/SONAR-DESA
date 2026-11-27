@@ -6,29 +6,36 @@ import DesktopSidebar from '@/components/ui/DesktopSidebar.vue';
 import Dialog from '@/components/ui/Dialog.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import plangEmpty from '@/components/ui/illustrations/plang-empty.svg';
+import ProjectPlangDialog from '@/features/project/ProjectPlangDialog.vue';
+import QrScannerDialog from '@/features/project/QrScannerDialog.vue';
+import VillageFollowDialog from '@/features/project/VillageFollowDialog.vue';
 import VillageHeader from '@/features/project/VillageHeader.vue';
 import VillageHero from '@/features/project/VillageHero.vue';
 import VillageProjectCard from '@/features/project/VillageProjectCard.vue';
 import VillageProjectFilter, { type FilterCategory } from '@/features/project/VillageProjectFilter.vue';
 import VillageStatSummary from '@/features/project/VillageStatSummary.vue';
 import { projectType } from '@/lib/labels';
-import type { ProjectVillage, VillageProjectSummary } from '@/types/project';
+import type { ProjectPlangInfo, ProjectVillage, VillageProjectSummary } from '@/types/project';
 
 interface Props {
     village: ProjectVillage;
     projects: VillageProjectSummary[];
     citizenReportsCount?: number;
+    plangs?: Record<number, ProjectPlangInfo>;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+    citizenReportsCount: 0,
+    plangs: () => ({}),
+});
 
 const page = usePage();
+const activeRole = computed(() => page.props.auth?.user?.role ?? page.props.demo?.role ?? null);
 const dashboardLink = computed<{ href: string; label: string } | null>(() => {
-    const role = page.props.auth?.user?.role ?? page.props.demo?.role ?? null;
-    if (role === 'bpd') {
+    if (activeRole.value === 'bpd') {
         return { href: '/bpd', label: 'Kembali ke Dashboard BPD' };
     }
-    if (role === 'desa') {
+    if (activeRole.value === 'desa') {
         return { href: '/desa', label: 'Kembali ke Dashboard Pemdes' };
     }
     return null;
@@ -39,6 +46,8 @@ const activeCategory = ref('all');
 const toastMessage = ref<string | null>(null);
 const showHelpDialog = ref(false);
 const showQrDialog = ref(false);
+const showPlangDialog = ref(false);
+const showFollowDialog = ref(false);
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -79,13 +88,23 @@ async function handleShare(): Promise<void> {
     }
 }
 
+function focusProjectSearch(): void {
+    const input = document.getElementById('project-search-input');
+    if (input instanceof HTMLInputElement) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus();
+    }
+}
+
 function handleTabClick(tabId: string): void {
     if (tabId === 'bantuan') {
         showHelpDialog.value = true;
     } else if (tabId === 'pindai-qr') {
         showQrDialog.value = true;
     } else if (tabId === 'plang') {
-        showQrDialog.value = true;
+        showPlangDialog.value = true;
+    } else if (tabId === 'cari-proyek') {
+        focusProjectSearch();
     }
 }
 
@@ -144,10 +163,11 @@ const filteredProjects = computed(() => {
         <div class="flex min-h-screen">
             <!-- Desktop Sidebar -->
             <DesktopSidebar
-                active-tab="cari-desa"
+                active-tab="cari-proyek"
                 :village-name="village.name"
                 :village-slug="village.slug"
                 :regency="village.regency"
+                is-village-page
                 @tab-click="handleTabClick"
                 @share="handleShare"
             />
@@ -244,13 +264,13 @@ const filteredProjects = computed(() => {
                 <VillageHero :regency="village.regency" :name="village.name" />
 
                 <!-- Main Content -->
-                <main class="space-y-6 px-4 pt-6 pb-8 sm:px-6 md:px-8 lg:px-10">
+                <main class="@container space-y-6 px-4 pt-6 pb-8 sm:px-6 md:px-8 lg:px-10">
                     <!-- 3-column Stat Summary Card on desktop -->
                     <VillageStatSummary
                         :project-count="projects.length"
                         :total-budget-rp="totalVillageBudget"
                         :year-text="publishedYears"
-                        :citizen-count="citizenReportsCount ?? 27"
+                        :citizen-count="citizenReportsCount"
                     />
 
                     <!-- Search Field and Category Chips Filter -->
@@ -261,7 +281,7 @@ const filteredProjects = computed(() => {
                     />
 
                     <!-- Project Cards Grid / Empty State -->
-                    <section class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Daftar proyek">
+                    <section class="grid grid-cols-1 gap-5 @lg:grid-cols-2 @4xl:grid-cols-3" aria-label="Daftar proyek">
                         <div v-if="projects.length === 0" class="col-span-full">
                             <EmptyState
                                 illustration="plang-empty"
@@ -284,7 +304,7 @@ const filteredProjects = computed(() => {
                             <!-- Banner info update di akhir grid (ala FigCraft desk-desa) -->
                             <div
                                 v-if="filteredProjects.length > 0 && activeCategory === 'all'"
-                                class="flex flex-col items-center gap-6 rounded-2xl bg-surface-subtle p-6 sm:col-span-2 md:flex-row lg:col-span-2"
+                                class="flex flex-col items-center gap-6 rounded-2xl bg-surface-subtle p-6 @lg:col-span-2 @xl:flex-row"
                             >
                                 <img :src="plangEmpty" alt="" class="h-36 w-auto shrink-0 object-contain sm:h-44" />
                                 <div class="min-w-0 flex-1">
@@ -296,7 +316,7 @@ const filteredProjects = computed(() => {
                                     <button
                                         type="button"
                                         class="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-stroke bg-surface px-4 text-xs font-semibold text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                        @click="showHelpDialog = true"
+                                        @click="showFollowDialog = true"
                                     >
                                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path
@@ -325,7 +345,7 @@ const filteredProjects = computed(() => {
         </div>
 
         <!-- Bottom Navigation Bar (Mobile only) -->
-        <BottomNav active-tab="cari-desa" @tab-click="handleTabClick" />
+        <BottomNav active-tab="cari-proyek" :village-slug="village.slug" is-village-page @tab-click="handleTabClick" />
 
         <!-- Toast Feedback -->
         <div
@@ -363,23 +383,35 @@ const filteredProjects = computed(() => {
         </Dialog>
 
         <!-- Dialog: Pindai QR -->
-        <Dialog :open="showQrDialog" title="Pindai QR Plang Proyek" @close="showQrDialog = false">
-            <div class="space-y-3 text-sm text-content-secondary">
-                <p>Setiap plang proyek fisik di desa memiliki kode QR unik Sonar Desa.</p>
-                <p>
-                    Gunakan kamera ponsel Anda untuk memindai kode QR pada plang di lokasi pembangunan untuk langsung
-                    membuka rincian anggaran dan spesifikasi proyek.
-                </p>
-            </div>
-            <template #actions>
-                <button
-                    type="button"
-                    class="h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-content-inverse hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    @click="showQrDialog = false"
-                >
-                    Mengerti
-                </button>
-            </template>
-        </Dialog>
+        <QrScannerDialog
+            :open="showQrDialog"
+            :village-name="village.name"
+            :village-slug="village.slug"
+            :projects="projects"
+            @close="showQrDialog = false"
+            @open-plang="showPlangDialog = true"
+        />
+
+        <!-- Dialog: Plang Proyek Digital -->
+        <ProjectPlangDialog
+            :open="showPlangDialog"
+            :village-name="village.name"
+            :regency="village.regency"
+            :projects="projects"
+            :plangs="plangs"
+            :can-print-poster="activeRole === 'desa'"
+            @close="showPlangDialog = false"
+            @copied="showToast"
+        />
+
+        <!-- Dialog: Ikuti Kabar Desa -->
+        <VillageFollowDialog
+            :open="showFollowDialog"
+            :village-name="village.name"
+            :village-slug="village.slug"
+            @close="showFollowDialog = false"
+            @share="handleShare"
+            @copied="showToast"
+        />
     </div>
 </template>

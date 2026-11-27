@@ -4,6 +4,7 @@ import {
     formatDate,
     formatDateTime,
     formatLength,
+    formatNumber,
     formatPercentAbove,
     formatRupiah,
     formatRupiahShort,
@@ -59,9 +60,27 @@ describe('formatLength', () => {
     it.each([
         [350, '350 m'],
         [2.5, '2,5 m'],
+        [2.25, '2,25 m'],
         [0.15, '15 cm'],
+        [0.125, '12,5 cm'],
         [0, '0 m'],
     ])('%d -> %s', (meters, expected) => {
         expect(formatLength(meters)).toBe(expected);
+    });
+});
+
+describe('formatNumber', () => {
+    it.each([
+        [12, '12'],
+        ['12.000', '12'],
+        ['3.5', '3,5'],
+        ['0.15', '0,15'],
+        ['0.085', '0,085'],
+        ['1.5', '1,5'],
+        ['8,5', '8,5'],
+        ['4200', '4.200'],
+        ['', ''],
+    ])('%j -> %s', (input, expected) => {
+        expect(formatNumber(input)).toBe(expected);
     });
 });

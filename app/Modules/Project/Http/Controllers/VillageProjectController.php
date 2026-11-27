@@ -7,6 +7,7 @@ namespace App\Modules\Project\Http\Controllers;
 use App\Modules\Core\Village\CurrentVillage;
 use App\Modules\Core\Village\Village;
 use App\Modules\Core\Village\VillageVisibility;
+use App\Modules\Project\Actions\GenerateProjectQrSvg;
 use App\Modules\Project\Http\Resources\VillageProjectResource;
 use App\Modules\Project\Models\Project;
 use App\Modules\Report\Models\Report;
@@ -18,7 +19,7 @@ final class VillageProjectController
 {
     public function __construct(private readonly VillageVisibility $visibility) {}
 
-    public function index(Request $request, string $village): Response
+    public function index(Request $request, string $village, GenerateProjectQrSvg $qrAction): Response
     {
         $villageModel = Village::where('slug', $village)->firstOrFail();
 
@@ -37,6 +38,13 @@ final class VillageProjectController
             ->distinct('user_id')
             ->count('user_id');
 
+        $plangs = $projects->mapWithKeys(fn (Project $project): array => [
+            $project->id => [
+                'qr_svg' => $qrAction->handle($project),
+                'short_url' => url('/p/'.$project->slug),
+            ],
+        ])->all();
+
         return Inertia::render('project/Village', [
             'village' => [
                 'name' => $villageModel->name,
@@ -44,7 +52,8 @@ final class VillageProjectController
                 'regency' => $villageModel->regency,
             ],
             'projects' => VillageProjectResource::collection($projects)->resolve($request),
-            'citizen_reports_count' => $citizenReportsCount,
+            'citizenReportsCount' => $citizenReportsCount,
+            'plangs' => $plangs,
         ]);
     }
 }

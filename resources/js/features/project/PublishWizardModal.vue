@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import CitizenMobilePreview from '@/features/project/CitizenMobilePreview.vue';
 import GeofenceMapPicker from '@/features/project/GeofenceMapPicker.vue';
-import { formatRupiah } from '@/lib/format';
+import { formatNumber, formatRupiah } from '@/lib/format';
 import { isValidCoordinates, parseCoordinateText } from '@/lib/mapTileMath';
 import { fundingLabel } from '@/lib/projectStory';
 
@@ -1175,7 +1175,7 @@ function submitPublish(): void {
                                     <ul class="mt-1 list-inside list-disc space-y-0.5 font-medium text-content">
                                         <li v-for="(m, i) in form.measurements" :key="i" class="tabular-nums">
                                             {{ m.name }}:
-                                            <span class="font-semibold">{{ m.value }} {{ m.unit }}</span>
+                                            <span class="font-semibold">{{ formatNumber(m.value) }} {{ m.unit }}</span>
                                         </li>
                                     </ul>
                                 </Card>

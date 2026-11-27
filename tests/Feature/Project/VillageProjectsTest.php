@@ -52,7 +52,12 @@ it('renders published projects of a village on GET /d/{village}', function () {
             ->where('village.regency', 'Gianyar')
             ->has('projects', 2)
             ->where('projects.0.slug', 'proyek-terbit-2')
-            ->where('projects.1.slug', 'proyek-terbit-1'));
+            ->where('projects.1.slug', 'proyek-terbit-1')
+            ->where('citizenReportsCount', 0)
+            ->has("plangs.{$project1->id}.qr_svg")
+            ->where("plangs.{$project1->id}.short_url", url('/p/proyek-terbit-1'))
+            ->has("plangs.{$project2->id}.qr_svg")
+            ->where("plangs.{$project2->id}.short_url", url('/p/proyek-terbit-2')));
 });
 
 it('returns 404 for nonexistent village on GET /d/{village}', function () {
@@ -75,5 +80,5 @@ it('counts each citizen with a valid in-radius report once on GET /d/{village}',
 
     $this->get('/d/desa-beraban')
         ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('citizen_reports_count', 2));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('citizenReportsCount', 2));
 });

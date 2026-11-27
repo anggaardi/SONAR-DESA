@@ -294,6 +294,30 @@ terpisah bila disetujui nanti.
     Saat kirim lokasi tidak dibaca ulang dari GPS. Server memeriksa seperti laporan asli (radius, validasi).
   - C12 penuh (status publik jadi "Dalam tinjauan BPD") menunggu listener M5-03.
 
+### M4-08 · Halaman Laporan Saya (/laporan-saya)
+- Status: review · Ukuran: M · Owner: Dev 1 · Depends on: M4-01, M4-06, M4-07, M5
+- Spec: [PRD-Fitur-Laporan-Saya.md](../docs/prd/PRD-Fitur-Laporan-Saya.md) (LS-R1..LS-R6, LS-01..LS-14)
+- Tujuan: Menutup siklus pengawasan warga (Warga -> Cek Spek -> Ambang -> BPD -> Pantau Hasil di Laporan Saya) tanpa migrasi DB baru dan tanpa notifikasi WA/email.
+- Scope:
+  - `GET /laporan-saya` (`reports.mine`) dan `GET /laporan-saya/masuk` (`reports.mine.login` -> set `url.intended` ke `/laporan-saya`, redirect ke `auth.google`).
+  - `GetCitizenReports`: muat riwayat laporan milik akun aktif (Google asli atau Warga Demo per sesi), hitung progres ambang (`x dari 3 warga`) secara batch per `(project_id, cycle_id)` (bebas N+1), sinkronkan status & hasil/catatan resmi BPD (`review_cycles` & `review_notes`) dari M5.
+  - Status laporan netral (`CitizenReportStatus`: `active` / `superseded` / `not_counted`) tanpa membocorkan `invalid_reason`, koordinat, `device_hash`, `google_id`, maupun email sintetis `@demo.sonar-desa.test`.
+  - Empty State mitigasi juri 30 detik mengarahkan langsung ke proyek contoh (`Rabat Beton Jl. Melati RT 02/03`) untuk mencoba Cek Spek dengan *"Pakai foto & lokasi contoh"*.
+  - Info sesi warga + tombol keluar (`POST /logout`) khusus akun Google asli; penolakan `403` untuk `Role::Desa` dan `Role::Bpd`.
+  - Navigasi warga mobile (`BottomNav.vue`, 4 tab pas `360 px`), desktop (`DesktopSidebar.vue`, `RootLayout.vue`), pintasan `Submitted.vue` & `Home.vue`.
+- Out of scope: notifikasi WA/email/push, tampilan foto laporan (`report_photos`) atau koordinat di halaman ini, edit/hapus laporan dari riwayat.
+- Files:
+  - `app/Modules/Report/Enums/CitizenReportStatus.php`, `app/Modules/Report/Domain/{CitizenReportBpdReview,CitizenReportEntry,CitizenReportHistory,SuggestedSampleProject}.php`
+  - `app/Modules/Report/Actions/GetCitizenReports.php`, `app/Modules/Report/Policies/ReportPolicy.php`, `app/Modules/Report/routes.php`
+  - `app/Modules/Report/Http/{Controllers/MyReportsController.php,Resources/CitizenReportHistoryResource.php,Resources/SubmittedReportResource.php}`
+  - `resources/js/{pages/report/MyReports.vue,pages/report/Submitted.vue,pages/report/Forbidden.vue,pages/core/Home.vue,pages/project/Village.vue}`
+  - `resources/js/{features/report/ReportHistoryCard.vue,components/ui/BottomNav.vue,components/ui/DesktopSidebar.vue,layouts/RootLayout.vue,lib/labels.ts,types/report.ts}`
+  - `tests/Feature/Report/MyReportsTest.php`
+- Acceptance criteria:
+  - [x] LS-01 s.d. LS-12 terverifikasi di `MyReportsTest.php` (Postgres asli).
+  - [ ] Cek manual responsif `360 px` dan `1440 px` + alur juri 30 detik di browser.
+- Verify: `make test ARGS="--filter=MyReportsTest"` dan `make lint`
+
 ## Definition of Done per task
 
 Lihat `docs/ENGINEERING.md` bagian 8-9. Ringkas: test hijau (`make test`), `make lint` hijau, `vendor/bin/pint`

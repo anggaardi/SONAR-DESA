@@ -8,7 +8,7 @@ import bpdEmpty from '@/components/ui/illustrations/bpd-empty.svg';
 import notFound from '@/components/ui/illustrations/not-found.svg';
 import plangEmpty from '@/components/ui/illustrations/plang-empty.svg';
 import searchEmpty from '@/components/ui/illustrations/search-empty.svg';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatNumber } from '@/lib/format';
 import { projectReviews, reportType, reviewOutcome, type ReviewOutcome } from '@/lib/labels';
 import type { ProjectDetail, ProjectPublishedReport, ProjectPublishedReportPhoto } from '@/types/project';
 import ReviewPhotoGrid from './ReviewPhotoGrid.vue';
@@ -264,7 +264,7 @@ onUnmounted(() => {
 <template>
     <div>
         <!-- Sticky Floating Action Button (FAB) - disembunyikan saat sheet terbuka agar tidak tembus pandang -->
-        <div v-if="!isOpen" class="fixed right-4 bottom-20 z-40 sm:right-6 sm:bottom-24 lg:right-8 lg:bottom-8">
+        <div v-if="!isOpen" class="fixed right-4 bottom-20 z-40 sm:right-6 sm:bottom-24 xl:right-8 xl:bottom-8">
             <button
                 type="button"
                 class="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-content-inverse shadow-sm transition-transform duration-150 hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:scale-95"
@@ -382,11 +382,11 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Filter Chips -->
-                <div class="border-b border-stroke bg-surface-subtle px-5 py-2.5 sm:px-6" @touchmove.stop>
-                    <div class="no-scrollbar flex gap-2 overflow-x-auto">
+                <div class="border-b border-stroke bg-surface-subtle px-4 py-2.5 sm:px-6" @touchmove.stop>
+                    <div class="flex flex-wrap gap-1.5 sm:gap-2">
                         <button
                             type="button"
-                            class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                            class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:px-3.5"
                             :class="
                                 activeTab === 'all'
                                     ? 'bg-primary text-content-inverse'
@@ -398,7 +398,7 @@ onUnmounted(() => {
                         </button>
                         <button
                             type="button"
-                            class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                            class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:px-3.5"
                             :class="
                                 activeTab === 'bpd'
                                     ? 'bg-primary text-content-inverse'
@@ -410,7 +410,7 @@ onUnmounted(() => {
                         </button>
                         <button
                             type="button"
-                            class="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                            class="rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary sm:px-3.5"
                             :class="
                                 activeTab === 'reports'
                                     ? 'bg-primary text-content-inverse'
@@ -637,7 +637,7 @@ onUnmounted(() => {
                                             {{ ans.measurement_name || projectReviews.answer.fallbackName }}:
                                         </span>
                                         <span v-if="ans.measured_value" class="font-semibold text-content tabular-nums">
-                                            {{ ans.measured_value }} {{ ans.measured_unit || '' }}
+                                            {{ formatNumber(ans.measured_value) }} {{ ans.measured_unit || '' }}
                                         </span>
                                         <span :class="answerClass(ans.answer)">({{ answerLabel(ans.answer) }})</span>
                                     </li>

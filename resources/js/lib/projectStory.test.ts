@@ -25,6 +25,7 @@ describe('measurementInMeters', () => {
         ['350', 'meter', 350],
         ['15', 'cm', 0.15],
         ['1.2', 'km', 1200],
+        ['2,5', 'meter', 2.5],
         ['3', 'M', 3],
     ])('%s %s -> %d', (value, unit, expected) => {
         expect(measurementInMeters(measurement('Panjang', value, unit))).toBe(expected);

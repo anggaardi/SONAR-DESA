@@ -548,7 +548,7 @@ final class ProjectSeeder extends Seeder
             note: 'Tebal perkerasan cor di pinggir jalan hanya 8 cm, tidak mencapai spesifikasi 12 cm di RAB.',
             daysAgo: 5,
             distanceM: 18,
-            mismatchMeasurements: ['Tebal' => '0.08'],
+            mismatchMeasurements: ['Tebal' => '8'],
             samplePhotoPath: 'progress/sample-progress-35.webp',
         );
 
@@ -559,7 +559,7 @@ final class ProjectSeeder extends Seeder
             note: 'Hasil pengukuran ketebalan beton di beberapa titik rata-rata 9 cm.',
             daysAgo: 3,
             distanceM: 24,
-            mismatchMeasurements: ['Tebal' => '0.09'],
+            mismatchMeasurements: ['Tebal' => '9'],
             samplePhotoPath: 'progress/sample-progress-65.webp',
         );
 

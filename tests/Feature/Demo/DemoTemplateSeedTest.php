@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\Village;
 use App\Modules\Project\Models\Project;
+use App\Modules\Project\Models\ProjectMeasurement;
 use App\Modules\Report\Models\Report;
+use App\Modules\Report\Models\ReportAnswer;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia;
@@ -53,4 +55,34 @@ it('gives every new demo the seeded Desa Contoh projects', function () {
     $this->get("/d/{$demo->slug}")
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page->has('projects', 4));
+});
+
+it('seeds Rabat Beton thickness and mismatch answers in cm, not meters', function () {
+    $this->seed(DatabaseSeeder::class);
+
+    $template = Village::query()->where('slug', config('sonar.demo.template_slug'))->sole();
+    $project = Project::query()->withoutGlobalScopes()
+        ->where('village_id', $template->id)
+        ->where('slug', 'rabat-beton-jl-melati-rt-02-03')
+        ->sole();
+
+    $thickness = ProjectMeasurement::query()
+        ->where('project_id', $project->id)
+        ->where('name', 'Tebal')
+        ->sole();
+
+    expect((float) $thickness->value)->toBe(12.0)
+        ->and($thickness->unit)->toBe('cm');
+
+    $answers = ReportAnswer::query()
+        ->where('measurement_id', $thickness->id)
+        ->whereNotNull('measured_value')
+        ->orderBy('measured_value')
+        ->get(['measured_value', 'measured_unit']);
+
+    expect($answers)->toHaveCount(2)
+        ->and((float) $answers[0]->measured_value)->toBe(8.0)
+        ->and($answers[0]->measured_unit)->toBe('cm')
+        ->and((float) $answers[1]->measured_value)->toBe(9.0)
+        ->and($answers[1]->measured_unit)->toBe('cm');
 });

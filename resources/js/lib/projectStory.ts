@@ -32,7 +32,9 @@ export function measurementInMeters(measurement: ProjectMeasurementItem | undefi
         return null;
     }
     const factor = METERS_PER_UNIT[measurement.unit.trim().toLowerCase()];
-    const value = Number(measurement.value);
+    const raw = measurement.value.trim();
+    const normalized = /^-?\d+,\d+$/.test(raw) ? raw.replace(',', '.') : raw;
+    const value = Number(normalized);
     if (factor === undefined || Number.isNaN(value)) {
         return null;
     }

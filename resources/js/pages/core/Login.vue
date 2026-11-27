@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import loginHero from '@/components/ui/illustrations/login-hero.webp';
 
 const form = useForm({
     email: '',
@@ -21,7 +22,20 @@ function submit(): void {
     <Head title="Masuk" />
 
     <div class="flex min-h-screen w-full bg-surface font-sans text-content antialiased">
-        <div class="hidden min-h-screen border-r border-stroke bg-surface-subtle lg:block lg:w-[68%]" />
+        <div
+            class="relative hidden min-h-screen overflow-hidden border-r border-stroke bg-surface-subtle lg:block lg:w-[68%]"
+            aria-hidden="true"
+        >
+            <img
+                :src="loginHero"
+                alt=""
+                width="1023"
+                height="767"
+                decoding="sync"
+                fetchpriority="high"
+                class="absolute inset-0 h-full w-full object-cover object-bottom"
+            />
+        </div>
         <div
             class="flex min-h-screen w-full flex-col justify-between bg-surface px-8 py-12 sm:px-12 lg:w-[32%] xl:px-14"
         >
@@ -84,8 +98,8 @@ function submit(): void {
                         </p>
                     </div>
 
-                    <!-- Row: Show Password & Forgot password? / Login with OTP -->
-                    <div class="mt-1 mb-8 flex items-start justify-between text-xs">
+                    <!-- Row: Show Password -->
+                    <div class="mt-1 mb-8 flex items-center text-xs">
                         <label
                             class="flex cursor-pointer items-center gap-1.5 text-content-secondary select-none hover:text-content"
                         >
@@ -96,15 +110,6 @@ function submit(): void {
                             />
                             <span class="text-xs font-normal">Show Password</span>
                         </label>
-
-                        <div class="flex flex-col items-end gap-1 text-xs font-medium text-primary">
-                            <span class="cursor-pointer transition-colors hover:text-primary-hover hover:underline">
-                                Forgot password?
-                            </span>
-                            <span class="cursor-pointer transition-colors hover:text-primary-hover hover:underline">
-                                Login with OTP
-                            </span>
-                        </div>
                     </div>
 
                     <!-- Tombol Login (IDDS Primary Button: bg-primary, rounded-md, centered) -->

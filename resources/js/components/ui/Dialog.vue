@@ -66,38 +66,43 @@ onUnmounted(() => {
             ref="dialogEl"
             :open="open"
             :aria-label="title"
-            class="fixed top-1/2 left-1/2 z-50 m-0 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg bg-surface p-0 shadow-sm"
+            class="fixed top-1/2 left-1/2 z-50 m-0 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg bg-surface p-0 shadow-sm"
             @cancel.prevent="close"
         >
-            <!-- Header -->
-            <div class="flex items-start justify-between border-b border-stroke px-6 py-4">
-                <h2 class="text-base font-semibold text-content">{{ title }}</h2>
-                <button
-                    v-if="!persistent"
-                    type="button"
-                    class="ml-4 flex-shrink-0 rounded-md p-1 text-content-secondary transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                    aria-label="Tutup"
-                    @click="close"
+            <div class="flex max-h-[88dvh] flex-col">
+                <!-- Header -->
+                <div class="flex shrink-0 items-start justify-between border-b border-stroke px-5 py-4 sm:px-6">
+                    <h2 class="text-base font-semibold text-content">{{ title }}</h2>
+                    <button
+                        v-if="!persistent"
+                        type="button"
+                        class="ml-4 flex-shrink-0 rounded-md p-1 text-content-secondary transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        aria-label="Tutup"
+                        @click="close"
+                    >
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M5 5l10 10M15 5L5 15"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 text-sm text-content sm:px-6">
+                    <slot />
+                </div>
+
+                <!-- Actions -->
+                <div
+                    v-if="$slots.actions"
+                    class="flex shrink-0 justify-end gap-3 border-t border-stroke bg-surface px-5 py-4 sm:px-6"
                 >
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 20 20" stroke="currentColor" aria-hidden="true">
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="1.5"
-                            d="M5 5l10 10M15 5L5 15"
-                        />
-                    </svg>
-                </button>
-            </div>
-
-            <!-- Body -->
-            <div class="px-6 py-4 text-sm text-content">
-                <slot />
-            </div>
-
-            <!-- Actions -->
-            <div v-if="$slots.actions" class="flex justify-end gap-3 border-t border-stroke px-6 py-4">
-                <slot name="actions" />
+                    <slot name="actions" />
+                </div>
             </div>
         </dialog>
     </Teleport>

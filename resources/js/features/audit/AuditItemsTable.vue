@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card.vue';
 import Dialog from '@/components/ui/Dialog.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import PriceLabel from '@/components/ui/PriceLabel.vue';
-import { formatRupiah } from '@/lib/format';
+import { formatNumber, formatRupiah } from '@/lib/format';
 import type { AuditItemData, AuditItemFormPayload, AuditSummary, PriceStandardItem } from '@/types/audit';
 
 type FilterTab = 'all' | 'needs_check' | 'above_standard' | 'within_standard' | 'no_reference';
@@ -330,7 +330,11 @@ function filterTabClass(tabId: FilterTab): string {
                                 </td>
 
                                 <td class="px-3.5 py-3 align-top whitespace-nowrap text-content tabular-nums">
-                                    {{ item.volume }} {{ item.unit }}
+                                    {{
+                                        item.volume !== null
+                                            ? `${formatNumber(item.volume)} ${item.unit ?? ''}`.trim()
+                                            : '-'
+                                    }}
                                 </td>
 
                                 <td
@@ -392,7 +396,13 @@ function filterTabClass(tabId: FilterTab): string {
                     <div class="mt-3 grid grid-cols-3 gap-2 border-t border-stroke pt-2.5 text-xs">
                         <div>
                             <span class="text-content-secondary">Vol / sat</span>
-                            <p class="font-medium text-content tabular-nums">{{ item.volume }} {{ item.unit }}</p>
+                            <p class="font-medium text-content tabular-nums">
+                                {{
+                                    item.volume !== null
+                                        ? `${formatNumber(item.volume)} ${item.unit ?? ''}`.trim()
+                                        : '-'
+                                }}
+                            </p>
                         </div>
                         <div>
                             <span class="text-content-secondary">Harga</span>
@@ -430,7 +440,7 @@ function filterTabClass(tabId: FilterTab): string {
             title="Tambah baris belanja manual"
             @close="emit('update:isAddModalOpen', false)"
         >
-            <form class="space-y-4" @submit.prevent="submitAddForm">
+            <form id="add-item-form" class="space-y-4" @submit.prevent="submitAddForm">
                 <div>
                     <label class="block text-sm font-medium text-content" for="add-raw-name">
                         Uraian material / upah <span class="text-negative">*</span>
@@ -539,21 +549,19 @@ function filterTabClass(tabId: FilterTab): string {
                         </button>
                     </div>
                 </div>
-
-                <div class="flex justify-end gap-3 border-t border-stroke pt-3">
-                    <Button type="button" variant="secondary" @click="emit('update:isAddModalOpen', false)">
-                        Batal
-                    </Button>
-                    <Button type="submit" variant="primary" :loading="isSubmittingAdd">
-                        {{ isSubmittingAdd ? 'Menyimpan...' : 'Simpan baris' }}
-                    </Button>
-                </div>
             </form>
+
+            <template #actions>
+                <Button type="button" variant="secondary" @click="emit('update:isAddModalOpen', false)">Batal</Button>
+                <Button type="submit" form="add-item-form" variant="primary" :loading="isSubmittingAdd">
+                    {{ isSubmittingAdd ? 'Menyimpan...' : 'Simpan baris' }}
+                </Button>
+            </template>
         </Dialog>
 
         <!-- Edit Item Dialog -->
         <Dialog :open="isEditModalOpen" title="Koreksi data baris belanja" @close="isEditModalOpen = false">
-            <form class="space-y-4" @submit.prevent="submitEditForm">
+            <form id="edit-item-form" class="space-y-4" @submit.prevent="submitEditForm">
                 <div>
                     <label class="block text-sm font-medium text-content" for="edit-raw-name">
                         Uraian material / upah <span class="text-negative">*</span>
@@ -666,14 +674,14 @@ function filterTabClass(tabId: FilterTab): string {
                         </button>
                     </div>
                 </div>
-
-                <div class="flex justify-end gap-2 border-t border-stroke pt-3">
-                    <Button type="button" variant="secondary" @click="isEditModalOpen = false">Batal</Button>
-                    <Button type="submit" variant="primary" :loading="isSubmittingEdit">
-                        {{ isSubmittingEdit ? 'Menyimpan...' : 'Simpan perubahan' }}
-                    </Button>
-                </div>
             </form>
+
+            <template #actions>
+                <Button type="button" variant="secondary" @click="isEditModalOpen = false">Batal</Button>
+                <Button type="submit" form="edit-item-form" variant="primary" :loading="isSubmittingEdit">
+                    {{ isSubmittingEdit ? 'Menyimpan...' : 'Simpan perubahan' }}
+                </Button>
+            </template>
         </Dialog>
     </div>
 </template>

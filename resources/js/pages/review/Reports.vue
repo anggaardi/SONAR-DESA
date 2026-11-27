@@ -5,7 +5,7 @@ import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { checkSpec, reportType } from '@/lib/labels';
 
 interface ProjectOption {
@@ -661,18 +661,19 @@ function reportKindBadgeColor(kind: InboxReportItem['kind']): 'negative' | 'posi
                                                 <span class="font-semibold">
                                                     {{
                                                         ans.measured_value !== null
-                                                            ? `Ukur ${ans.measured_value} ${ans.measured_unit ?? ''}`.trim()
+                                                            ? `Ukur ${formatNumber(ans.measured_value)} ${ans.measured_unit ?? ''}`.trim()
                                                             : 'Tidak sesuai'
                                                     }}
                                                 </span>
                                                 <span v-if="ans.rab_value !== null" class="text-content-secondary">
-                                                    &rarr; RAB {{ ans.rab_value }} {{ ans.rab_unit ?? '' }}
+                                                    &rarr; RAB {{ formatNumber(ans.rab_value) }}
+                                                    {{ ans.rab_unit ?? '' }}
                                                 </span>
                                             </template>
                                             <template v-else-if="ans.answer === 'match'">
                                                 <span class="font-semibold">{{ checkSpec.answers.match }}</span>
                                                 <span v-if="ans.rab_value !== null" class="text-content-secondary">
-                                                    ({{ ans.rab_value }} {{ ans.rab_unit ?? '' }})
+                                                    ({{ formatNumber(ans.rab_value) }} {{ ans.rab_unit ?? '' }})
                                                 </span>
                                             </template>
                                             <template v-else>

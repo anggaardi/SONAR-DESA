@@ -7,7 +7,7 @@ import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import DemoBanner from '@/layouts/DemoBanner.vue';
 
-const pagesWithDesktopSidebar = ['project/Show', 'project/Village'];
+const pagesWithDesktopSidebar = ['project/Show', 'project/Village', 'report/MyReports'];
 
 const page = usePage();
 const hasDesktopSidebar = computed(() => pagesWithDesktopSidebar.includes(page.component));

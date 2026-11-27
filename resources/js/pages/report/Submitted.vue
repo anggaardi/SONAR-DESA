@@ -117,7 +117,14 @@ const segments = computed(() => Array.from({ length: threshold.value }, (_, inde
                 <Button variant="primary" :href="submitted.urls.project" class="w-full rounded-xl">
                     {{ text.backToProject }}
                 </Button>
-                <Button variant="secondary" :href="submitted.urls.check" class="w-full rounded-xl">
+                <Button
+                    variant="secondary"
+                    :href="submitted.urls.my_reports ?? '/laporan-saya'"
+                    class="w-full rounded-xl"
+                >
+                    {{ text.viewMyReports }}
+                </Button>
+                <Button variant="ghost" :href="submitted.urls.check" class="w-full rounded-xl">
                     {{ text.sendAgain }}
                 </Button>
             </div>

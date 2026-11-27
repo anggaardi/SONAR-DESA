@@ -6,7 +6,7 @@ import Card from '@/components/ui/Card.vue';
 import Dialog from '@/components/ui/Dialog.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
 import PriceLabel from '@/components/ui/PriceLabel.vue';
-import { formatRupiah } from '@/lib/format';
+import { formatNumber, formatRupiah } from '@/lib/format';
 import type { PriceLabelType, PriceStandardItem } from '@/types/audit';
 
 export interface ProjectAuditItem {
@@ -136,7 +136,7 @@ function submitItemChange(): void {
                                 </p>
                             </td>
                             <td class="px-3 py-3 text-right text-sm text-content tabular-nums">
-                                {{ item.volume }} {{ item.unit }}
+                                {{ formatNumber(item.volume) }} {{ item.unit }}
                             </td>
                             <td class="px-3 py-3 text-right text-sm text-content tabular-nums">
                                 {{ formatRupiah(item.unit_price_rp) }}
@@ -189,7 +189,9 @@ function submitItemChange(): void {
                     <div class="grid grid-cols-3 gap-2 text-xs">
                         <div>
                             <span class="text-content-secondary">Volume</span>
-                            <p class="font-medium text-content tabular-nums">{{ item.volume }} {{ item.unit }}</p>
+                            <p class="font-medium text-content tabular-nums">
+                                {{ formatNumber(item.volume) }} {{ item.unit }}
+                            </p>
                         </div>
                         <div>
                             <span class="text-content-secondary">Harga</span>

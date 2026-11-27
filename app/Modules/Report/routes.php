@@ -5,9 +5,14 @@ declare(strict_types=1);
 use App\Modules\Report\Http\Controllers\CheckSpecController;
 use App\Modules\Report\Http\Controllers\DistanceHintController;
 use App\Modules\Report\Http\Controllers\GoogleAuthController;
+use App\Modules\Report\Http\Controllers\MyReportsController;
 use App\Modules\Report\Http\Controllers\ReportController;
 use App\Modules\Report\Http\Middleware\EnsureDeviceCookie;
 use Illuminate\Support\Facades\Route;
+
+// Guests render a dedicated sign-in prompt on /laporan-saya; /laporan-saya/masuk sets url.intended and starts Google sign-in.
+Route::get('/laporan-saya', [MyReportsController::class, 'index'])->name('reports.mine');
+Route::get('/laporan-saya/masuk', [MyReportsController::class, 'signIn'])->name('reports.mine.login');
 
 // Guests are redirected to Google, not the desa/BPD login form (bootstrap/app.php).
 // The device cookie is set on the checklist page already, so the send carries it (D-010).

@@ -125,3 +125,8 @@ export interface VillageProjectSummary {
     progress_pct: number;
     public_status: string;
 }
+
+export interface ProjectPlangInfo {
+    qr_svg: string;
+    short_url: string;
+}

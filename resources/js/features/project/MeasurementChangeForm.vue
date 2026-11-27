@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import Dialog from '@/components/ui/Dialog.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import { formatNumber } from '@/lib/format';
 
 export interface ProjectMeasurementItem {
     id: number;
@@ -79,7 +80,7 @@ function submitMeasurementChange(): void {
                     <span class="text-xs font-medium text-content-secondary">Ukuran</span>
                     <h3 class="text-base font-semibold text-content">{{ m.name }}</h3>
                     <div class="mt-2 text-2xl font-bold text-primary tabular-nums">
-                        {{ m.value }}
+                        {{ formatNumber(m.value) }}
                         <span class="text-sm font-normal text-content-secondary">{{ m.unit }}</span>
                     </div>
                     <p v-if="m.how_to" class="mt-2 text-xs text-content-tertiary">

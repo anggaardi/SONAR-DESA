@@ -5,18 +5,20 @@
 import { router } from '@inertiajs/vue3';
 import Alert from '@/components/ui/Alert.vue';
 import Button from '@/components/ui/Button.vue';
-import checkSpec from '@/components/ui/illustrations/check-spec.svg';
-import { googleSignIn } from '@/lib/labels';
+import checkSpecIllustration from '@/components/ui/illustrations/check-spec.svg';
+import { checkSpec, googleSignIn } from '@/lib/labels';
 
 interface Props {
     citizenCount: number;
     checkSpecHref: string;
+    radiusMeters?: number;
     showPrivacyHint?: boolean;
     canCheckSpec?: boolean;
     isDemo?: boolean;
 }
 
 withDefaults(defineProps<Props>(), {
+    radiusMeters: 300,
     showPrivacyHint: false,
     canCheckSpec: true,
     isDemo: false,
@@ -33,7 +35,7 @@ function switchToWarga(): void {
         class="rounded-3xl border border-info-border bg-primary-subtle p-5 shadow-xs sm:p-6"
     >
         <img
-            :src="checkSpec"
+            :src="checkSpecIllustration"
             alt=""
             width="280"
             height="210"
@@ -46,6 +48,27 @@ function switchToWarga(): void {
             Ukur panjang dan lebarnya dengan meteran, ambil foto, lalu bandingkan dengan RAB. Cukup sekitar 5 menit
             untuk ikut menjaga dana desa.
         </p>
+
+        <!-- Info lokasi netral (lokasi baru dicek saat melapor; PRD 4.3 melarang penanda hijau pada proyek) -->
+        <div
+            class="mt-3.5 inline-flex items-center gap-2 rounded-lg border border-stroke bg-surface px-3 py-1.5 text-xs font-medium text-content-secondary"
+        >
+            <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                />
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+            </svg>
+            <span>{{ checkSpec.locationHint(radiusMeters) }}</span>
+        </div>
 
         <!-- Tombol Aksi Utama (plain link agar redirect Google OAuth penuh, F11) -->
         <a
