@@ -17,6 +17,7 @@ use App\Modules\Report\Models\Report;
 use App\Modules\Report\Models\ReportAnswer;
 use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Actions\AddFollowUpNote;
+use App\Modules\Review\Actions\EvaluateReviewThreshold;
 use App\Modules\Review\Actions\MarkReportInvalid;
 use App\Modules\Review\Actions\MarkReportOpened;
 use App\Modules\Review\Actions\SubmitReviewOutcome;
@@ -29,6 +30,7 @@ use DomainException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -51,7 +53,7 @@ final class BpdDashboardController
                     $query->orderByDesc('changed_at');
                 },
                 'reports' => static function ($query): void {
-                    $query->orderBy('created_at')->with(['answers.measurement', 'photos']);
+                    $query->orderBy('created_at')->with(['user', 'answers.measurement', 'photos']);
                 },
             ])
             ->get();
@@ -189,31 +191,11 @@ final class BpdDashboardController
                     'reason' => $c->reason,
                     'changed_at' => $c->changed_at->toIso8601String(),
                 ])->values()->all(),
-                'reports' => $cycleReports->map(static fn (Report $r): array => [
-                    'id' => $r->id,
-                    'reporter_label' => $reporterLabels[$r->user_id],
-                    'kind' => $r->kind->value,
-                    'distance_m' => $r->distance_m !== null ? (float) $r->distance_m : null,
-                    'note' => $r->note,
-                    'superseded' => $r->superseded_by !== null,
-                    'invalid_reason' => $r->invalid_reason,
-                    'is_new' => $r->opened_at === null,
-                    'created_at' => $r->created_at?->toIso8601String(),
-                    'answers' => $r->answers->map(static fn (ReportAnswer $a): array => [
-                        'id' => $a->id,
-                        'measurement_name' => $a->measurement->name,
-                        'rab_value' => (string) (float) ($a->target_value ?? $a->measurement->value),
-                        'rab_unit' => $a->target_unit ?? $a->measurement->unit,
-                        'answer' => $a->answer->value,
-                        'measured_value' => $a->measured_value !== null ? (string) (float) $a->measured_value : null,
-                        'measured_unit' => $a->measured_unit ?? $a->target_unit ?? $a->measurement->unit,
-                    ])->values()->all(),
-                    'photos' => $r->photos->map(static fn (ReportPhoto $p): array => [
-                        'id' => $p->id,
-                        'position' => $p->position,
-                        'url' => route('bpd.photos.show', $p->id),
-                    ])->values()->all(),
-                ])->values()->all(),
+                'reports' => $cycleReports->map(fn (Report $r): array => $this->mapReportRow(
+                    $r,
+                    $reporterLabels[$r->user_id],
+                    $selectedProject,
+                ))->values()->all(),
                 'closed_cycles' => $closedCycles,
             ];
         }
@@ -230,6 +212,147 @@ final class BpdDashboardController
             'selectedProject' => $selectedDetail,
             'threshold' => (int) config('sonar.review.threshold', 3),
         ]);
+    }
+
+    /**
+     * Dedicated Inbox page for Citizen Reports (/bpd/reports): left panel shows report details, verification actions,
+     * and BPD reply note thread; right panel lists reporters with Google account profile & username.
+     */
+    public function reportsIndex(Request $request, CurrentVillage $currentVillage): Response
+    {
+        $this->ensureBpd($request);
+
+        $projects = Project::query()
+            ->published()
+            ->with([
+                'currentCycle',
+                'reports' => static function ($query): void {
+                    $query->orderBy('created_at')->with(['user', 'answers.measurement', 'photos']);
+                },
+            ])
+            ->get();
+
+        $allReports = [];
+        $projectOptions = [];
+
+        foreach ($projects as $project) {
+            $cycleId = $project->current_cycle_id;
+            $cycleReports = $project->reports
+                ->filter(static fn (Report $r): bool => $cycleId === null || $r->cycle_id === $cycleId)
+                ->values();
+
+            $projectOptions[] = [
+                'id' => $project->id,
+                'name' => $project->name,
+                'slug' => $project->slug,
+                'public_status' => $project->public_status->value,
+                'reports_count' => $cycleReports->count(),
+                'unread_count' => $cycleReports
+                    ->filter(static fn (Report $r): bool => $r->opened_at === null && $r->superseded_by === null)
+                    ->count(),
+                'pending_count' => $cycleReports
+                    ->filter(static fn (Report $r): bool => ! $r->isVerified() && $r->superseded_by === null)
+                    ->count(),
+            ];
+
+            $reporterLabels = [];
+            $nextIndex = 0;
+            foreach ($cycleReports as $r) {
+                if (! array_key_exists($r->user_id, $reporterLabels)) {
+                    $reporterLabels[$r->user_id] = 'Pelapor '.$this->indexToLetters($nextIndex);
+                    $nextIndex++;
+                }
+            }
+
+            foreach ($cycleReports as $r) {
+                $allReports[] = $this->mapReportRow($r, $reporterLabels[$r->user_id], $project);
+            }
+        }
+
+        // Order newest first, with unread reports prioritized at the top.
+        usort($allReports, static function (array $a, array $b): int {
+            $aNew = $a['is_new'] ? 1 : 0;
+            $bNew = $b['is_new'] ? 1 : 0;
+            if ($aNew !== $bNew) {
+                return $bNew <=> $aNew;
+            }
+
+            return strcmp((string) ($b['created_at'] ?? ''), (string) ($a['created_at'] ?? ''));
+        });
+
+        $requestedReportId = $request->integer('report');
+        $requestedProjectId = $request->integer('project');
+
+        $selectedReportId = null;
+        if ($requestedReportId > 0) {
+            foreach ($allReports as $item) {
+                if ($item['id'] === $requestedReportId) {
+                    $selectedReportId = $item['id'];
+                    break;
+                }
+            }
+        }
+
+        if ($selectedReportId === null && $requestedProjectId > 0) {
+            foreach ($allReports as $item) {
+                if ($item['project_id'] === $requestedProjectId) {
+                    $selectedReportId = $item['id'];
+                    break;
+                }
+            }
+        }
+
+        if ($selectedReportId === null && $allReports !== []) {
+            $selectedReportId = $allReports[0]['id'];
+        }
+
+        $village = Village::query()->findOrFail($currentVillage->id());
+
+        return Inertia::render('review/Reports', [
+            'village' => [
+                'name' => $village->name,
+                'slug' => $village->slug,
+                'regency' => $village->regency,
+            ],
+            'projects' => $projectOptions,
+            'reports' => $allReports,
+            'selectedReportId' => $selectedReportId,
+        ]);
+    }
+
+    public function replyReport(Request $request, int $reportId): RedirectResponse
+    {
+        $this->ensureBpd($request);
+        $report = $this->findVillageReport($reportId);
+
+        if ($report->cycle !== null && $report->cycle->closed_at !== null) {
+            return back()->withErrors([
+                'reply' => 'Siklus tinjauan sudah ditutup; tidak dapat mengirim catatan balasan.',
+            ]);
+        }
+
+        if ($report->bpd_reply !== null && trim($report->bpd_reply) !== '') {
+            return back()->withErrors([
+                'reply' => 'Setiap laporan warga hanya dapat diberikan satu catatan balasan resmi BPD.',
+            ]);
+        }
+
+        /** @var array{reply: string} $validated */
+        $validated = $request->validate([
+            'reply' => ['required', 'string', 'min:3', 'max:1000'],
+        ], [
+            'reply.required' => 'Catatan balasan BPD wajib diisi.',
+            'reply.min' => 'Catatan balasan minimal 3 huruf.',
+            'reply.max' => 'Catatan balasan maksimal 1000 huruf.',
+        ]);
+
+        $report->update([
+            'bpd_reply' => trim($validated['reply']),
+            'bpd_replied_at' => now(),
+            'opened_at' => $report->opened_at ?? now(),
+        ]);
+
+        return back();
     }
 
     /**
@@ -287,7 +410,7 @@ final class BpdDashboardController
         $report = $this->findVillageReport($reportId);
 
         try {
-            $action->mark($report, (string) $request->validated('reason'));
+            $action->mark($report, (string) $request->validated('reason'), $request->validated('note'));
         } catch (DomainException $e) {
             return back()->withErrors(['reason' => $e->getMessage()]);
         }
@@ -295,13 +418,30 @@ final class BpdDashboardController
         return back();
     }
 
-    public function restoreReport(Request $request, int $reportId, MarkReportInvalid $action): RedirectResponse
-    {
+    public function validateReport(
+        Request $request,
+        int $reportId,
+        MarkReportInvalid $action,
+        EvaluateReviewThreshold $threshold,
+    ): RedirectResponse {
         $this->ensureBpd($request);
         $report = $this->findVillageReport($reportId);
 
+        $rawNote = $request->input('note');
+        $trimmedNote = is_string($rawNote) && trim($rawNote) !== '' ? trim($rawNote) : null;
+        if ($trimmedNote !== null && mb_strlen($trimmedNote) < 3) {
+            return back()->withErrors(['reply' => 'Catatan balasan minimal 3 huruf.']);
+        }
+        if ($trimmedNote !== null && mb_strlen($trimmedNote) > 1000) {
+            return back()->withErrors(['reply' => 'Catatan balasan maksimal 1000 huruf.']);
+        }
+
         try {
-            $action->restore($report);
+            $action->markValid($report, $trimmedNote);
+            $project = Project::query()->find($report->project_id);
+            if ($project instanceof Project) {
+                $threshold->execute($project);
+            }
         } catch (DomainException $e) {
             return back()->withErrors(['report' => $e->getMessage()]);
         }
@@ -356,6 +496,73 @@ final class BpdDashboardController
         Project::query()->findOrFail($report->project_id);
 
         return $report;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapReportRow(Report $r, string $reporterLabel, Project $project): array
+    {
+        $user = $r->user;
+        $rawName = $user->name !== '' ? $user->name : $reporterLabel;
+        $words = preg_split('/\s+/', trim($rawName)) ?: [];
+        $initials = '';
+        foreach (array_slice($words, 0, 2) as $w) {
+            if ($w !== '') {
+                $initials .= Str::upper(Str::substr($w, 0, 1));
+            }
+        }
+        if ($initials === '') {
+            $initials = 'WP';
+        }
+
+        $emailPrefix = Str::before($user->email, '@');
+        $googleUsername = '@'.Str::lower(Str::slug($rawName, '.'));
+        $googleEmail = Str::endsWith($user->email, '@gmail.com')
+            ? $user->email
+            : $emailPrefix.'@gmail.com';
+
+        return [
+            'id' => $r->id,
+            'project_id' => $project->id,
+            'project_name' => $project->name,
+            'project_slug' => $project->slug,
+            'project_public_status' => $project->public_status->value,
+            'project_public_url' => route('projects.show', $project->slug),
+            'project_document_url' => route('projects.document', $project->slug),
+            'reporter_label' => $reporterLabel,
+            'reporter_name' => $rawName,
+            'reporter_username' => $googleUsername,
+            'reporter_email' => $googleEmail,
+            'reporter_initials' => $initials,
+            'is_google_account' => true,
+            'kind' => $r->kind->value,
+            'distance_m' => $r->distance_m !== null ? (float) $r->distance_m : null,
+            'note' => $r->note,
+            'superseded' => $r->superseded_by !== null,
+            'invalid_reason' => $r->invalid_reason,
+            'bpd_verdict' => $r->bpd_verdict?->value,
+            'is_verified' => $r->isVerified(),
+            'bpd_verified_at' => $r->bpd_verified_at?->toIso8601String(),
+            'bpd_reply' => $r->bpd_reply,
+            'bpd_replied_at' => $r->bpd_replied_at?->toIso8601String(),
+            'is_new' => $r->opened_at === null,
+            'created_at' => $r->created_at?->toIso8601String(),
+            'answers' => $r->answers->map(static fn (ReportAnswer $a): array => [
+                'id' => $a->id,
+                'measurement_name' => $a->measurement->name,
+                'rab_value' => (string) (float) ($a->target_value ?? $a->measurement->value),
+                'rab_unit' => $a->target_unit ?? $a->measurement->unit,
+                'answer' => $a->answer->value,
+                'measured_value' => $a->measured_value !== null ? (string) (float) $a->measured_value : null,
+                'measured_unit' => $a->measured_unit ?? $a->target_unit ?? $a->measurement->unit,
+            ])->values()->all(),
+            'photos' => $r->photos->map(static fn (ReportPhoto $p): array => [
+                'id' => $p->id,
+                'position' => $p->position,
+                'url' => route('bpd.photos.show', $p->id),
+            ])->values()->all(),
+        ];
     }
 
     private function indexToLetters(int $index): string

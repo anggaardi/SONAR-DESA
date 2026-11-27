@@ -47,6 +47,11 @@ interface ReportItem {
     note: string | null;
     superseded: boolean;
     invalid_reason: string | null;
+    bpd_verdict?: 'valid' | 'invalid' | null;
+    is_verified?: boolean;
+    bpd_verified_at?: string | null;
+    bpd_reply?: string | null;
+    bpd_replied_at?: string | null;
     is_new: boolean;
     created_at: string | null;
     answers: ReportAnswerItem[];
@@ -118,6 +123,8 @@ const invalidReasonPresets = ['Foto tidak relevan', 'Bukan proyek ini', 'Duplika
 const expandedReportId = ref<number | null>(props.selectedProject?.reports[0]?.id ?? null);
 const invalidatingReportId = ref<number | null>(null);
 const invalidForm = useForm({ reason: '' });
+const replyingReportId = ref<number | null>(null);
+const reportReplyForm = useForm({ reply: '' });
 
 const activeLightboxPhoto = ref<{ url: string; label: string } | null>(null);
 
@@ -127,6 +134,7 @@ watch(
         reportFilter.value = 'all';
         expandedReportId.value = props.selectedProject?.reports[0]?.id ?? null;
         invalidatingReportId.value = null;
+        replyingReportId.value = null;
     },
 );
 
@@ -254,8 +262,19 @@ function submitInvalid(reportId: number): void {
     });
 }
 
-function restoreReport(reportId: number): void {
-    router.post(`/bpd/reports/${reportId}/restore`, {}, { preserveScroll: true });
+function validateReport(reportId: number): void {
+    invalidatingReportId.value = null;
+    router.post(`/bpd/reports/${reportId}/validate`, {}, { preserveScroll: true });
+}
+
+function submitReportReply(reportId: number): void {
+    reportReplyForm.post(`/bpd/reports/${reportId}/reply`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            reportReplyForm.reset();
+            replyingReportId.value = null;
+        },
+    });
 }
 
 function submitOutcome(): void {
@@ -306,6 +325,17 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
         </template>
 
         <template #headerActions>
+            <Button variant="primary" size="sm" href="/bpd/reports">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                </svg>
+                <span>Kotak Masuk Laporan Warga</span>
+            </Button>
             <Button variant="secondary" size="sm" :href="`/d/${village.slug}`">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
@@ -339,6 +369,29 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                     />
                 </svg>
                 <span>Tinjauan &amp; Siklus BPD</span>
+            </Link>
+            <Link
+                href="/bpd/reports"
+                class="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <span class="flex items-center gap-3">
+                    <svg
+                        class="h-5 w-5 shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="1.5"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                    </svg>
+                    <span>Laporan Warga</span>
+                </span>
+                <Badge v-if="stats.unreadReportsCount > 0" color="info">{{ stats.unreadReportsCount }}</Badge>
             </Link>
             <Link
                 href="/bpd#daftar-proyek-bpd"
@@ -413,6 +466,9 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 md:hidden">
+                    <Button variant="primary" size="sm" href="/bpd/reports">
+                        <span>Kotak Masuk Laporan Warga</span>
+                    </Button>
                     <Button variant="secondary" size="sm" :href="`/d/${village.slug}`">
                         <span>Lihat Halaman Publik</span>
                     </Button>
@@ -848,10 +904,17 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                             v-if="selectedProject.reports.length > 1"
                                             class="text-xs text-content-tertiary"
                                         >
-                                            Klik baris pelapor untuk membuka atau menutup rincian.
+                                            Klik baris pelapor untuk membuka rincian, memverifikasi, atau membalas
+                                            pesan.
                                         </p>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2">
+                                        <Link
+                                            :href="`/bpd/reports?project=${selectedProject.id}`"
+                                            class="rounded-md border border-stroke-strong bg-surface px-2.5 py-1 text-xs font-medium text-content transition-colors hover:bg-surface-muted"
+                                        >
+                                            Buka Kotak Masuk &rarr;
+                                        </Link>
                                         <button
                                             v-if="selectedUnreadCount > 0"
                                             type="button"
@@ -887,7 +950,6 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                     </button>
                                 </div>
 
-                                <!-- Empty State dengan Ilustrasi Resmi IDDS bpd-empty.svg -->
                                 <div
                                     v-if="selectedProject.reports.length === 0"
                                     class="flex flex-col items-center justify-center rounded-lg border border-stroke bg-surface-subtle px-4 py-8 text-center"
@@ -903,8 +965,7 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                     </div>
                                     <p class="text-sm font-semibold text-content">Belum ada laporan di siklus ini</p>
                                     <p class="mt-1 max-w-xs text-xs leading-relaxed text-content-secondary">
-                                        Laporan Cek Spek yang dikirim warga dari lokasi proyek akan masuk ke daftar ini
-                                        secara anonim.
+                                        Laporan Cek Spek yang dikirim warga dari lokasi proyek akan masuk ke daftar ini.
                                     </p>
                                 </div>
 
@@ -924,7 +985,6 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                         :key="r.id"
                                         :class="r.invalid_reason ? 'bg-surface-subtle opacity-80' : ''"
                                     >
-                                        <!-- Baris Header Accordion (1 Baris Ringkas) -->
                                         <button
                                             type="button"
                                             class="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-surface-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
@@ -953,9 +1013,10 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                 <Badge :color="reportKindBadgeColor(r.kind)">
                                                     {{ reportType[r.kind] }}
                                                 </Badge>
-                                                <Badge v-if="r.is_new" color="info">baru</Badge>
-                                                <Badge v-if="r.superseded" color="neutral">digantikan</Badge>
                                                 <Badge v-if="r.invalid_reason" color="negative">tidak valid</Badge>
+                                                <Badge v-else-if="r.is_verified" color="positive">valid</Badge>
+                                                <Badge v-else-if="r.is_new" color="info">baru</Badge>
+                                                <Badge v-if="r.superseded" color="neutral">digantikan</Badge>
                                             </div>
 
                                             <div
@@ -970,12 +1031,10 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                             </div>
                                         </button>
 
-                                        <!-- Isi Rincian Laporan (Terbuka saat dipilih, disusun menyamping) -->
                                         <div
                                             v-show="expandedReportId === r.id"
                                             class="space-y-2.5 border-t border-stroke bg-surface-subtle/50 px-3.5 py-3 text-sm"
                                         >
-                                            <!-- 1. Chip Menyamping: Hasil Ukur Warga vs Nilai RAB (AC B2) -->
                                             <div
                                                 v-if="r.answers && r.answers.length > 0"
                                                 class="flex flex-wrap gap-1.5"
@@ -995,11 +1054,8 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                     <span class="font-medium">{{ ans.measurement_name }}:</span>
                                                     <template v-if="ans.answer === 'mismatch'">
                                                         <span class="font-semibold">
-                                                            {{
-                                                                ans.measured_value !== null
-                                                                    ? `${ans.measured_value} ${ans.measured_unit ?? ''}`.trim()
-                                                                    : 'Tidak sesuai'
-                                                            }}
+                                                            {{ ans.measured_value ?? '-' }}
+                                                            {{ ans.measured_unit ?? '' }}
                                                         </span>
                                                         <span
                                                             v-if="ans.rab_value !== null"
@@ -1025,7 +1081,6 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                 </div>
                                             </div>
 
-                                            <!-- 2. Catatan, Waktu, & Foto Bukti Sejajar ke Samping -->
                                             <div class="flex items-start justify-between gap-3">
                                                 <div class="min-w-0 flex-1 space-y-1">
                                                     <p v-if="r.note" class="text-sm leading-snug text-content">
@@ -1041,7 +1096,6 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                     </p>
                                                 </div>
 
-                                                <!-- Thumbnail Foto Bukti di Kanan -->
                                                 <div
                                                     v-if="r.photos && r.photos.length > 0"
                                                     class="flex shrink-0 flex-wrap items-center gap-1.5"
@@ -1073,39 +1127,61 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                 v-if="r.invalid_reason"
                                                 class="rounded-md border border-negative-border bg-negative-subtle px-2.5 py-1.5 text-xs text-negative"
                                             >
-                                                Ditandai tidak valid: <strong>{{ r.invalid_reason }}</strong>
+                                                Ditandai tidak valid (Terkunci): <strong>{{ r.invalid_reason }}</strong>
+                                            </div>
+                                            <div
+                                                v-else-if="r.is_verified"
+                                                class="rounded-md border border-positive-border bg-positive-subtle px-2.5 py-1.5 text-xs text-positive"
+                                            >
+                                                Status verifikasi final: <strong>Valid</strong> (Terkunci).
                                             </div>
 
-                                            <!-- 3. Baris Tombol Aksi Ringkas -->
-                                            <div class="flex flex-wrap items-center gap-3 pt-0.5 text-xs">
+                                            <div
+                                                v-if="r.bpd_reply"
+                                                class="rounded-md border border-info-border bg-info-subtle px-2.5 py-2 text-xs text-content"
+                                            >
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <span class="font-semibold text-info">Balasan BPD (1/1):</span>
+                                                    <span v-if="r.bpd_replied_at" class="text-content-tertiary">
+                                                        {{ formatDateTime(r.bpd_replied_at) }}
+                                                    </span>
+                                                </div>
+                                                <p class="mt-0.5 text-content">{{ r.bpd_reply }}</p>
+                                            </div>
+
+                                            <div class="flex flex-wrap items-center gap-2.5 pt-0.5 text-xs">
+                                                <template v-if="!r.is_verified">
+                                                    <button
+                                                        type="button"
+                                                        class="inline-flex items-center gap-1 rounded-md border border-positive-border bg-positive-subtle px-2.5 py-1 font-semibold text-positive transition-colors hover:bg-positive-solid hover:text-content-inverse"
+                                                        @click="validateReport(r.id)"
+                                                    >
+                                                        <span>Tandai valid</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        class="inline-flex items-center gap-1 rounded-md border border-stroke bg-surface px-2.5 py-1 font-medium text-content-secondary transition-colors hover:border-negative-border hover:bg-negative-subtle hover:text-negative"
+                                                        @click="invalidatingReportId = r.id"
+                                                    >
+                                                        <span>Tandai tidak valid</span>
+                                                    </button>
+                                                </template>
+
                                                 <button
-                                                    v-if="r.is_new"
+                                                    v-if="!r.bpd_reply && replyingReportId !== r.id"
                                                     type="button"
                                                     class="font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
-                                                    @click="markOpened(r.id)"
+                                                    @click="
+                                                        replyingReportId = r.id;
+                                                        reportReplyForm.reset();
+                                                    "
                                                 >
-                                                    Tandai sudah dibuka
-                                                </button>
-                                                <button
-                                                    v-if="!r.invalid_reason"
-                                                    type="button"
-                                                    class="font-medium text-content-secondary underline underline-offset-2 hover:text-content"
-                                                    @click="invalidatingReportId = r.id"
-                                                >
-                                                    Tandai tidak valid
-                                                </button>
-                                                <button
-                                                    v-else
-                                                    type="button"
-                                                    class="font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
-                                                    @click="restoreReport(r.id)"
-                                                >
-                                                    Batalkan tidak valid
+                                                    Balas pesan pelapor (1x)
                                                 </button>
                                             </div>
 
                                             <form
-                                                v-if="invalidatingReportId === r.id"
+                                                v-if="!r.is_verified && invalidatingReportId === r.id"
                                                 class="mt-2 space-y-2 border-t border-stroke pt-2.5"
                                                 @submit.prevent="submitInvalid(r.id)"
                                             >
@@ -1113,7 +1189,7 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                     :for="`invalid-reason-${r.id}`"
                                                     class="block text-xs font-medium text-content"
                                                 >
-                                                    Alasan laporan tidak valid
+                                                    Alasan laporan tidak valid (final)
                                                 </label>
                                                 <div class="flex flex-wrap gap-1.5">
                                                     <button
@@ -1148,6 +1224,47 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                                                         variant="ghost"
                                                         size="sm"
                                                         @click="invalidatingReportId = null"
+                                                    >
+                                                        Batal
+                                                    </Button>
+                                                </div>
+                                            </form>
+
+                                            <form
+                                                v-if="!r.bpd_reply && replyingReportId === r.id"
+                                                class="mt-2 space-y-2 border-t border-stroke pt-2.5"
+                                                @submit.prevent="submitReportReply(r.id)"
+                                            >
+                                                <label
+                                                    :for="`report-reply-${r.id}`"
+                                                    class="block text-xs font-medium text-content"
+                                                >
+                                                    Balasan resmi BPD untuk pelapor ini (hanya dapat dikirim 1 kali)
+                                                </label>
+                                                <input
+                                                    :id="`report-reply-${r.id}`"
+                                                    v-model="reportReplyForm.reply"
+                                                    type="text"
+                                                    placeholder="Tulis satu balasan resmi BPD untuk laporan ini..."
+                                                    class="h-9 w-full rounded-md border border-stroke-strong bg-surface px-2.5 text-xs text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                                />
+                                                <p v-if="reportReplyForm.errors.reply" class="text-xs text-negative">
+                                                    {{ reportReplyForm.errors.reply }}
+                                                </p>
+                                                <div class="flex gap-2">
+                                                    <Button
+                                                        type="submit"
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        :loading="reportReplyForm.processing"
+                                                    >
+                                                        Kirim balasan
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        @click="replyingReportId = null"
                                                     >
                                                         Batal
                                                     </Button>
