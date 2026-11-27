@@ -68,6 +68,11 @@ export interface ProjectPublishedReport {
     reporter_label: string;
     kind: 'match' | 'mismatch' | 'unmeasurable';
     note: string | null;
+    bpd_verdict?: 'valid' | 'invalid' | null;
+    bpd_verified_at?: string | null;
+    invalid_reason?: string | null;
+    bpd_reply?: string | null;
+    bpd_replied_at?: string | null;
     created_at: string;
     photos?: ProjectPublishedReportPhoto[];
     answers: ProjectPublishedReportAnswer[];

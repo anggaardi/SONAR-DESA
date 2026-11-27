@@ -169,7 +169,7 @@ const dragStyle = computed(() => {
     return undefined;
 });
 
-const bpdNotesCount = computed(() => {
+const cycleBpdNotesCount = computed(() => {
     let count = 0;
     if (props.project.review?.note) {
         count++;
@@ -180,9 +180,15 @@ const bpdNotesCount = computed(() => {
     return count;
 });
 
+const bpdRepliedReportsCount = computed(
+    () => (props.project.published_reports ?? []).filter((r) => Boolean(r.bpd_reply || r.bpd_verdict)).length,
+);
+
+const bpdNotesCount = computed(() => cycleBpdNotesCount.value + bpdRepliedReportsCount.value);
+
 const publishedReportsCount = computed(() => props.project.published_reports?.length ?? 0);
 
-const totalCount = computed(() => bpdNotesCount.value + publishedReportsCount.value);
+const totalCount = computed(() => cycleBpdNotesCount.value + publishedReportsCount.value);
 
 const ariaLabel = computed(() => projectReviews.fabAriaLabel(totalCount.value));
 
@@ -548,10 +554,14 @@ onUnmounted(() => {
                                 </p>
                             </article>
 
-                            <!-- 2. Laporan Warga yang diterbitkan BPD -->
+                            <!-- 2. Laporan Warga yang diterbitkan / diverifikasi BPD -->
                             <article
                                 v-for="(report, idx) in project.published_reports || []"
-                                v-show="activeTab === 'all' || activeTab === 'reports'"
+                                v-show="
+                                    activeTab === 'all' ||
+                                    activeTab === 'reports' ||
+                                    (activeTab === 'bpd' && Boolean(report.bpd_reply || report.bpd_verdict))
+                                "
                                 :key="report.id"
                                 class="space-y-3 py-4 first:pt-0"
                             >
@@ -587,9 +597,18 @@ onUnmounted(() => {
                                     </div>
                                 </div>
 
-                                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
                                     <Badge :color="kindBadgeColor[report.kind]">
                                         {{ reportType[report.kind] }}
+                                    </Badge>
+                                    <Badge
+                                        v-if="report.bpd_verdict === 'invalid' || report.invalid_reason"
+                                        color="negative"
+                                    >
+                                        Ditandai tidak valid oleh BPD
+                                    </Badge>
+                                    <Badge v-else-if="report.bpd_verdict === 'valid'" color="positive">
+                                        Diverifikasi valid oleh BPD
                                     </Badge>
                                     <span class="text-xs text-content-tertiary">
                                         {{ formatDate(report.created_at) }}
@@ -623,6 +642,29 @@ onUnmounted(() => {
                                         <span :class="answerClass(ans.answer)">({{ answerLabel(ans.answer) }})</span>
                                     </li>
                                 </ul>
+
+                                <!-- Alasan BPD jika laporan ditandai tidak valid -->
+                                <div
+                                    v-if="report.invalid_reason"
+                                    class="rounded-xl border border-negative-border bg-negative-subtle p-3 text-sm text-negative"
+                                >
+                                    <p class="font-semibold">Keterangan verifikasi {{ bpdName }}: Tidak valid</p>
+                                    <p class="mt-0.5">Alasan: {{ report.invalid_reason }}</p>
+                                </div>
+
+                                <!-- Catatan / Balasan Resmi BPD untuk laporan warga ini -->
+                                <div
+                                    v-if="report.bpd_reply"
+                                    class="rounded-xl border border-stroke bg-primary-subtle p-3.5 text-sm text-content"
+                                >
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <span class="font-semibold text-primary"> Catatan balasan {{ bpdName }} </span>
+                                        <span v-if="report.bpd_replied_at" class="text-xs text-content-tertiary">
+                                            {{ formatDate(report.bpd_replied_at) }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-1 leading-relaxed text-content">{{ report.bpd_reply }}</p>
+                                </div>
                             </article>
                         </div>
 

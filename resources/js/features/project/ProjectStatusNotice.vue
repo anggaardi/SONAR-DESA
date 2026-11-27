@@ -3,6 +3,7 @@
 // Bahasa tetap netral (D9): menjelaskan proses, tidak menilai.
 
 import { computed } from 'vue';
+import { formatDate } from '@/lib/format';
 import { publicStatus, type ReviewOutcome } from '@/lib/labels';
 import type { ProjectDetail } from '@/types/project';
 
@@ -37,7 +38,7 @@ const reviewedText = computed(() => {
     </div>
 
     <div
-        v-else-if="project.public_status === 'reviewed'"
+        v-else-if="project.public_status === 'reviewed' || project.review"
         class="flex items-start gap-3 rounded-2xl border border-info-border bg-info-subtle p-4 text-info"
         role="status"
     >
@@ -52,14 +53,26 @@ const reviewedText = computed(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.5 12l2.5 2.5 4.5-5" />
             </svg>
         </span>
-        <div class="min-w-0">
+        <div class="min-w-0 flex-1">
             <p class="text-base font-semibold">{{ reviewedText }}</p>
             <p v-if="project.review?.note" class="mt-0.5 text-sm">{{ project.review.note }}</p>
+            <div
+                v-if="project.review?.notes && project.review.notes.length > 0"
+                class="mt-2.5 space-y-1.5 rounded-xl border border-info-border bg-surface/80 p-3 text-sm text-content"
+            >
+                <p class="text-xs font-semibold text-info">Catatan tindak lanjut susulan BPD:</p>
+                <p v-for="(item, idx) in project.review.notes" :key="idx" class="text-sm text-content">
+                    <span v-if="item.created_at" class="text-xs text-content-tertiary tabular-nums">
+                        {{ formatDate(item.created_at) }} &mdash;
+                    </span>
+                    {{ item.note }}
+                </p>
+            </div>
             <a
-                href="#perjalanan"
+                href="#ulasan-bpd"
                 class="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-primary hover:text-primary-hover"
             >
-                Lihat di perjalanan proyek
+                Lihat berita acara &amp; tanggapan BPD
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 6l6 6-6 6" />
                 </svg>

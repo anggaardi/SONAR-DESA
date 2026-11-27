@@ -99,10 +99,26 @@ final class ProjectSeeder extends Seeder
         array $mismatchMeasurements = [],
         string $samplePhotoPath = 'progress/sample-progress-35.webp',
     ): void {
+        $sampleCitizens = [
+            1 => ['name' => 'Ni Made Ayu', 'google_id' => 'google-warga-01'],
+            2 => ['name' => 'I Wayan Sudarma', 'google_id' => 'google-warga-02'],
+            3 => ['name' => 'I Ketut Wirawan', 'google_id' => 'google-warga-03'],
+            4 => ['name' => 'Ni Luh Sari', 'google_id' => 'google-warga-04'],
+            5 => ['name' => 'I Nyoman Gede', 'google_id' => 'google-warga-05'],
+            6 => ['name' => 'Ni Putu Lestari', 'google_id' => 'google-warga-06'],
+            7 => ['name' => 'I Made Dharma', 'google_id' => 'google-warga-07'],
+            8 => ['name' => 'Ni Kadek Pratiwi', 'google_id' => 'google-warga-08'],
+        ];
+        $citizenProfile = $sampleCitizens[$citizenIndex] ?? [
+            'name' => sprintf('Warga Contoh %02d', $citizenIndex),
+            'google_id' => sprintf('google-warga-%02d', $citizenIndex),
+        ];
+
         $citizen = User::query()->updateOrCreate(
             ['email' => sprintf('warga-%02d@contoh.sonar-desa.test', $citizenIndex)],
             [
-                'name' => sprintf('Warga Contoh %02d', $citizenIndex),
+                'name' => $citizenProfile['name'],
+                'google_id' => $citizenProfile['google_id'],
                 'role' => Role::Warga,
                 'village_id' => null,
                 'password' => null,

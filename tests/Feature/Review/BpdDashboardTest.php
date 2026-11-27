@@ -23,6 +23,7 @@ use App\Modules\Report\Models\Report;
 use App\Modules\Report\Models\ReportAnswer;
 use App\Modules\Report\Models\ReportPhoto;
 use App\Modules\Review\Actions\EvaluateReviewThreshold;
+use App\Modules\Review\Enums\ReportVerdict;
 use App\Modules\Review\Enums\ReviewOutcome;
 use App\Modules\Review\Models\ReviewCycle;
 use Illuminate\Http\UploadedFile;
@@ -135,15 +136,39 @@ it('transitions project to InReview on 3rd valid mismatch report and keeps InRev
         ->assertRedirect();
 
     app(CurrentVillage::class)->set($village->id);
-    expect($reports[0]->refresh()->invalid_reason)->toBe('Foto tidak relevan');
+    expect($reports[0]->refresh()->invalid_reason)->toBe('Foto tidak relevan')
+        ->and($reports[0]->bpd_verdict)->toBe(ReportVerdict::Invalid);
     expect($project->refresh()->public_status)->toBe(PublicStatus::InReview);
 
-    // Restore works while cycle is open.
+    // The verdict is final: an invalid report cannot be validated or re-marked afterwards.
     $this->actingAs($bpd)
-        ->post("/bpd/reports/{$reports[0]->id}/restore")
+        ->post("/bpd/reports/{$reports[0]->id}/validate")
+        ->assertSessionHasErrors('report');
+    $this->actingAs($bpd)
+        ->post("/bpd/reports/{$reports[0]->id}/invalidate", ['reason' => 'Alasan lain'])
+        ->assertSessionHasErrors('reason');
+
+    expect($reports[0]->refresh()->invalid_reason)->toBe('Foto tidak relevan')
+        ->and($reports[0]->bpd_verdict)->toBe(ReportVerdict::Invalid);
+
+    // Validating a pending report stores the verdict together with one optional note.
+    $this->actingAs($bpd)
+        ->post("/bpd/reports/{$reports[1]->id}/validate", ['note' => 'Sudah dicek bersama perangkat desa.'])
         ->assertRedirect();
 
-    expect($reports[0]->refresh()->invalid_reason)->toBeNull();
+    $reports[1]->refresh();
+    expect($reports[1]->bpd_verdict)->toBe(ReportVerdict::Valid)
+        ->and($reports[1]->bpd_reply)->toBe('Sudah dicek bersama perangkat desa.')
+        ->and($reports[1]->opened_at)->not->toBeNull();
+
+    // Invalidating a pending report with a note stores both too.
+    $this->actingAs($bpd)
+        ->post("/bpd/reports/{$reports[2]->id}/invalidate", ['reason' => 'Duplikat', 'note' => 'Laporan ganda dari lokasi yang sama.'])
+        ->assertRedirect();
+
+    $reports[2]->refresh();
+    expect($reports[2]->bpd_verdict)->toBe(ReportVerdict::Invalid)
+        ->and($reports[2]->bpd_reply)->toBe('Laporan ganda dari lokasi yang sama.');
 });
 
 it('rejects short notes (< 30 chars) and non-InReview outcome submissions, then closes cycle and supports follow-up notes (B6, B7, B8, B9)', function () {
@@ -324,6 +349,85 @@ it('displays report measurement answers vs RAB, above-standard items, and serves
         ->post(route('bpd.projects.reports.open-all', $project->id))
         ->assertRedirect();
     expect($report->refresh()->opened_at)->not->toBeNull();
+
+    // Dedicated citizen reports inbox page (/bpd/reports) & BPD reply note.
+    $this->actingAs($bpd)
+        ->get(route('bpd.reports.index', ['report' => $report->id]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('review/Reports')
+            ->where('selectedReportId', $report->id)
+            ->where('reports.0.id', $report->id)
+            ->where('reports.0.reporter_name', $warga->name)
+            ->where('reports.0.is_google_account', true)
+        );
+
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.reply', $report->id), [
+            'reply' => 'Terima kasih atas laporannya, BPD akan mengecek ketebalan beton besok pagi.',
+        ])
+        ->assertRedirect();
+
+    $report->refresh();
+    expect($report->bpd_reply)->toBe('Terima kasih atas laporannya, BPD akan mengecek ketebalan beton besok pagi.');
+    expect($report->bpd_replied_at)->not->toBeNull();
+
+    // Only one note allowed per report: a second submission is rejected and preserves the first note.
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.reply', $report->id), [
+            'reply' => 'Catatan kedua yang seharusnya ditolak karena sudah pernah dikirim.',
+        ])
+        ->assertSessionHasErrors('reply');
+
+    expect($report->refresh()->bpd_reply)
+        ->toBe('Terima kasih atas laporannya, BPD akan mengecek ketebalan beton besok pagi.');
+
+    // Verification is final: after marking valid, no re-verification is allowed.
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.validate', $report->id))
+        ->assertRedirect();
+
+    $report->refresh();
+    expect($report->bpd_verdict)->toBe(ReportVerdict::Valid)
+        ->and($report->bpd_verified_at)->not->toBeNull()
+        ->and($report->isVerified())->toBeTrue();
+
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.invalidate', $report->id), ['reason' => 'Duplikat'])
+        ->assertSessionHasErrors('reason');
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.reply', $report->id), ['reply' => 'Catatan kedua pada laporan yang sudah punya balasan tetap ditolak.'])
+        ->assertSessionHasErrors('reply');
+
+    expect($report->refresh()->bpd_verdict)->toBe(ReportVerdict::Valid)
+        ->and($report->invalid_reason)->toBeNull();
+
+    // If a report is verified first without a note, BPD can still send their 1 reply message afterwards.
+    $warga2 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $secondReport = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $warga2->id,
+        'kind' => ReportKind::Mismatch,
+        'opened_at' => null,
+    ]);
+
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.validate', $secondReport->id), ['note' => ''])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect($secondReport->refresh()->bpd_verdict)->toBe(ReportVerdict::Valid)
+        ->and($secondReport->bpd_reply)->toBeNull();
+
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.reply', $secondReport->id), [
+            'reply' => 'Balasan resmi BPD setelah laporan diverifikasi valid.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    expect($secondReport->refresh()->bpd_reply)->toBe('Balasan resmi BPD setelah laporan diverifikasi valid.');
 
     // Owning village BPD can view the photo.
     $this->actingAs($bpd)
@@ -519,5 +623,75 @@ it('preserves historical target snapshot on citizen reports across subsequent CC
             ->where('project.published_reports.0.answers.0.target_value', '12')
             ->where('project.published_reports.0.answers.0.target_unit', 'cm')
             ->where('project.published_reports.0.answers.0.measured_value', '8.5')
+        );
+});
+
+it('displays BPD verification verdict (valid / invalid) and reply notes on citizen project page as soon as BPD saves them in the database', function () {
+    [$village, $bpd] = setupBpdVillage();
+
+    $project = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => auditFor($village),
+        'slug' => 'rabat-sinkron-warga',
+        'public_status' => PublicStatus::None,
+        'published_at' => now(),
+    ]);
+
+    $cycle = ReviewCycle::create([
+        'project_id' => $project->id,
+        'opened_at' => now(),
+    ]);
+    $project->update(['current_cycle_id' => $cycle->id]);
+
+    $warga1 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $warga2 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+
+    $report1 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $warga1->id,
+        'kind' => ReportKind::Mismatch,
+        'note' => 'Ketebalan beton di sisi utara 9 cm.',
+        'created_at' => now()->subMinutes(10),
+    ]);
+
+    $report2 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $warga2->id,
+        'kind' => ReportKind::Mismatch,
+        'note' => 'Foto kabur dari proyek lain.',
+        'created_at' => now()->subMinutes(5),
+    ]);
+
+    // BPD validates report1 and sends a reply note.
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.validate', $report1->id), [
+            'note' => 'Terima kasih, BPD sudah mengukur di lokasi bersama pelaksana.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    // BPD marks report2 invalid with a reason and reply note.
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.invalidate', $report2->id), [
+            'reason' => 'Bukan proyek ini',
+            'note' => 'Titik foto berada di ruas jalan desa tetangga.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    // Citizen / public view immediately reflects the database state for both reports.
+    $this->get("/p/{$project->slug}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('project.published_reports', 2)
+            ->where('project.published_reports.0.id', $report2->id)
+            ->where('project.published_reports.0.bpd_verdict', 'invalid')
+            ->where('project.published_reports.0.invalid_reason', 'Bukan proyek ini')
+            ->where('project.published_reports.0.bpd_reply', 'Titik foto berada di ruas jalan desa tetangga.')
+            ->where('project.published_reports.1.id', $report1->id)
+            ->where('project.published_reports.1.bpd_verdict', 'valid')
+            ->where('project.published_reports.1.bpd_reply', 'Terima kasih, BPD sudah mengukur di lokasi bersama pelaksana.')
         );
 });

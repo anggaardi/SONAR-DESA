@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import Alert from '@/components/ui/Alert.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
-import bpdEmpty from '@/components/ui/illustrations/bpd-empty.svg';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
-import { checkSpec, reportType, reviewOutcome, type ReviewOutcome } from '@/lib/labels';
+import { priceLabel, publicStatus, reviewOutcome, type ReviewOutcome } from '@/lib/labels';
 
 interface ProjectRow {
     id: number;
@@ -23,34 +21,12 @@ interface ProjectRow {
     unread_count: number;
 }
 
-interface ReportAnswerItem {
+interface ReportSummaryItem {
     id: number;
-    measurement_name: string;
-    rab_value: string | null;
-    rab_unit: string | null;
-    answer: 'match' | 'mismatch' | 'unmeasurable';
-    measured_value: string | null;
-    measured_unit: string | null;
-}
-
-interface ReportPhotoItem {
-    id: number;
-    position: number;
-    url: string;
-}
-
-interface ReportItem {
-    id: number;
-    reporter_label: string;
     kind: 'mismatch' | 'match' | 'unmeasurable';
-    distance_m: number | null;
-    note: string | null;
     superseded: boolean;
     invalid_reason: string | null;
     is_new: boolean;
-    created_at: string | null;
-    answers: ReportAnswerItem[];
-    photos: ReportPhotoItem[];
 }
 
 interface AboveStandardItem {
@@ -96,12 +72,11 @@ interface SelectedProject {
     document_url: string;
     above_standard_items?: AboveStandardItem[];
     changes?: ProjectChangeRow[];
-    reports: ReportItem[];
+    reports: ReportSummaryItem[];
     closed_cycles: ClosedCycle[];
 }
 
 type ProjectFilterKey = 'all' | 'in_review' | 'unread' | 'above_standard' | 'reviewed';
-type ReportFilterKey = 'all' | 'mismatch' | 'match' | 'valid_only';
 
 const props = defineProps<{
     village: { name: string; slug: string; regency?: string };
@@ -110,25 +85,10 @@ const props = defineProps<{
     threshold: number;
 }>();
 
+const currentBudgetYear = new Date().getFullYear();
+
 const projectSearch = ref('');
 const projectFilter = ref<ProjectFilterKey>('all');
-const reportFilter = ref<ReportFilterKey>('all');
-
-const invalidReasonPresets = ['Foto tidak relevan', 'Bukan proyek ini', 'Duplikat'] as const;
-const expandedReportId = ref<number | null>(props.selectedProject?.reports[0]?.id ?? null);
-const invalidatingReportId = ref<number | null>(null);
-const invalidForm = useForm({ reason: '' });
-
-const activeLightboxPhoto = ref<{ url: string; label: string } | null>(null);
-
-watch(
-    () => props.selectedProject?.id,
-    () => {
-        reportFilter.value = 'all';
-        expandedReportId.value = props.selectedProject?.reports[0]?.id ?? null;
-        invalidatingReportId.value = null;
-    },
-);
 
 const filteredProjects = computed(() => {
     const query = projectSearch.value.trim().toLowerCase();
@@ -153,21 +113,29 @@ const filteredProjects = computed(() => {
     });
 });
 
-const filteredReports = computed(() => {
-    const list = props.selectedProject?.reports ?? [];
-    return list.filter((r) => {
-        if (reportFilter.value === 'mismatch') {
-            return r.kind === 'mismatch';
-        }
-        if (reportFilter.value === 'match') {
-            return r.kind === 'match';
-        }
-        if (reportFilter.value === 'valid_only') {
-            return r.invalid_reason === null && !r.superseded;
-        }
-        return true;
-    });
-});
+const projectFilterTabs = computed(() => [
+    { key: 'all' as const, label: 'Semua', count: props.projects.length },
+    {
+        key: 'in_review' as const,
+        label: 'Sidang pleno',
+        count: props.projects.filter((p) => p.public_status === 'in_review').length,
+    },
+    {
+        key: 'unread' as const,
+        label: 'Laporan baru',
+        count: props.projects.filter((p) => p.unread_count > 0).length,
+    },
+    {
+        key: 'above_standard' as const,
+        label: 'Di atas SSH',
+        count: props.projects.filter((p) => p.above_standard_count > 0).length,
+    },
+    {
+        key: 'reviewed' as const,
+        label: 'Selesai ditinjau',
+        count: props.projects.filter((p) => p.public_status === 'reviewed').length,
+    },
+]);
 
 const selectedUnreadCount = computed(() => {
     const list = props.selectedProject?.reports ?? [];
@@ -183,79 +151,51 @@ const selectedValidMismatchCount = computed(() => {
     return row?.valid_mismatch_count ?? 0;
 });
 
-const thresholdProgressPct = computed(() => {
-    if (props.threshold <= 0) return 100;
-    return Math.min(100, Math.round((selectedValidMismatchCount.value / props.threshold) * 100));
+const thresholdSteps = computed(() => {
+    const count = Math.max(1, props.threshold);
+    return Array.from({ length: count }, (_, idx) => idx + 1);
 });
-
-function toggleReport(reportId: number): void {
-    expandedReportId.value = expandedReportId.value === reportId ? null : reportId;
-    if (invalidatingReportId.value !== null && invalidatingReportId.value !== reportId) {
-        invalidatingReportId.value = null;
-    }
-}
-
-function markAllOpened(): void {
-    if (!props.selectedProject) return;
-    router.post(`/bpd/projects/${props.selectedProject.id}/reports/open-all`, {}, { preserveScroll: true });
-}
 
 const outcomeForm = useForm<{ result: ReviewOutcome; note: string }>({
     result: 'followed_up',
     note: '',
 });
 
+// Native <dialog> untuk Catatan Susulan & Rincian Revisi CCO (DESIGN.md §6B)
+const followUpDialogRef = ref<HTMLDialogElement | null>(null);
 const activeNoteCycleId = ref<number | null>(null);
 const followUpForm = useForm({ note: '' });
+
+const ccoDialogRef = ref<HTMLDialogElement | null>(null);
+const isDialogOpen = ref(false);
+
+// DESIGN.md §6 & §12: Hanya satu tombol `primary` per layar.
+const hasOutcomePrimaryButton = computed(
+    () => props.selectedProject?.public_status === 'in_review' && !isDialogOpen.value,
+);
 
 const stats = computed(() => {
     const totalProjects = props.projects.length;
     const inReviewCount = props.projects.filter((p) => p.public_status === 'in_review').length;
     const reviewedCount = props.projects.filter((p) => p.public_status === 'reviewed').length;
     const unreadReportsCount = props.projects.reduce((sum, p) => sum + p.unread_count, 0);
+    const aboveStandardProjectsCount = props.projects.filter((p) => p.above_standard_count > 0).length;
 
     return {
         totalProjects,
         inReviewCount,
         reviewedCount,
         unreadReportsCount,
+        aboveStandardProjectsCount,
     };
 });
 
+function toggleKpiFilter(target: ProjectFilterKey): void {
+    projectFilter.value = projectFilter.value === target ? 'all' : target;
+}
+
 function selectProject(id: number): void {
     router.get('/bpd', { project: id }, { preserveScroll: true });
-}
-
-function markOpened(reportId: number): void {
-    router.post(`/bpd/reports/${reportId}/open`, {}, { preserveScroll: true });
-}
-
-function openPhotoLightbox(report: ReportItem, photo: ReportPhotoItem): void {
-    activeLightboxPhoto.value = {
-        url: photo.url,
-        label: `${report.reporter_label} — Foto ${photo.position}`,
-    };
-    if (report.is_new) {
-        markOpened(report.id);
-    }
-}
-
-function closePhotoLightbox(): void {
-    activeLightboxPhoto.value = null;
-}
-
-function submitInvalid(reportId: number): void {
-    invalidForm.post(`/bpd/reports/${reportId}/invalidate`, {
-        preserveScroll: true,
-        onSuccess: () => {
-            invalidForm.reset();
-            invalidatingReportId.value = null;
-        },
-    });
-}
-
-function restoreReport(reportId: number): void {
-    router.post(`/bpd/reports/${reportId}/restore`, {}, { preserveScroll: true });
 }
 
 function submitOutcome(): void {
@@ -266,43 +206,58 @@ function submitOutcome(): void {
     });
 }
 
-function submitFollowUp(cycleId: number): void {
-    followUpForm.post(`/bpd/cycles/${cycleId}/notes`, {
+async function openFollowUpDialog(cycleId: number): Promise<void> {
+    activeNoteCycleId.value = cycleId;
+    followUpForm.reset();
+    followUpForm.clearErrors();
+    isDialogOpen.value = true;
+    await nextTick();
+    followUpDialogRef.value?.showModal();
+}
+
+function closeFollowUpDialog(): void {
+    followUpDialogRef.value?.close();
+    activeNoteCycleId.value = null;
+    isDialogOpen.value = false;
+}
+
+function submitFollowUp(): void {
+    if (activeNoteCycleId.value === null) return;
+    followUpForm.post(`/bpd/cycles/${activeNoteCycleId.value}/notes`, {
         preserveScroll: true,
         onSuccess: () => {
             followUpForm.reset();
-            activeNoteCycleId.value = null;
+            closeFollowUpDialog();
         },
     });
 }
 
-function statusBadgeText(status: ProjectRow['public_status']): string {
-    if (status === 'in_review') return 'Dalam tinjauan BPD';
-    if (status === 'reviewed') return 'Sudah ditinjau';
-    return 'Belum ada tinjauan';
+async function openCcoDialog(): Promise<void> {
+    isDialogOpen.value = true;
+    await nextTick();
+    ccoDialogRef.value?.showModal();
 }
 
-function statusBadgeColor(status: ProjectRow['public_status']): 'warning' | 'info' | 'neutral' {
-    if (status === 'in_review') return 'warning';
-    if (status === 'reviewed') return 'info';
-    return 'neutral';
+function closeCcoDialog(): void {
+    ccoDialogRef.value?.close();
+    isDialogOpen.value = false;
 }
 
-function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive' | 'neutral' {
-    if (kind === 'mismatch') return 'negative';
-    if (kind === 'match') return 'positive';
-    return 'neutral';
+function handleDialogBackdropClick(event: MouseEvent, closeFn: () => void): void {
+    if (event.target === event.currentTarget) {
+        closeFn();
+    }
 }
 </script>
 
 <template>
     <AppLayout>
-        <Head :title="`Dashboard BPD — ${village.name}`" />
+        <Head :title="`Dashboard Pengawasan BPD — ${village.name}`" />
 
         <template #breadcrumb>
             <Link href="/" class="transition-colors hover:text-primary">Beranda</Link>
             <span>/</span>
-            <span class="font-medium text-content">Dashboard BPD {{ village.name }}</span>
+            <span class="font-semibold text-content">Pengawasan BPD {{ village.name }}</span>
         </template>
 
         <template #headerActions>
@@ -311,75 +266,99 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="1.8"
                         d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="1.8"
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                 </svg>
-                <span>Lihat Halaman Publik</span>
+                <span>Papan publik desa</span>
             </Button>
         </template>
 
         <template #nav>
             <Link
                 href="/bpd"
-                class="flex items-center gap-3 rounded-lg bg-primary-subtle px-3 py-2.5 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                class="flex min-h-11 items-center gap-3 rounded-lg bg-primary-subtle px-3 py-2 text-sm font-semibold text-primary transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="1.8"
                         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                     />
                 </svg>
-                <span>Tinjauan &amp; Siklus BPD</span>
+                <span>Siklus tinjauan BPD</span>
+            </Link>
+            <Link
+                href="/bpd/reports"
+                class="flex min-h-11 items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+            >
+                <span class="flex items-center gap-3"
+                    >-
+                    <svg
+                        class="h-5 w-5 shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="1.8"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                        />
+                    </svg>
+                    <span>Kotak warga</span>
+                </span>
+                <Badge v-if="stats.unreadReportsCount > 0" color="info">{{ stats.unreadReportsCount }} baru</Badge>
             </Link>
             <Link
                 href="/bpd#daftar-proyek-bpd"
-                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="1.8"
                         d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                     />
                 </svg>
-                <span>Daftar Proyek Desa</span>
+                <span>Daftar proyek desa</span>
             </Link>
             <Link
                 :href="`/d/${village.slug}`"
-                class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                class="flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-content-secondary transition-colors hover:bg-surface-muted hover:text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
                 <svg class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="1.8"
                         d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                     <path
                         stroke-linecap="round"
                         stroke-linejoin="round"
-                        stroke-width="1.5"
+                        stroke-width="1.8"
                         d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
                     />
                 </svg>
-                <span>Lihat Halaman Publik</span>
+                <span>Papan publik desa</span>
             </Link>
         </template>
 
         <template #sidebarFooter>
-            <div class="flex items-center justify-between text-xs text-content-secondary">
+            <div class="flex items-center justify-between gap-2 text-xs text-content-secondary">
                 <div class="flex min-w-0 flex-col">
-                    <span class="truncate font-medium text-content">{{ village.name }}</span>
+                    <span class="truncate font-semibold text-content">{{ village.name }}</span>
                     <span class="truncate text-content-tertiary">
                         {{ village.regency ? `Kab. ${village.regency}` : 'Badan Permusyawaratan Desa' }}
                     </span>
@@ -388,7 +367,7 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
                     href="/logout"
                     method="post"
                     as="button"
-                    class="font-medium text-negative underline-offset-2 hover:underline"
+                    class="font-semibold text-negative underline-offset-2 hover:underline"
                 >
                     Keluar
                 </Link>
@@ -396,948 +375,1143 @@ function reportKindBadgeColor(kind: ReportItem['kind']): 'negative' | 'positive'
         </template>
 
         <div class="flex flex-col gap-6">
-            <!-- Header Section (IDDS Typography & Layout) -->
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <div class="mb-1.5 flex flex-wrap items-center gap-2">
-                        <Badge color="info">Badan Permusyawaratan Desa (BPD)</Badge>
-                        <span v-if="village.regency" class="text-xs text-content-tertiary">
-                            Kabupaten {{ village.regency }}
-                        </span>
+            <!-- HeroBanner SIM-BPD Venice Blue (DESIGN.md §6C: rounded-2xl bg-primary text-content-inverse p-6, tombol di atas banner memakai secondary putih) -->
+            <section
+                class="rounded-2xl bg-primary p-6 text-content-inverse shadow-xs"
+                aria-labelledby="heading-hero-bpd"
+            >
+                <div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+                    <div class="space-y-3">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span
+                                class="inline-flex items-center gap-2 rounded-full border border-stroke-strong bg-primary-hover px-3 py-1 text-sm font-semibold text-content-inverse"
+                            >
+                                <span
+                                    :class="[
+                                        'h-2 w-2 rounded-full',
+                                        stats.inReviewCount > 0 ? 'bg-warning-solid' : 'bg-positive-solid',
+                                    ]"
+                                    aria-hidden="true"
+                                />
+                                <span>SK-BPD Aktif &middot; TA {{ currentBudgetYear }}</span>
+                            </span>
+                            <span
+                                v-if="village.regency"
+                                class="inline-flex items-center gap-1.5 rounded-full bg-primary-hover px-3 py-1 text-sm font-medium text-content-inverse"
+                            >
+                                <svg
+                                    class="h-4 w-4 text-content-inverse"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="1.8"
+                                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                    />
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="1.8"
+                                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                    />
+                                </svg>
+                                <span>Kab. {{ village.regency }}</span>
+                            </span>
+                            <span
+                                class="inline-flex items-center gap-1.5 rounded-full bg-primary-hover px-3 py-1 text-sm font-medium text-content-inverse tabular-nums"
+                            >
+                                <span>Ambang tinjauan: &ge; {{ threshold }} selisih valid</span>
+                            </span>
+                        </div>
+
+                        <div>
+                            <h1 id="heading-hero-bpd" class="text-2xl font-bold text-content-inverse sm:text-3xl">
+                                Pengawasan BPD {{ village.name }}
+                            </h1>
+                            <p class="mt-1 max-w-2xl text-sm font-medium text-content-inverse/90">
+                                Pantau ambang siklus laporan fisik, deviasi standar harga kabupaten, dan penerbitan
+                                berita acara hasil musyawarah ke papan publik.
+                            </p>
+                        </div>
                     </div>
-                    <h1 class="text-2xl font-semibold text-content md:text-3xl">Dashboard BPD {{ village.name }}</h1>
-                    <p class="mt-1 text-sm text-content-secondary">
-                        Tinjau laporan fisik warga per siklus, periksa bukti foto dan hasil ukur lapangan, serta
-                        terbitkan hasil musyawarah BPD ke publik.
-                    </p>
-                </div>
 
-                <div class="flex flex-wrap items-center gap-2 md:hidden">
-                    <Button variant="secondary" size="sm" :href="`/d/${village.slug}`">
-                        <span>Lihat Halaman Publik</span>
-                    </Button>
+                    <!-- Pintasan Hero memakai varian secondary putih agar tetap satu primary per layar (DESIGN.md §6C) -->
+                    <div class="flex flex-wrap items-center gap-3">
+                        <Button variant="secondary" href="/bpd/reports">
+                            <svg
+                                class="h-4 w-4 text-primary"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="1.8"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                                />
+                            </svg>
+                            <span>Kotak warga ({{ stats.unreadReportsCount }} baru)</span>
+                        </Button>
+                        <Button variant="secondary" :href="`/d/${village.slug}`">
+                            <span>Papan publik</span>
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Alerts Status Siklus & Laporan Baru (IDDS Alert) -->
+            <!-- Alerts Status Siklus & Laporan Baru -->
             <div v-if="stats.inReviewCount > 0 || stats.unreadReportsCount > 0" class="flex flex-col gap-3">
                 <Alert
                     v-if="stats.inReviewCount > 0"
                     color="warning"
-                    title="Proyek memerlukan keputusan hasil tinjauan BPD"
+                    title="Ambang siklus tercapai — butuh sidang pleno BPD"
                 >
-                    Terdapat {{ stats.inReviewCount }} proyek yang telah mencapai ambang {{ threshold }} laporan selisih
-                    warga berbeda dan berstatus Dalam tinjauan BPD. Pilih proyek terkait untuk memeriksa bukti dan
-                    menyimpan hasil tinjauan resmi.
+                    Terdapat {{ stats.inReviewCount }} proyek yang telah mencapai &ge; {{ threshold }} laporan selisih
+                    valid dari warga berbeda. Pilih proyek di tabel bawah untuk menerbitkan keputusan berita acara BPD.
                 </Alert>
-                <Alert
-                    v-if="stats.unreadReportsCount > 0"
-                    color="info"
-                    title="Laporan verifikasi fisik baru dari warga"
-                >
-                    Ada {{ stats.unreadReportsCount }} laporan Cek Spek warga di siklus berjalan yang belum dibuka.
-                    Periksa hasil ukur dan foto lokasi yang dikirim warga.
+                <Alert v-if="stats.unreadReportsCount > 0" color="info" title="Laporan Cek Spek warga belum dibuka">
+                    Ada {{ stats.unreadReportsCount }} laporan fisik warga baru. Buka halaman Kotak warga untuk
+                    memeriksa bukti foto dan memberikan verifikasi valid atau tidak valid.
                 </Alert>
             </div>
 
-            <!-- Ringkasan Statistik KPI (IDDS Cards) -->
-            <section aria-labelledby="heading-ringkasan-bpd">
-                <h2 id="heading-ringkasan-bpd" class="sr-only">Ringkasan Pengawasan BPD</h2>
-                <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <Card padding="app">
-                        <p class="text-sm font-medium text-content-secondary">Proyek Terbit</p>
-                        <p class="mt-2 text-3xl font-bold text-content tabular-nums">
-                            {{ stats.totalProjects }}
-                        </p>
-                        <p class="mt-1 text-xs text-content-tertiary">Dipantau di {{ village.name }}</p>
-                    </Card>
+            <!-- 4 KpiCard sebagai Filter Sekali-Klik (DESIGN.md §6 KpiCard: Card rounded-2xl + ikon SVG status + angka text-3xl font-bold tabular-nums + badge status + aria-pressed) -->
+            <section aria-labelledby="heading-kpi-bpd">
+                <h2 id="heading-kpi-bpd" class="sr-only">Metrik pengawasan BPD</h2>
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- KPI 1: Proyek Terbit -->
+                    <button
+                        type="button"
+                        :aria-pressed="projectFilter === 'all'"
+                        :class="[
+                            'flex flex-col justify-between rounded-2xl border p-6 text-left transition-colors',
+                            projectFilter === 'all'
+                                ? 'border-primary bg-surface shadow-xs'
+                                : 'border-stroke bg-surface hover:border-stroke hover:bg-surface-muted/40',
+                        ]"
+                        @click="projectFilter = 'all'"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-subtle text-primary"
+                                aria-hidden="true"
+                            >
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                    />
+                                </svg>
+                            </div>
+                            <Badge color="neutral">Terpublikasi</Badge>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-3xl font-bold text-content tabular-nums">{{ stats.totalProjects }}</p>
+                            <p class="mt-1 text-sm font-semibold text-content-secondary">Proyek fisik terbit</p>
+                        </div>
+                    </button>
 
-                    <Card padding="app">
-                        <p class="text-sm font-medium text-content-secondary">Dalam Tinjauan BPD</p>
-                        <p
-                            :class="[
-                                'mt-2 text-3xl font-bold tabular-nums',
-                                stats.inReviewCount > 0 ? 'text-warning' : 'text-content',
-                            ]"
-                        >
-                            {{ stats.inReviewCount }}
-                        </p>
-                        <p class="mt-1 text-xs text-content-tertiary">Mencapai &ge; {{ threshold }} laporan selisih</p>
-                    </Card>
+                    <!-- KPI 2: Butuh Sidang Pleno (In Review) -->
+                    <button
+                        type="button"
+                        :aria-pressed="projectFilter === 'in_review'"
+                        :class="[
+                            'flex flex-col justify-between rounded-2xl border p-6 text-left transition-colors',
+                            projectFilter === 'in_review'
+                                ? 'border-warning-solid bg-surface shadow-xs'
+                                : 'border-stroke bg-surface hover:border-stroke hover:bg-surface-muted/40',
+                        ]"
+                        @click="toggleKpiFilter('in_review')"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-warning-subtle text-warning"
+                                aria-hidden="true"
+                            >
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
+                                </svg>
+                            </div>
+                            <Badge :color="stats.inReviewCount > 0 ? 'warning' : 'neutral'">
+                                {{ stats.inReviewCount > 0 ? 'Butuh pleno' : 'Terkendali' }}
+                            </Badge>
+                        </div>
+                        <div class="mt-4">
+                            <p
+                                :class="[
+                                    'text-3xl font-bold tabular-nums',
+                                    stats.inReviewCount > 0 ? 'text-warning' : 'text-content',
+                                ]"
+                            >
+                                {{ stats.inReviewCount }}
+                            </p>
+                            <p class="mt-1 text-sm font-semibold text-content-secondary">Dalam tinjauan BPD</p>
+                        </div>
+                    </button>
 
-                    <Card padding="app">
-                        <p class="text-sm font-medium text-content-secondary">Laporan Belum Dibuka</p>
-                        <p
-                            :class="[
-                                'mt-2 text-3xl font-bold tabular-nums',
-                                stats.unreadReportsCount > 0 ? 'text-primary' : 'text-content',
-                            ]"
-                        >
-                            {{ stats.unreadReportsCount }}
-                        </p>
-                        <p class="mt-1 text-xs text-content-tertiary">Siklus berjalan aktif</p>
-                    </Card>
+                    <!-- KPI 3: Deviasi Standar Harga (Di Atas SSH) -->
+                    <button
+                        type="button"
+                        :aria-pressed="projectFilter === 'above_standard'"
+                        :class="[
+                            'flex flex-col justify-between rounded-2xl border p-6 text-left transition-colors',
+                            projectFilter === 'above_standard'
+                                ? 'border-negative-solid bg-surface shadow-xs'
+                                : 'border-stroke bg-surface hover:border-stroke hover:bg-surface-muted/40',
+                        ]"
+                        @click="toggleKpiFilter('above_standard')"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-negative-subtle text-negative"
+                                aria-hidden="true"
+                            >
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                                    />
+                                </svg>
+                            </div>
+                            <Badge :color="stats.aboveStandardProjectsCount > 0 ? 'negative' : 'positive'">
+                                {{ stats.aboveStandardProjectsCount > 0 ? 'Di atas SSH' : 'Sesuai SSH' }}
+                            </Badge>
+                        </div>
+                        <div class="mt-4">
+                            <p
+                                :class="[
+                                    'text-3xl font-bold tabular-nums',
+                                    stats.aboveStandardProjectsCount > 0 ? 'text-negative' : 'text-content',
+                                ]"
+                            >
+                                {{ stats.aboveStandardProjectsCount }}
+                            </p>
+                            <p class="mt-1 text-sm font-semibold text-content-secondary">Proyek di atas SSH</p>
+                        </div>
+                    </button>
 
-                    <Card padding="app">
-                        <p class="text-sm font-medium text-content-secondary">Sudah Ditinjau</p>
-                        <p class="mt-2 text-3xl font-bold text-info tabular-nums">
-                            {{ stats.reviewedCount }}
-                        </p>
-                        <p class="mt-1 text-xs text-content-tertiary">Hasil tinjauan tampil publik</p>
-                    </Card>
+                    <!-- KPI 4: Tinjauan Selesai (Berita Acara Terbit) -->
+                    <button
+                        type="button"
+                        :aria-pressed="projectFilter === 'reviewed'"
+                        :class="[
+                            'flex flex-col justify-between rounded-2xl border p-6 text-left transition-colors',
+                            projectFilter === 'reviewed'
+                                ? 'border-info-solid bg-surface shadow-xs'
+                                : 'border-stroke bg-surface hover:border-stroke hover:bg-surface-muted/40',
+                        ]"
+                        @click="toggleKpiFilter('reviewed')"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <div
+                                class="flex h-10 w-10 items-center justify-center rounded-xl bg-info-subtle text-info"
+                                aria-hidden="true"
+                            >
+                                <svg
+                                    class="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                            </div>
+                            <Badge color="info">Berita acara</Badge>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-3xl font-bold text-info tabular-nums">{{ stats.reviewedCount }}</p>
+                            <p class="mt-1 text-sm font-semibold text-content-secondary">Tinjauan selesai</p>
+                        </div>
+                    </button>
                 </div>
             </section>
 
-            <!-- Konten Utama: Daftar Proyek (Kiri) & Panel Detail Tinjauan (Kanan) -->
-            <div id="daftar-proyek-bpd" class="grid gap-6 lg:grid-cols-12">
-                <!-- Daftar Proyek -->
-                <section class="flex flex-col gap-4 lg:col-span-7" aria-labelledby="heading-daftar-proyek">
-                    <div class="overflow-hidden rounded-lg border border-stroke bg-surface">
-                        <div class="space-y-3 border-b border-stroke px-5 py-4">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                    <h2 id="heading-daftar-proyek" class="text-base font-semibold text-content">
-                                        Daftar Proyek Fisik Desa
-                                    </h2>
-                                    <p class="mt-0.5 text-xs text-content-secondary">
-                                        Diurutkan otomatis berdasarkan prioritas: Dalam tinjauan BPD, laporan baru, lalu
-                                        item di atas standar.
-                                    </p>
-                                </div>
-                                <Badge color="neutral"
-                                    >{{ filteredProjects.length }} / {{ projects.length }} Proyek</Badge
-                                >
+            <!-- Konten Utama: Tabel Matriks Proyek (Kiri) & Panel Sidang / Detail Proyek (Kanan) -->
+            <div id="daftar-proyek-bpd" class="grid items-start gap-6 lg:grid-cols-12">
+                <!-- Kolom Kiri: Daftar & Matriks Proyek Fisik Desa -->
+                <section class="flex flex-col gap-6 lg:col-span-7" aria-labelledby="heading-daftar-proyek">
+                    <div class="rounded-2xl border border-stroke bg-surface p-6 shadow-xs">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h2 id="heading-daftar-proyek" class="text-xl font-semibold text-content">
+                                    Matriks pengawasan proyek desa
+                                </h2>
+                                <p class="mt-0.5 text-sm text-content-secondary">
+                                    Pilih baris proyek untuk memeriksa rincian deviasi SSH, revisi CCO, dan keputusan
+                                    siklus.
+                                </p>
+                            </div>
+                            <Badge color="neutral">{{ filteredProjects.length }} / {{ projects.length }} proyek</Badge>
+                        </div>
+
+                        <!-- Pencarian & Filter Chip (DESIGN.md §6 Input & §6A Filter Chip) -->
+                        <div v-if="projects.length > 0" class="mt-4 space-y-3 border-t border-stroke pt-4">
+                            <div>
+                                <label for="bpd-project-search" class="block text-sm font-medium text-content">
+                                    Cari proyek fisik
+                                </label>
+                                <input
+                                    id="bpd-project-search"
+                                    v-model="projectSearch"
+                                    type="search"
+                                    placeholder="Ketik nama proyek desa..."
+                                    class="mt-1 h-11 w-full rounded-lg border border-stroke-strong bg-surface px-3 text-base text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                />
                             </div>
 
-                            <!-- Pencarian & Filter Cepat Daftar Proyek -->
-                            <div v-if="projects.length > 0" class="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-                                <div class="relative flex-1">
-                                    <input
-                                        v-model="projectSearch"
-                                        type="search"
-                                        placeholder="Cari nama proyek..."
-                                        aria-label="Cari nama proyek"
-                                        class="h-9 w-full rounded-md border border-stroke-strong bg-surface px-3 text-sm text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                    />
-                                </div>
-                                <div class="flex flex-wrap gap-1.5">
-                                    <button
-                                        v-for="tab in [
-                                            { key: 'all', label: 'Semua' },
-                                            { key: 'in_review', label: 'Dalam tinjauan' },
-                                            { key: 'unread', label: 'Laporan baru' },
-                                            { key: 'above_standard', label: 'Di atas standar' },
-                                            { key: 'reviewed', label: 'Sudah ditinjau' },
-                                        ] as const"
-                                        :key="tab.key"
-                                        type="button"
-                                        :class="[
-                                            'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-                                            projectFilter === tab.key
-                                                ? 'border-primary bg-primary-subtle text-primary'
-                                                : 'border-stroke bg-surface-subtle text-content-secondary hover:bg-surface-muted hover:text-content',
-                                        ]"
-                                        @click="projectFilter = tab.key"
-                                    >
-                                        {{ tab.label }}
-                                    </button>
-                                </div>
+                            <div class="flex flex-wrap gap-2" role="group" aria-label="Filter status proyek">
+                                <button
+                                    v-for="tab in projectFilterTabs"
+                                    :key="tab.key"
+                                    type="button"
+                                    :aria-pressed="projectFilter === tab.key"
+                                    :class="[
+                                        'inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors',
+                                        projectFilter === tab.key
+                                            ? 'border-primary bg-primary-subtle text-primary'
+                                            : 'border-stroke bg-surface-muted text-content-secondary hover:border-stroke-strong hover:text-content',
+                                    ]"
+                                    @click="projectFilter = tab.key"
+                                >
+                                    <span>{{ tab.label }}</span>
+                                    <span class="tabular-nums">({{ tab.count }})</span>
+                                </button>
                             </div>
                         </div>
 
-                        <div v-if="projects.length === 0" class="px-4 py-6">
+                        <div v-if="projects.length === 0" class="mt-4">
                             <EmptyState
                                 title="Belum ada proyek terbit di desa ini"
-                                description="Proyek yang telah diterbitkan oleh Pemerintah Desa akan otomatis muncul di sini untuk dipantau oleh BPD."
+                                description="Proyek yang diterbitkan oleh Pemerintah Desa akan langsung tercatat di matriks pengawasan BPD."
                                 illustration="plang-empty"
                             />
                         </div>
 
                         <div
                             v-else-if="filteredProjects.length === 0"
-                            class="px-4 py-8 text-center text-sm text-content-secondary"
+                            class="mt-4 rounded-xl border border-stroke bg-surface-muted p-6 text-center text-sm text-content-secondary"
                         >
-                            Tidak ada proyek yang cocok dengan filter atau kata kunci pencarian.
+                            Tidak ada proyek yang sesuai dengan kata kunci atau filter terpilih.
                         </div>
 
-                        <div v-else class="overflow-x-auto">
-                            <table class="w-full border-collapse text-left text-sm">
-                                <thead class="border-b border-stroke bg-surface-subtle text-sm text-content-secondary">
-                                    <tr>
-                                        <th scope="col" class="px-4 py-3 font-medium">Proyek</th>
-                                        <th scope="col" class="px-3 py-3 text-right font-medium">Di atas standar</th>
-                                        <th scope="col" class="px-3 py-3 text-right font-medium">Selisih</th>
-                                        <th scope="col" class="px-3 py-3 text-right font-medium">Sesuai</th>
-                                        <th scope="col" class="px-4 py-3 font-medium">Status publik</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-stroke">
-                                    <tr
-                                        v-for="p in filteredProjects"
-                                        :key="p.id"
-                                        :class="[
-                                            'cursor-pointer transition-colors',
-                                            selectedProject?.id === p.id
-                                                ? 'bg-primary-subtle'
-                                                : 'hover:bg-surface-muted',
-                                        ]"
-                                        @click="selectProject(p.id)"
-                                    >
-                                        <th scope="row" class="px-4 py-3.5 font-medium text-content">
-                                            <div class="flex flex-wrap items-center gap-2">
+                        <template v-else>
+                            <!-- Tabel Matriks Desktop (DESIGN.md §6A: rounded-2xl border-stroke shadow-xs, th bg-surface-subtle/80 uppercase tracking-wider text-xs) -->
+                            <div
+                                class="mt-4 hidden overflow-hidden rounded-2xl border border-stroke bg-surface shadow-xs md:block"
+                            >
+                                <table class="w-full text-sm">
+                                    <caption class="sr-only">
+                                        Matriks pengawasan proyek fisik desa
+                                    </caption>
+                                    <thead class="sticky top-0">
+                                        <tr class="border-b border-stroke bg-surface-subtle/80">
+                                            <th
+                                                scope="col"
+                                                class="px-4 py-3.5 text-left text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                            >
+                                                Proyek fisik
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                class="px-4 py-3.5 text-right text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                            >
+                                                Item &gt; SSH
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                class="px-4 py-3.5 text-right text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                            >
+                                                Selisih
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                class="px-4 py-3.5 text-right text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                            >
+                                                Sesuai
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                class="px-4 py-3.5 text-left text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                            >
+                                                Status siklus
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr
+                                            v-for="p in filteredProjects"
+                                            :key="p.id"
+                                            tabindex="0"
+                                            :class="[
+                                                'cursor-pointer border-b border-stroke transition-colors last:border-b-0',
+                                                selectedProject?.id === p.id
+                                                    ? 'border-l-4 border-l-primary bg-primary-subtle/40'
+                                                    : p.above_standard_count > 0 || p.public_status === 'in_review'
+                                                      ? 'bg-warning-subtle/25 hover:bg-surface-muted/60'
+                                                      : 'hover:bg-surface-muted/60',
+                                            ]"
+                                            @click="selectProject(p.id)"
+                                            @keydown.enter.prevent="selectProject(p.id)"
+                                            @keydown.space.prevent="selectProject(p.id)"
+                                        >
+                                            <th
+                                                scope="row"
+                                                class="px-4 py-3.5 text-left align-middle font-semibold text-content"
+                                            >
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span
+                                                        :class="
+                                                            selectedProject?.id === p.id
+                                                                ? 'text-primary'
+                                                                : 'text-content'
+                                                        "
+                                                    >
+                                                        {{ p.name }}
+                                                    </span>
+                                                    <Badge v-if="p.unread_count > 0" color="info">
+                                                        {{ p.unread_count }} baru
+                                                    </Badge>
+                                                </div>
+                                                <div class="mt-1.5 flex items-center gap-2">
+                                                    <div
+                                                        class="h-1.5 w-20 overflow-hidden rounded-full bg-surface-muted"
+                                                    >
+                                                        <div
+                                                            :class="[
+                                                                'h-full rounded-full',
+                                                                p.valid_mismatch_count >= threshold
+                                                                    ? 'bg-warning-solid'
+                                                                    : p.valid_mismatch_count > 0
+                                                                      ? 'bg-negative-solid'
+                                                                      : 'bg-stroke',
+                                                            ]"
+                                                            :style="{
+                                                                width: `${Math.min(100, Math.round((p.valid_mismatch_count / Math.max(1, threshold)) * 100))}%`,
+                                                            }"
+                                                        />
+                                                    </div>
+                                                    <span
+                                                        class="text-xs font-normal text-content-tertiary tabular-nums"
+                                                    >
+                                                        Ambang {{ p.valid_mismatch_count }}/{{ threshold }}
+                                                    </span>
+                                                </div>
+                                            </th>
+                                            <td class="px-4 py-3.5 text-right align-middle tabular-nums">
+                                                <Badge v-if="p.above_standard_count > 0" color="negative">
+                                                    {{ p.above_standard_count }} item
+                                                </Badge>
+                                                <span v-else class="text-sm text-content-secondary">0</span>
+                                            </td>
+                                            <td class="px-4 py-3.5 text-right align-middle tabular-nums">
                                                 <span
                                                     :class="
-                                                        selectedProject?.id === p.id
-                                                            ? 'font-semibold text-primary'
-                                                            : 'text-content'
+                                                        p.valid_mismatch_count > 0
+                                                            ? 'font-semibold text-negative'
+                                                            : 'text-content-secondary'
                                                     "
                                                 >
-                                                    {{ p.name }}
+                                                    {{ p.valid_mismatch_count }}/{{ threshold }}
                                                 </span>
-                                                <Badge v-if="p.unread_count > 0" color="info">
-                                                    {{ p.unread_count }} baru
+                                            </td>
+                                            <td class="px-4 py-3.5 text-right align-middle tabular-nums">
+                                                <span
+                                                    :class="
+                                                        p.match_count > 0
+                                                            ? 'font-semibold text-positive'
+                                                            : 'text-content-secondary'
+                                                    "
+                                                >
+                                                    {{ p.match_count }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3.5 align-middle">
+                                                <Badge v-if="p.public_status === 'in_review'" color="warning">
+                                                    Dalam tinjauan BPD
                                                 </Badge>
-                                            </div>
-                                        </th>
-                                        <td class="px-3 py-3.5 text-right tabular-nums">
-                                            <span
-                                                :class="
-                                                    p.above_standard_count > 0
-                                                        ? 'font-semibold text-negative'
-                                                        : 'text-content-secondary'
-                                                "
-                                            >
-                                                {{ p.above_standard_count }}
-                                            </span>
-                                        </td>
-                                        <td class="px-3 py-3.5 text-right tabular-nums">
-                                            <span
-                                                :class="
-                                                    p.valid_mismatch_count > 0
-                                                        ? 'font-semibold text-negative'
-                                                        : 'text-content-secondary'
-                                                "
-                                            >
-                                                {{ p.valid_mismatch_count }}
-                                            </span>
-                                        </td>
-                                        <td class="px-3 py-3.5 text-right tabular-nums">
-                                            <span
-                                                :class="
-                                                    p.match_count > 0
-                                                        ? 'font-semibold text-positive'
-                                                        : 'text-content-secondary'
-                                                "
-                                            >
-                                                {{ p.match_count }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3.5">
-                                            <Badge :color="statusBadgeColor(p.public_status)">
-                                                {{ statusBadgeText(p.public_status) }}
-                                            </Badge>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                                <Badge v-else-if="p.public_status === 'reviewed'" color="info">
+                                                    Ditinjau BPD
+                                                </Badge>
+                                                <span v-else class="text-sm text-content-secondary"
+                                                    >Aktif dipantau</span
+                                                >
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Daftar Kartu Mobile (< 768px) gaya ProjectItem + 3 MetricPill (DESIGN.md §6 & §6A) -->
+                            <div class="mt-4 flex flex-col gap-3 md:hidden">
+                                <button
+                                    v-for="p in filteredProjects"
+                                    :key="p.id"
+                                    type="button"
+                                    :class="[
+                                        'flex w-full flex-col gap-3 rounded-xl border border-l-4 p-4 text-left transition-colors',
+                                        selectedProject?.id === p.id
+                                            ? 'border-primary border-l-primary bg-primary-subtle/40'
+                                            : p.public_status === 'in_review'
+                                              ? 'border-stroke border-l-warning-solid bg-surface hover:bg-surface-muted/60'
+                                              : p.public_status === 'reviewed'
+                                                ? 'border-stroke border-l-positive-solid bg-surface hover:bg-surface-muted/60'
+                                                : 'border-stroke border-l-primary bg-surface hover:bg-surface-muted/60',
+                                    ]"
+                                    @click="selectProject(p.id)"
+                                >
+                                    <div class="flex items-start justify-between gap-2">
+                                        <span class="text-base font-semibold text-content">{{ p.name }}</span>
+                                        <Badge v-if="p.public_status === 'in_review'" color="warning">
+                                            Dalam tinjauan
+                                        </Badge>
+                                        <Badge v-else-if="p.public_status === 'reviewed'" color="info">
+                                            Ditinjau BPD
+                                        </Badge>
+                                    </div>
+
+                                    <!-- 3 MetricPill: Selisih, Kesesuaian Spek, Kesesuaian SSH (DESIGN.md §6 MetricPill) -->
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span
+                                            :class="[
+                                                'rounded-full border px-2.5 py-0.5 text-sm font-medium tabular-nums',
+                                                p.valid_mismatch_count > 0
+                                                    ? 'border-negative-border bg-negative-subtle text-negative'
+                                                    : 'border-stroke bg-surface-muted text-content-secondary',
+                                            ]"
+                                        >
+                                            Selisih {{ p.valid_mismatch_count }}/{{ threshold }}
+                                        </span>
+                                        <span
+                                            :class="[
+                                                'rounded-full border px-2.5 py-0.5 text-sm font-medium tabular-nums',
+                                                p.match_count > 0
+                                                    ? 'border-positive-border bg-positive-subtle text-positive'
+                                                    : 'border-stroke bg-surface-muted text-content-secondary',
+                                            ]"
+                                        >
+                                            Sesuai {{ p.match_count }}
+                                        </span>
+                                        <span
+                                            :class="[
+                                                'rounded-full border px-2.5 py-0.5 text-sm font-medium tabular-nums',
+                                                p.above_standard_count > 0
+                                                    ? 'border-negative-border bg-negative-subtle text-negative'
+                                                    : 'border-stroke bg-surface-muted text-content-secondary',
+                                            ]"
+                                        >
+                                            {{
+                                                p.above_standard_count > 0
+                                                    ? `${p.above_standard_count} di atas SSH`
+                                                    : 'Sesuai SSH'
+                                            }}
+                                        </span>
+                                    </div>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Ringkasan Mekanisme Siklus (SummaryList ringkas anti-artikel, DESIGN.md §1 & §6) -->
+                    <div class="rounded-2xl border border-stroke bg-surface p-6">
+                        <h3 class="text-base font-semibold text-content">Ketentuan siklus tinjauan BPD</h3>
+                        <dl class="mt-3 divide-y divide-stroke text-sm">
+                            <div class="flex flex-col gap-1 py-2.5 sm:flex-row sm:justify-between">
+                                <dt class="font-medium text-content-secondary">Di bawah ambang</dt>
+                                <dd class="font-medium text-content sm:text-right">
+                                    &lt; {{ threshold }} selisih valid &mdash; tanpa lencana di halaman publik
+                                </dd>
+                            </div>
+                            <div class="flex flex-col gap-1 py-2.5 sm:flex-row sm:justify-between">
+                                <dt class="font-medium text-content-secondary">Sidang pleno aktif</dt>
+                                <dd class="font-medium text-warning sm:text-right">
+                                    &ge; {{ threshold }} selisih valid (akun &amp; perangkat berbeda) &mdash; revisi RAB
+                                    dibekukan
+                                </dd>
+                            </div>
+                            <div class="flex flex-col gap-1 pt-2.5 sm:flex-row sm:justify-between">
+                                <dt class="font-medium text-content-secondary">Berita acara terbit</dt>
+                                <dd class="font-medium text-info sm:text-right">
+                                    Tampil permanen di papan publik &mdash; siklus baru mulai dari 0
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                </section>
+
+                <!-- Kolom Kanan: Kartu Ambang Merino & Panel Detail / Keputusan BPD -->
+                <section v-if="selectedProject" class="flex flex-col gap-6 lg:col-span-5">
+                    <!-- Kartu Ambang Tinjauan Merino (DESIGN.md §6C: bg-surface-subtle Merino, rounded-2xl) -->
+                    <div class="rounded-2xl border border-stroke bg-surface-subtle p-6">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="text-sm font-semibold text-content">Ambang tinjauan siklus berjalan</span>
+                            <Badge v-if="selectedProject.public_status === 'in_review'" color="warning">
+                                Sidang pleno diperlukan
+                            </Badge>
+                            <Badge v-else-if="selectedProject.public_status === 'reviewed'" color="info">
+                                Berita acara terbit
+                            </Badge>
+                            <span v-else class="text-sm font-semibold text-primary tabular-nums">
+                                {{ selectedValidMismatchCount }} / {{ threshold }} selisih valid
+                            </span>
+                        </div>
+
+                        <div class="mt-3 flex items-baseline justify-between gap-3">
+                            <p class="text-3xl font-bold text-content tabular-nums">
+                                {{ selectedValidMismatchCount }}
+                                <span class="text-lg font-semibold text-content-secondary">/ {{ threshold }}</span>
+                            </p>
+                            <p class="text-sm text-content-secondary tabular-nums">
+                                {{ selectedProject.reports.length }} total laporan warga
+                                <template v-if="selectedUnreadCount > 0">
+                                    &middot;
+                                    <strong class="font-semibold text-primary">{{ selectedUnreadCount }} baru</strong>
+                                </template>
+                            </p>
+                        </div>
+
+                        <!-- Pill Progres Ambang -->
+                        <div class="mt-3 grid grid-cols-3 gap-2">
+                            <div
+                                v-for="step in thresholdSteps"
+                                :key="step"
+                                :class="[
+                                    'h-2.5 rounded-full transition-colors',
+                                    selectedValidMismatchCount >= step
+                                        ? selectedValidMismatchCount >= threshold
+                                            ? 'bg-warning-solid'
+                                            : 'bg-primary'
+                                        : 'bg-surface',
+                                ]"
+                            />
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-stroke pt-4">
+                            <span class="text-sm text-content-secondary">
+                                Verifikasi bukti foto &amp; balas warga di halaman tersendiri.
+                            </span>
+                            <Button
+                                :variant="!hasOutcomePrimaryButton && !isDialogOpen ? 'primary' : 'secondary'"
+                                size="sm"
+                                :href="`/bpd/reports?project=${selectedProject.id}`"
+                            >
+                                <span>Buka kotak warga proyek</span>
+                            </Button>
                         </div>
                     </div>
 
-                    <!-- Panduan Aturan Status Publik (IDDS Subtle Card) -->
-                    <Card surface="subtle">
-                        <div class="flex items-start gap-3">
-                            <span
-                                class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-info-subtle text-info"
-                                aria-hidden="true"
-                            >
-                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                </svg>
-                            </span>
-                            <div class="text-sm text-content-secondary">
-                                <p class="font-semibold text-content">Aturan status publik (per siklus tinjauan):</p>
-                                <ul class="mt-1.5 list-disc space-y-1 pl-4 text-xs leading-relaxed">
-                                    <li>
-                                        <strong>&lt; {{ threshold }} laporan selisih valid:</strong> belum menampilkan
-                                        penanda tinjauan di halaman publik.
-                                    </li>
-                                    <li>
-                                        <strong>&ge; {{ threshold }} laporan selisih valid (akun berbeda):</strong>
-                                        status proyek otomatis berubah menjadi &ldquo;Dalam tinjauan BPD&rdquo;.
-                                    </li>
-                                    <li>
-                                        <strong>Simpan hasil tinjauan:</strong> keputusan dan catatan resmi BPD tampil
-                                        di halaman publik, lalu siklus baru dimulai kembali dari 0.
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </Card>
-                </section>
-
-                <!-- Panel Detail Proyek & Tinjauan BPD -->
-                <section v-if="selectedProject" class="flex flex-col gap-4 lg:col-span-5">
-                    <Card padding="app">
-                        <div class="flex flex-col gap-5">
+                    <!-- Panel Detail Proyek & Sidang Pleno BPD (DESIGN.md §6C) -->
+                    <div class="rounded-2xl border border-stroke bg-surface p-6 shadow-xs">
+                        <div class="divide-y divide-stroke">
                             <!-- Header Proyek Terpilih -->
-                            <div
-                                class="flex flex-col gap-3 border-b border-stroke pb-4 sm:flex-row sm:items-start sm:justify-between"
-                            >
-                                <div class="space-y-1.5">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <Badge :color="statusBadgeColor(selectedProject.public_status)">
-                                            {{ statusBadgeText(selectedProject.public_status) }}
-                                        </Badge>
-                                        <span
-                                            v-if="selectedProject.in_review_since"
-                                            class="text-xs text-content-tertiary"
-                                        >
-                                            sejak {{ formatDate(selectedProject.in_review_since) }}
-                                        </span>
-                                    </div>
-                                    <h2 class="text-xl font-semibold text-content">{{ selectedProject.name }}</h2>
-                                </div>
-
+                            <div class="space-y-3 pb-5">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <a
-                                        :href="selectedProject.public_url"
-                                        target="_blank"
-                                        rel="noopener"
-                                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-stroke-strong bg-surface px-3 text-xs font-medium text-content transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                    >
-                                        <span>Halaman publik</span>
-                                    </a>
-                                    <a
-                                        :href="selectedProject.document_url"
-                                        target="_blank"
-                                        rel="noopener"
-                                        class="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-stroke bg-surface-subtle px-3 text-xs font-medium text-primary transition-colors hover:bg-primary-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                    >
-                                        <span>Lihat dokumen asli</span>
-                                    </a>
+                                    <Badge v-if="selectedProject.public_status === 'in_review'" color="warning">
+                                        {{
+                                            selectedProject.in_review_since
+                                                ? publicStatus.in_review(formatDate(selectedProject.in_review_since))
+                                                : 'Dalam tinjauan BPD'
+                                        }}
+                                    </Badge>
+                                    <Badge v-else-if="selectedProject.public_status === 'reviewed'" color="info">
+                                        Ditinjau BPD
+                                    </Badge>
+                                </div>
+
+                                <h2 class="text-xl font-semibold text-content">{{ selectedProject.name }}</h2>
+
+                                <div class="flex flex-wrap items-center gap-2 pt-1">
+                                    <Button variant="secondary" size="sm" :href="selectedProject.public_url">
+                                        <span>Lihat halaman publik</span>
+                                    </Button>
+                                    <Button variant="secondary" size="sm" :href="selectedProject.document_url">
+                                        <span>Dokumen RAB asli</span>
+                                    </Button>
                                 </div>
                             </div>
 
-                            <!-- Indikator Progres Menuju Ambang Tinjauan BPD -->
-                            <div class="space-y-1.5 rounded-lg border border-stroke bg-surface-subtle p-3 text-xs">
-                                <div class="flex items-center justify-between gap-2">
-                                    <span class="font-medium text-content">
-                                        Ambang pemicu tinjauan BPD (siklus berjalan)
-                                    </span>
-                                    <span class="font-semibold text-content tabular-nums">
-                                        {{ selectedValidMismatchCount }} / {{ threshold }} laporan selisih valid
-                                    </span>
-                                </div>
-                                <div class="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
-                                    <div
-                                        :class="[
-                                            'h-full rounded-full transition-all',
-                                            selectedValidMismatchCount >= threshold ? 'bg-warning-solid' : 'bg-primary',
-                                        ]"
-                                        :style="{ width: `${thresholdProgressPct}%` }"
-                                    />
-                                </div>
-                                <p class="text-content-secondary">
-                                    <template v-if="selectedProject.public_status === 'in_review'">
-                                        Ambang tercapai. Silakan periksa laporan warga dan simpan keputusan hasil
-                                        tinjauan BPD di bawah.
-                                    </template>
-                                    <template v-else>
-                                        Butuh
-                                        {{ Math.max(0, threshold - selectedValidMismatchCount) }} laporan selisih valid
-                                        lagi dari warga berbeda agar otomatis masuk status &ldquo;Dalam tinjauan
-                                        BPD&rdquo;.
-                                    </template>
-                                </p>
-                            </div>
-
-                            <!-- Ringkasan Perubahan Pasca-Terbit / CCO (D4/D10) -->
+                            <!-- Perbandingan Revisi Pasca-Terbit / CCO: Nilai lama -> Nilai baru (DESIGN.md §6C & §6B) -->
                             <div
                                 v-if="selectedProject.changes && selectedProject.changes.length > 0"
-                                class="space-y-2 rounded-lg border border-info-border bg-info-subtle p-3.5 text-xs"
+                                class="space-y-3 py-5"
                             >
                                 <div class="flex items-center justify-between gap-2">
-                                    <p class="font-semibold text-info">
-                                        Riwayat perubahan pasca-terbit / CCO ({{ selectedProject.changes.length }})
-                                    </p>
-                                    <Badge color="info">Tercatat Publik</Badge>
+                                    <h3 class="text-base font-semibold text-content">
+                                        Revisi pasca-terbit / CCO ({{ selectedProject.changes.length }})
+                                    </h3>
+                                    <Button type="button" variant="ghost" size="sm" @click="openCcoDialog">
+                                        <span>Rincian tabel</span>
+                                    </Button>
                                 </div>
-                                <ul class="max-h-36 divide-y divide-info-border overflow-y-auto pr-1">
-                                    <li
-                                        v-for="change in selectedProject.changes"
+
+                                <div class="space-y-2">
+                                    <div
+                                        v-for="change in selectedProject.changes.slice(0, 3)"
                                         :key="change.id"
-                                        class="py-1.5 first:pt-0 last:pb-0"
+                                        class="rounded-xl border border-stroke bg-surface-muted/50 p-3 text-sm"
                                     >
                                         <div class="flex flex-wrap items-baseline justify-between gap-2">
-                                            <span class="font-medium text-content">
+                                            <span class="font-semibold text-content">
                                                 {{ change.item_label }} ({{ change.field }})
                                             </span>
-                                            <span class="text-content-tertiary">
-                                                {{ formatDateTime(change.changed_at) }}
+                                            <span class="text-xs text-content-tertiary">
+                                                {{ formatDate(change.changed_at) }}
                                             </span>
                                         </div>
-                                        <p class="mt-0.5 text-content-secondary tabular-nums">
-                                            Semula: <strong>{{ change.old_value }}</strong> &rarr; Menjadi:
-                                            <strong>{{ change.new_value }}</strong>
+                                        <p class="mt-1 font-medium text-content tabular-nums">
+                                            <span class="text-content-secondary">{{ change.old_value }}</span>
+                                            <span class="mx-1.5 text-primary" aria-hidden="true">&rarr;</span>
+                                            <span class="font-semibold text-content">{{ change.new_value }}</span>
                                         </p>
-                                        <p v-if="change.reason" class="mt-0.5 text-content-secondary">
-                                            Alasan desa: &ldquo;{{ change.reason }}&rdquo;
+                                        <p v-if="change.reason" class="mt-1 text-sm text-content-secondary">
+                                            Alasan: &ldquo;{{ change.reason }}&rdquo;
                                         </p>
-                                    </li>
-                                </ul>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- Ringkasan item Di atas standar & penjelasan Pemdes -->
+                            <!-- Item RAB di Atas Standar Harga / SSH (DESIGN.md §2 & §9: sebut sumber angka di dekat angka) -->
                             <div
                                 v-if="
                                     selectedProject.above_standard_items &&
                                     selectedProject.above_standard_items.length > 0
                                 "
-                                class="space-y-2 rounded-lg border border-warning-border bg-warning-subtle p-3.5 text-sm"
+                                class="space-y-3 py-5"
                             >
-                                <div class="flex items-center justify-between gap-2">
-                                    <p class="text-xs font-semibold text-warning">
-                                        Item RAB di atas standar harga ({{
-                                            selectedProject.above_standard_items.length
-                                        }})
-                                    </p>
-                                    <Badge color="warning">Acuan SSH</Badge>
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-content">
+                                            Item RAB di atas SSH ({{ selectedProject.above_standard_items.length }})
+                                        </h3>
+                                        <p class="text-xs text-content-tertiary">
+                                            Standar harga
+                                            {{ village.regency ? `Kab. ${village.regency}` : 'kabupaten' }}
+                                            {{ currentBudgetYear }}
+                                        </p>
+                                    </div>
+                                    <Badge color="negative">Perlu perhatian</Badge>
                                 </div>
-                                <ul class="max-h-40 divide-y divide-warning-border overflow-y-auto pr-1">
-                                    <li
+
+                                <div class="max-h-60 space-y-2 overflow-y-auto pr-1">
+                                    <div
                                         v-for="item in selectedProject.above_standard_items"
                                         :key="item.id"
-                                        class="py-1.5 first:pt-0 last:pb-0"
+                                        class="rounded-xl border border-stroke bg-warning-subtle/25 p-3 text-sm"
                                     >
-                                        <div
-                                            class="flex flex-wrap items-baseline justify-between gap-2 text-xs font-medium text-content"
-                                        >
-                                            <span>{{ item.name }}</span>
-                                            <span class="shrink-0 font-semibold text-negative tabular-nums">
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <span class="font-semibold text-content">{{ item.name }}</span>
+                                            <Badge color="negative">
                                                 <template v-if="item.unit_price_rp !== null">
                                                     {{ formatRupiah(item.unit_price_rp) }}
                                                 </template>
                                                 <template v-if="item.over_pct !== null">
-                                                    (+{{ item.over_pct }}%)
+                                                    &middot; +{{ item.over_pct }}%
                                                 </template>
-                                            </span>
+                                            </Badge>
                                         </div>
-                                        <p v-if="item.explanation" class="mt-0.5 text-xs text-content-secondary">
-                                            Penjelasan desa: &ldquo;{{ item.explanation }}&rdquo;
+                                        <p v-if="item.explanation" class="mt-1.5 text-sm text-content-secondary">
+                                            Keterangan desa: &ldquo;{{ item.explanation }}&rdquo;
                                         </p>
-                                        <p v-else class="mt-0.5 text-xs text-content-tertiary">
-                                            Belum ada penjelasan tertulis dari Pemerintah Desa.
-                                        </p>
-                                    </li>
-                                </ul>
-                            </div>
-
-                            <!-- Daftar Laporan Warga di Siklus Berjalan (Accordion + Inner Scroll + Inline Layout) -->
-                            <div class="space-y-2.5">
-                                <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <div>
-                                        <h3 class="text-sm font-semibold text-content">
-                                            Laporan warga siklus berjalan
-                                        </h3>
-                                        <p
-                                            v-if="selectedProject.reports.length > 1"
-                                            class="text-xs text-content-tertiary"
-                                        >
-                                            Klik baris pelapor untuk membuka atau menutup rincian.
+                                        <p v-else class="mt-1.5 text-sm text-content-tertiary">
+                                            {{ priceLabel.above_standard(item.over_pct ?? 0) }} &mdash; belum ada
+                                            keterangan tertulis Pemerintah Desa.
                                         </p>
                                     </div>
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <button
-                                            v-if="selectedUnreadCount > 0"
-                                            type="button"
-                                            class="rounded-md border border-primary/30 bg-primary-subtle px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-content-inverse"
-                                            @click="markAllOpened"
-                                        >
-                                            Tandai semua dibuka ({{ selectedUnreadCount }})
-                                        </button>
-                                        <Badge color="neutral">{{ selectedProject.reports.length }} Laporan</Badge>
-                                    </div>
-                                </div>
-
-                                <!-- Filter Jenis Laporan Warga -->
-                                <div v-if="selectedProject.reports.length > 0" class="flex flex-wrap gap-1.5">
-                                    <button
-                                        v-for="tab in [
-                                            { key: 'all', label: 'Semua' },
-                                            { key: 'mismatch', label: 'Selisih' },
-                                            { key: 'match', label: 'Sesuai' },
-                                            { key: 'valid_only', label: 'Hanya valid' },
-                                        ] as const"
-                                        :key="tab.key"
-                                        type="button"
-                                        :class="[
-                                            'rounded-md border px-2.5 py-1 text-xs font-medium transition-colors',
-                                            reportFilter === tab.key
-                                                ? 'border-primary bg-primary-subtle text-primary'
-                                                : 'border-stroke bg-surface-subtle text-content-secondary hover:bg-surface-muted hover:text-content',
-                                        ]"
-                                        @click="reportFilter = tab.key"
-                                    >
-                                        {{ tab.label }}
-                                    </button>
-                                </div>
-
-                                <!-- Empty State dengan Ilustrasi Resmi IDDS bpd-empty.svg -->
-                                <div
-                                    v-if="selectedProject.reports.length === 0"
-                                    class="flex flex-col items-center justify-center rounded-lg border border-stroke bg-surface-subtle px-4 py-8 text-center"
-                                >
-                                    <div class="mb-3 aspect-4/3 w-full max-w-40" aria-hidden="true">
-                                        <img
-                                            :src="bpdEmpty"
-                                            alt=""
-                                            width="280"
-                                            height="210"
-                                            class="h-full w-full object-contain"
-                                        />
-                                    </div>
-                                    <p class="text-sm font-semibold text-content">Belum ada laporan di siklus ini</p>
-                                    <p class="mt-1 max-w-xs text-xs leading-relaxed text-content-secondary">
-                                        Laporan Cek Spek yang dikirim warga dari lokasi proyek akan masuk ke daftar ini
-                                        secara anonim.
-                                    </p>
-                                </div>
-
-                                <div
-                                    v-else-if="filteredReports.length === 0"
-                                    class="rounded-lg border border-stroke bg-surface-subtle px-4 py-6 text-center text-xs text-content-secondary"
-                                >
-                                    Tidak ada laporan warga pada kategori filter ini.
-                                </div>
-
-                                <div
-                                    v-else
-                                    class="max-h-96 divide-y divide-stroke overflow-y-auto rounded-lg border border-stroke bg-surface"
-                                >
-                                    <article
-                                        v-for="r in filteredReports"
-                                        :key="r.id"
-                                        :class="r.invalid_reason ? 'bg-surface-subtle opacity-80' : ''"
-                                    >
-                                        <!-- Baris Header Accordion (1 Baris Ringkas) -->
-                                        <button
-                                            type="button"
-                                            class="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm transition-colors hover:bg-surface-subtle focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                            :aria-expanded="expandedReportId === r.id"
-                                            @click="toggleReport(r.id)"
-                                        >
-                                            <div class="flex min-w-0 flex-wrap items-center gap-2">
-                                                <svg
-                                                    :class="[
-                                                        'h-4 w-4 shrink-0 text-content-tertiary transition-transform',
-                                                        expandedReportId === r.id ? 'rotate-90 text-primary' : '',
-                                                    ]"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    aria-hidden="true"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M9 5l7 7-7 7"
-                                                    />
-                                                </svg>
-                                                <span class="font-semibold text-content">{{ r.reporter_label }}</span>
-                                                <Badge :color="reportKindBadgeColor(r.kind)">
-                                                    {{ reportType[r.kind] }}
-                                                </Badge>
-                                                <Badge v-if="r.is_new" color="info">baru</Badge>
-                                                <Badge v-if="r.superseded" color="neutral">digantikan</Badge>
-                                                <Badge v-if="r.invalid_reason" color="negative">tidak valid</Badge>
-                                            </div>
-
-                                            <div
-                                                class="flex shrink-0 items-center gap-2 text-xs text-content-tertiary tabular-nums"
-                                            >
-                                                <span v-if="r.distance_m !== null">
-                                                    {{ Math.round(r.distance_m) }} m
-                                                </span>
-                                                <span v-if="r.photos && r.photos.length > 0">
-                                                    &middot; {{ r.photos.length }} foto
-                                                </span>
-                                            </div>
-                                        </button>
-
-                                        <!-- Isi Rincian Laporan (Terbuka saat dipilih, disusun menyamping) -->
-                                        <div
-                                            v-show="expandedReportId === r.id"
-                                            class="space-y-2.5 border-t border-stroke bg-surface-subtle/50 px-3.5 py-3 text-sm"
-                                        >
-                                            <!-- 1. Chip Menyamping: Hasil Ukur Warga vs Nilai RAB (AC B2) -->
-                                            <div
-                                                v-if="r.answers && r.answers.length > 0"
-                                                class="flex flex-wrap gap-1.5"
-                                            >
-                                                <div
-                                                    v-for="ans in r.answers"
-                                                    :key="ans.id"
-                                                    :class="[
-                                                        'inline-flex flex-wrap items-center gap-1 rounded-md border px-2 py-1 text-xs tabular-nums',
-                                                        ans.answer === 'mismatch'
-                                                            ? 'border-negative-border bg-negative-subtle text-negative'
-                                                            : ans.answer === 'match'
-                                                              ? 'border-positive-border bg-positive-subtle text-positive'
-                                                              : 'border-stroke bg-surface text-content-secondary',
-                                                    ]"
-                                                >
-                                                    <span class="font-medium">{{ ans.measurement_name }}:</span>
-                                                    <template v-if="ans.answer === 'mismatch'">
-                                                        <span class="font-semibold">
-                                                            {{
-                                                                ans.measured_value !== null
-                                                                    ? `${ans.measured_value} ${ans.measured_unit ?? ''}`.trim()
-                                                                    : 'Tidak sesuai'
-                                                            }}
-                                                        </span>
-                                                        <span
-                                                            v-if="ans.rab_value !== null"
-                                                            class="text-content-secondary"
-                                                        >
-                                                            (RAB {{ ans.rab_value }} {{ ans.rab_unit ?? '' }})
-                                                        </span>
-                                                    </template>
-                                                    <template v-else-if="ans.answer === 'match'">
-                                                        <span class="font-semibold">
-                                                            {{ checkSpec.answers.match }}
-                                                        </span>
-                                                        <span
-                                                            v-if="ans.rab_value !== null"
-                                                            class="text-content-secondary"
-                                                        >
-                                                            ({{ ans.rab_value }} {{ ans.rab_unit ?? '' }})
-                                                        </span>
-                                                    </template>
-                                                    <template v-else>
-                                                        <span>{{ checkSpec.answers.unmeasurable }}</span>
-                                                    </template>
-                                                </div>
-                                            </div>
-
-                                            <!-- 2. Catatan, Waktu, & Foto Bukti Sejajar ke Samping -->
-                                            <div class="flex items-start justify-between gap-3">
-                                                <div class="min-w-0 flex-1 space-y-1">
-                                                    <p v-if="r.note" class="text-sm leading-snug text-content">
-                                                        &ldquo;{{ r.note }}&rdquo;
-                                                    </p>
-                                                    <p class="text-xs text-content-tertiary">
-                                                        <span v-if="r.distance_m !== null">
-                                                            {{ Math.round(r.distance_m) }} m dari titik proyek &middot;
-                                                        </span>
-                                                        <span v-if="r.created_at">
-                                                            {{ formatDateTime(r.created_at) }}
-                                                        </span>
-                                                    </p>
-                                                </div>
-
-                                                <!-- Thumbnail Foto Bukti di Kanan -->
-                                                <div
-                                                    v-if="r.photos && r.photos.length > 0"
-                                                    class="flex shrink-0 flex-wrap items-center gap-1.5"
-                                                >
-                                                    <button
-                                                        v-for="photo in r.photos"
-                                                        :key="photo.id"
-                                                        type="button"
-                                                        class="group relative h-14 w-16 overflow-hidden rounded-md border border-stroke bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                                        :aria-label="`Lihat foto ${photo.position} dari ${r.reporter_label}`"
-                                                        @click="openPhotoLightbox(r, photo)"
-                                                    >
-                                                        <img
-                                                            :src="photo.url"
-                                                            :alt="`Foto ${photo.position} ${r.reporter_label}`"
-                                                            loading="lazy"
-                                                            class="h-full w-full object-cover transition-transform group-hover:scale-105"
-                                                        />
-                                                        <span
-                                                            class="absolute right-0.5 bottom-0.5 rounded-sm bg-black/75 px-1 py-0.5 text-xs leading-none font-medium text-white"
-                                                        >
-                                                            #{{ photo.position }}
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            <div
-                                                v-if="r.invalid_reason"
-                                                class="rounded-md border border-negative-border bg-negative-subtle px-2.5 py-1.5 text-xs text-negative"
-                                            >
-                                                Ditandai tidak valid: <strong>{{ r.invalid_reason }}</strong>
-                                            </div>
-
-                                            <!-- 3. Baris Tombol Aksi Ringkas -->
-                                            <div class="flex flex-wrap items-center gap-3 pt-0.5 text-xs">
-                                                <button
-                                                    v-if="r.is_new"
-                                                    type="button"
-                                                    class="font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
-                                                    @click="markOpened(r.id)"
-                                                >
-                                                    Tandai sudah dibuka
-                                                </button>
-                                                <button
-                                                    v-if="!r.invalid_reason"
-                                                    type="button"
-                                                    class="font-medium text-content-secondary underline underline-offset-2 hover:text-content"
-                                                    @click="invalidatingReportId = r.id"
-                                                >
-                                                    Tandai tidak valid
-                                                </button>
-                                                <button
-                                                    v-else
-                                                    type="button"
-                                                    class="font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
-                                                    @click="restoreReport(r.id)"
-                                                >
-                                                    Batalkan tidak valid
-                                                </button>
-                                            </div>
-
-                                            <form
-                                                v-if="invalidatingReportId === r.id"
-                                                class="mt-2 space-y-2 border-t border-stroke pt-2.5"
-                                                @submit.prevent="submitInvalid(r.id)"
-                                            >
-                                                <label
-                                                    :for="`invalid-reason-${r.id}`"
-                                                    class="block text-xs font-medium text-content"
-                                                >
-                                                    Alasan laporan tidak valid
-                                                </label>
-                                                <div class="flex flex-wrap gap-1.5">
-                                                    <button
-                                                        v-for="preset in invalidReasonPresets"
-                                                        :key="preset"
-                                                        type="button"
-                                                        :class="[
-                                                            'rounded-md border px-2 py-0.5 text-xs transition-colors',
-                                                            invalidForm.reason === preset
-                                                                ? 'border-primary bg-primary-subtle font-medium text-primary'
-                                                                : 'border-stroke bg-surface text-content-secondary hover:bg-surface-muted',
-                                                        ]"
-                                                        @click="invalidForm.reason = preset"
-                                                    >
-                                                        {{ preset }}
-                                                    </button>
-                                                </div>
-                                                <input
-                                                    :id="`invalid-reason-${r.id}`"
-                                                    v-model="invalidForm.reason"
-                                                    type="text"
-                                                    placeholder="Pilih alasan di atas atau tulis alasan singkat"
-                                                    class="h-9 w-full rounded-md border border-stroke-strong bg-surface px-2.5 text-xs text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                                />
-                                                <p v-if="invalidForm.errors.reason" class="text-xs text-negative">
-                                                    {{ invalidForm.errors.reason }}
-                                                </p>
-                                                <div class="flex gap-2">
-                                                    <Button type="submit" variant="secondary" size="sm">Simpan</Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        @click="invalidatingReportId = null"
-                                                    >
-                                                        Batal
-                                                    </Button>
-                                                </div>
-                                            </form>
-                                        </div>
-                                    </article>
                                 </div>
                             </div>
 
-                            <!-- Form Hasil Tinjauan BPD (hanya saat Dalam tinjauan - B6, satu-satunya tombol Primary di layar) -->
+                            <!-- Form Keputusan Sidang Pleno BPD memakai RadioCard + Kolom Berita Acara + Satu Tombol Primary (DESIGN.md §6 & §6C) -->
                             <form
                                 v-if="selectedProject.public_status === 'in_review'"
-                                class="space-y-4 border-t border-stroke pt-4"
+                                class="space-y-4 pt-5"
                                 @submit.prevent="submitOutcome"
                             >
                                 <div>
-                                    <h3 class="text-base font-semibold text-content">Keputusan hasil tinjauan BPD</h3>
-                                    <p class="mt-0.5 text-xs text-content-secondary">
-                                        Hasil dan catatan di bawah akan tampil resmi di halaman publik proyek dan tidak
-                                        dapat dihapus.
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <h3 class="text-base font-semibold text-content">
+                                            Keputusan sidang pleno &amp; berita acara BPD
+                                        </h3>
+                                        <Badge color="warning">Wajib diisi</Badge>
+                                    </div>
+                                    <p class="mt-1 text-sm text-content-secondary">
+                                        Pilih ketetapan hasil pengecekan fisik. Berita acara tampil resmi di papan
+                                        publik.
                                     </p>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-2.5">
+                                <!-- RadioCard (DESIGN.md §6 & §6C: rounded-xl border, terpilih border-primary bg-primary-subtle) -->
+                                <div
+                                    class="grid grid-cols-1 gap-3"
+                                    role="radiogroup"
+                                    aria-label="Pilihan ketetapan hasil tinjauan BPD"
+                                >
                                     <button
                                         type="button"
+                                        role="radio"
+                                        :aria-checked="outcomeForm.result === 'followed_up'"
                                         :class="[
-                                            'rounded-md border px-3 py-2.5 text-sm font-medium transition-colors',
+                                            'flex min-h-11 items-start gap-3 rounded-xl border p-4 text-left transition-colors',
                                             outcomeForm.result === 'followed_up'
-                                                ? 'border-primary bg-primary-subtle text-primary'
-                                                : 'border-stroke-strong bg-surface text-content-secondary hover:bg-surface-muted',
+                                                ? 'border-primary bg-primary-subtle'
+                                                : 'border-stroke bg-surface hover:border-stroke hover:bg-surface-muted/50',
                                         ]"
                                         @click="outcomeForm.result = 'followed_up'"
                                     >
-                                        {{ reviewOutcome.followed_up }}
+                                        <span
+                                            :class="[
+                                                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                                                outcomeForm.result === 'followed_up'
+                                                    ? 'border-primary bg-primary'
+                                                    : 'border-stroke-strong bg-surface',
+                                            ]"
+                                            aria-hidden="true"
+                                        >
+                                            <span
+                                                v-if="outcomeForm.result === 'followed_up'"
+                                                class="h-2 w-2 rounded-full bg-content-inverse"
+                                            />
+                                        </span>
+                                        <div>
+                                            <span class="block text-sm font-semibold text-content">
+                                                {{ reviewOutcome.followed_up }}
+                                            </span>
+                                            <span class="mt-0.5 block text-sm text-content-secondary">
+                                                Tindak lanjut perbaikan disepakati bersama Pemerintah Desa
+                                            </span>
+                                        </div>
                                     </button>
+
                                     <button
                                         type="button"
+                                        role="radio"
+                                        :aria-checked="outcomeForm.result === 'no_mismatch'"
                                         :class="[
-                                            'rounded-md border px-3 py-2.5 text-sm font-medium transition-colors',
+                                            'flex min-h-11 items-start gap-3 rounded-xl border p-4 text-left transition-colors',
                                             outcomeForm.result === 'no_mismatch'
-                                                ? 'border-primary bg-primary-subtle text-primary'
-                                                : 'border-stroke-strong bg-surface text-content-secondary hover:bg-surface-muted',
+                                                ? 'border-primary bg-primary-subtle'
+                                                : 'border-stroke bg-surface hover:border-stroke hover:bg-surface-muted/50',
                                         ]"
                                         @click="outcomeForm.result = 'no_mismatch'"
                                     >
-                                        {{ reviewOutcome.no_mismatch }}
+                                        <span
+                                            :class="[
+                                                'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
+                                                outcomeForm.result === 'no_mismatch'
+                                                    ? 'border-primary bg-primary'
+                                                    : 'border-stroke-strong bg-surface',
+                                            ]"
+                                            aria-hidden="true"
+                                        >
+                                            <span
+                                                v-if="outcomeForm.result === 'no_mismatch'"
+                                                class="h-2 w-2 rounded-full bg-content-inverse"
+                                            />
+                                        </span>
+                                        <div>
+                                            <span class="block text-sm font-semibold text-content">
+                                                {{ reviewOutcome.no_mismatch }}
+                                            </span>
+                                            <span class="mt-0.5 block text-sm text-content-secondary">
+                                                Ukuran fisik lapangan dinyatakan sesuai spesifikasi RAB
+                                            </span>
+                                        </div>
                                     </button>
                                 </div>
 
-                                <div class="space-y-1.5">
+                                <!-- Kolom Berita Acara (DESIGN.md §6 Textarea) -->
+                                <div>
                                     <label for="bpd-outcome-note" class="block text-sm font-medium text-content">
-                                        Catatan resmi hasil tinjauan (wajib, minimal 30 huruf)
+                                        Ringkasan berita acara hasil tinjauan (minimal 30 huruf)
                                     </label>
                                     <textarea
                                         id="bpd-outcome-note"
                                         v-model="outcomeForm.note"
                                         rows="3"
-                                        placeholder="Jelaskan hasil pengecekan lapangan bersama Pemerintah Desa dan tindak lanjut yang disepakati..."
-                                        class="w-full rounded-md border border-stroke-strong bg-surface p-3 text-sm text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                                        placeholder="Catat tanggal cek lapangan, pihak yang hadir, dan kesepakatan tindak lanjut..."
+                                        :aria-describedby="outcomeForm.errors.note ? 'bpd-outcome-error' : undefined"
+                                        :class="[
+                                            'mt-1 w-full rounded-lg border bg-surface p-3 text-base text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
+                                            outcomeForm.errors.note ? 'border-negative-solid' : 'border-stroke-strong',
+                                        ]"
                                     />
-                                    <p v-if="outcomeForm.errors.note" class="text-sm text-negative">
+                                    <p
+                                        v-if="outcomeForm.errors.note"
+                                        id="bpd-outcome-error"
+                                        class="mt-1 text-sm text-negative"
+                                    >
                                         {{ outcomeForm.errors.note }}
                                     </p>
                                 </div>
 
                                 <Button
                                     type="submit"
-                                    variant="primary"
+                                    :variant="isDialogOpen ? 'secondary' : 'primary'"
                                     class="w-full"
                                     :loading="outcomeForm.processing"
                                 >
-                                    Simpan hasil
+                                    <span>Terbitkan berita acara tinjauan</span>
                                 </Button>
                             </form>
                         </div>
-                    </Card>
+                    </div>
 
-                    <!-- Riwayat Siklus Selesai & Catatan Susulan (B9) -->
-                    <Card v-if="selectedProject.closed_cycles.length > 0" padding="app">
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between gap-2">
-                                <h3 class="text-base font-semibold text-content">Riwayat hasil tinjauan selesai</h3>
-                                <Badge color="info">{{ selectedProject.closed_cycles.length }} Siklus</Badge>
-                            </div>
+                    <!-- Riwayat Berita Acara Siklus Selesai (DESIGN.md §2 info = Tinjauan selesai, Berita Acara terbit) -->
+                    <div
+                        v-if="selectedProject.closed_cycles.length > 0"
+                        class="rounded-2xl border border-stroke bg-surface p-6"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="text-base font-semibold text-content">Arsip berita acara tinjauan</h3>
+                            <Badge color="info">{{ selectedProject.closed_cycles.length }} selesai</Badge>
+                        </div>
 
-                            <div class="divide-y divide-stroke rounded-lg border border-stroke">
+                        <div class="mt-4 space-y-3">
+                            <div
+                                v-for="cycle in selectedProject.closed_cycles"
+                                :key="cycle.id"
+                                class="space-y-3 rounded-xl border border-stroke bg-surface-muted/40 p-4 text-sm"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <Badge color="info">
+                                        {{ cycle.result ? reviewOutcome[cycle.result] : '-' }}
+                                    </Badge>
+                                    <span v-if="cycle.closed_at" class="text-xs text-content-tertiary tabular-nums">
+                                        {{ formatDateTime(cycle.closed_at) }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-content">{{ cycle.note }}</p>
+
                                 <div
-                                    v-for="cycle in selectedProject.closed_cycles"
-                                    :key="cycle.id"
-                                    class="space-y-3 p-4 text-sm"
+                                    v-if="cycle.notes.length > 0"
+                                    class="space-y-2 border-t border-stroke pt-3 text-sm"
                                 >
-                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <Badge color="info">
-                                            {{ cycle.result ? reviewOutcome[cycle.result] : '-' }}
-                                        </Badge>
-                                        <span v-if="cycle.closed_at" class="text-xs text-content-tertiary">
-                                            {{ formatDateTime(cycle.closed_at) }}
+                                    <p class="font-semibold text-content-secondary">Catatan tindak lanjut susulan:</p>
+                                    <div v-for="n in cycle.notes" :key="n.id" class="text-sm text-content">
+                                        <span v-if="n.created_at" class="text-xs text-content-tertiary tabular-nums">
+                                            {{ formatDateTime(n.created_at) }} &mdash;
                                         </span>
+                                        {{ n.note }}
                                     </div>
-                                    <p class="text-sm leading-relaxed text-content">{{ cycle.note }}</p>
+                                </div>
 
-                                    <div
-                                        v-if="cycle.notes.length > 0"
-                                        class="space-y-1.5 rounded-md border border-stroke bg-surface-subtle p-3"
-                                    >
-                                        <p class="text-xs font-semibold text-content-secondary">
-                                            Catatan tindak lanjut susulan:
-                                        </p>
-                                        <div v-for="n in cycle.notes" :key="n.id" class="text-xs text-content">
-                                            <span v-if="n.created_at" class="text-content-tertiary">
-                                                {{ formatDateTime(n.created_at) }} &mdash;
-                                            </span>
-                                            {{ n.note }}
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        v-if="activeNoteCycleId !== cycle.id"
+                                <div class="pt-1">
+                                    <Button
                                         type="button"
-                                        class="text-xs font-medium text-primary underline underline-offset-2 hover:text-primary-hover"
-                                        @click="activeNoteCycleId = cycle.id"
+                                        variant="secondary"
+                                        size="sm"
+                                        @click="openFollowUpDialog(cycle.id)"
                                     >
-                                        Tambah catatan susulan
-                                    </button>
-
-                                    <form
-                                        v-else
-                                        class="space-y-2.5 border-t border-stroke pt-3"
-                                        @submit.prevent="submitFollowUp(cycle.id)"
-                                    >
-                                        <label
-                                            :for="`followup-note-${cycle.id}`"
-                                            class="block text-xs font-medium text-content"
-                                        >
-                                            Catatan susulan bertanggal (tampil publik)
-                                        </label>
-                                        <textarea
-                                            :id="`followup-note-${cycle.id}`"
-                                            v-model="followUpForm.note"
-                                            rows="2"
-                                            placeholder="Contoh: Perbaikan ketebalan beton pada ruas RT 02 telah diselesaikan..."
-                                            class="w-full rounded-md border border-stroke-strong bg-surface p-2.5 text-sm text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                        />
-                                        <p v-if="followUpForm.errors.note" class="text-xs text-negative">
-                                            {{ followUpForm.errors.note }}
-                                        </p>
-                                        <div class="flex gap-2">
-                                            <Button type="submit" variant="secondary" size="sm">Simpan catatan</Button>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                @click="activeNoteCycleId = null"
-                                            >
-                                                Batal
-                                            </Button>
-                                        </div>
-                                    </form>
+                                        <span>Tambah catatan susulan</span>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
-                    </Card>
+                    </div>
                 </section>
             </div>
         </div>
 
-        <!-- Lightbox Foto Bukti Laporan Warga (Khusus BPD) -->
-        <div
-            v-if="activeLightboxPhoto"
-            class="fixed inset-0 z-50 flex items-center justify-center bg-content/50 p-4"
-            role="dialog"
-            aria-modal="true"
-            :aria-label="activeLightboxPhoto.label"
-            @click.self="closePhotoLightbox"
+        <!-- Dialog Native Catatan Susulan (DESIGN.md §6B: <dialog> native, rounded-2xl border-stroke bg-surface shadow-xl, max-w-lg, footer bg-surface-subtle/50) -->
+        <dialog
+            ref="followUpDialogRef"
+            class="m-auto w-full max-w-lg overflow-hidden rounded-2xl border border-stroke bg-surface p-0 text-content shadow-xl"
+            aria-labelledby="dialog-followup-title"
+            @close="isDialogOpen = false"
+            @click="handleDialogBackdropClick($event, closeFollowUpDialog)"
         >
-            <div class="w-full max-w-2xl overflow-hidden rounded-lg border border-stroke bg-surface shadow-sm">
-                <div class="flex items-center justify-between border-b border-stroke px-5 py-3.5">
-                    <h3 class="text-sm font-semibold text-content">{{ activeLightboxPhoto.label }}</h3>
-                    <Button type="button" variant="secondary" size="sm" @click="closePhotoLightbox">Tutup</Button>
+            <form @submit.prevent="submitFollowUp">
+                <div class="flex items-center justify-between border-b border-stroke px-6 py-4">
+                    <div class="flex items-center gap-2.5">
+                        <h3 id="dialog-followup-title" class="text-base font-bold text-content">
+                            Tambah catatan susulan
+                        </h3>
+                        <Badge color="info">Tampil publik</Badge>
+                    </div>
+                    <button
+                        type="button"
+                        class="inline-flex h-11 w-11 items-center justify-center rounded-lg text-content-secondary transition-colors hover:bg-surface-muted hover:text-content"
+                        aria-label="Tutup"
+                        @click="closeFollowUpDialog"
+                    >
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
                 </div>
-                <div class="flex max-h-[75vh] items-center justify-center bg-black p-2">
-                    <img
-                        :src="activeLightboxPhoto.url"
-                        :alt="activeLightboxPhoto.label"
-                        class="max-h-[70vh] w-auto max-w-full object-contain"
-                    />
+
+                <div class="max-h-[calc(85vh-130px)] space-y-4 overflow-y-auto p-6 text-sm">
+                    <div>
+                        <label for="dialog-followup-note" class="block text-sm font-medium text-content">
+                            Isi catatan tindak lanjut bertanggal
+                        </label>
+                        <textarea
+                            id="dialog-followup-note"
+                            v-model="followUpForm.note"
+                            rows="4"
+                            placeholder="Contoh: Pengecoran ulang bahu jalan sepanjang 15 meter telah selesai diperiksa..."
+                            :aria-describedby="followUpForm.errors.note ? 'dialog-followup-error' : undefined"
+                            :class="[
+                                'mt-1 w-full rounded-lg border bg-surface p-3 text-base text-content focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
+                                followUpForm.errors.note ? 'border-negative-solid' : 'border-stroke-strong',
+                            ]"
+                        />
+                        <p
+                            v-if="followUpForm.errors.note"
+                            id="dialog-followup-error"
+                            class="mt-1 text-sm text-negative"
+                        >
+                            {{ followUpForm.errors.note }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 border-t border-stroke bg-surface-subtle/50 px-6 py-4">
+                    <Button type="button" variant="secondary" @click="closeFollowUpDialog">
+                        <span>Batal</span>
+                    </Button>
+                    <Button type="submit" variant="primary" :loading="followUpForm.processing">
+                        <span>Simpan catatan susulan</span>
+                    </Button>
+                </div>
+            </form>
+        </dialog>
+
+        <!-- Dialog Native Rincian Revisi CCO (DESIGN.md §6B: max-w-3xl tabel rincian, shadow-xl) -->
+        <dialog
+            ref="ccoDialogRef"
+            class="m-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-stroke bg-surface p-0 text-content shadow-xl"
+            aria-labelledby="dialog-cco-title"
+            @close="isDialogOpen = false"
+            @click="handleDialogBackdropClick($event, closeCcoDialog)"
+        >
+            <div class="flex items-center justify-between border-b border-stroke px-6 py-4">
+                <div class="flex items-center gap-2.5">
+                    <h3 id="dialog-cco-title" class="text-base font-bold text-content">
+                        Rincian revisi pasca-terbit (CCO)
+                    </h3>
+                    <Badge color="info">{{ selectedProject?.changes?.length ?? 0 }} perubahan</Badge>
+                </div>
+                <button
+                    type="button"
+                    class="inline-flex h-11 w-11 items-center justify-center rounded-lg text-content-secondary transition-colors hover:bg-surface-muted hover:text-content"
+                    aria-label="Tutup"
+                    @click="closeCcoDialog"
+                >
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="max-h-[calc(85vh-130px)] space-y-4 overflow-y-auto p-6 text-sm">
+                <div
+                    v-if="selectedProject?.changes && selectedProject.changes.length > 0"
+                    class="overflow-hidden rounded-2xl border border-stroke bg-surface shadow-xs"
+                >
+                    <table class="w-full text-sm">
+                        <caption class="sr-only">
+                            Daftar perubahan pasca-terbit proyek
+                        </caption>
+                        <thead>
+                            <tr class="border-b border-stroke bg-surface-subtle/80">
+                                <th
+                                    scope="col"
+                                    class="px-4 py-3 text-left text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                >
+                                    Komponen
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="px-4 py-3 text-right text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                >
+                                    Nilai lama &rarr; baru
+                                </th>
+                                <th
+                                    scope="col"
+                                    class="px-4 py-3 text-left text-xs font-semibold tracking-wider text-content-secondary uppercase"
+                                >
+                                    Alasan &amp; waktu
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="change in selectedProject.changes"
+                                :key="change.id"
+                                class="border-b border-stroke last:border-b-0"
+                            >
+                                <td class="px-4 py-3 align-top font-semibold text-content">
+                                    {{ change.item_label }}
+                                    <span class="block text-xs font-normal text-content-tertiary">
+                                        Kolom: {{ change.field }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right align-top tabular-nums">
+                                    <span class="text-content-secondary">{{ change.old_value }}</span>
+                                    <span class="mx-1 text-primary" aria-hidden="true">&rarr;</span>
+                                    <span class="font-semibold text-content">{{ change.new_value }}</span>
+                                </td>
+                                <td class="px-4 py-3 align-top text-content-secondary">
+                                    <p v-if="change.reason">&ldquo;{{ change.reason }}&rdquo;</p>
+                                    <p class="mt-0.5 text-xs text-content-tertiary tabular-nums">
+                                        {{ formatDateTime(change.changed_at) }}
+                                    </p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </div>
+
+            <div class="flex items-center justify-end gap-3 border-t border-stroke bg-surface-subtle/50 px-6 py-4">
+                <Button type="button" variant="primary" @click="closeCcoDialog">
+                    <span>Selesai melihat</span>
+                </Button>
+            </div>
+        </dialog>
     </AppLayout>
 </template>

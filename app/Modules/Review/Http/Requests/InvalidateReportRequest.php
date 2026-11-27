@@ -17,6 +17,16 @@ final class InvalidateReportRequest extends FormRequest
         return $user instanceof User && $user->hasRole(Role::Bpd);
     }
 
+    protected function prepareForValidation(): void
+    {
+        $rawNote = $this->input('note');
+        if (! is_string($rawNote) || trim($rawNote) === '') {
+            $this->merge(['note' => null]);
+        } else {
+            $this->merge(['note' => trim($rawNote)]);
+        }
+    }
+
     /**
      * @return array<string, array<int, string>>
      */
@@ -24,6 +34,7 @@ final class InvalidateReportRequest extends FormRequest
     {
         return [
             'reason' => ['required', 'string', 'min:3', 'max:255'],
+            'note' => ['nullable', 'string', 'min:3', 'max:1000'],
         ];
     }
 

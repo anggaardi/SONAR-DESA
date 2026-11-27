@@ -8,6 +8,7 @@ use App\Modules\Core\Auth\User;
 use App\Modules\Core\Village\OwnedThroughParent;
 use App\Modules\Project\Models\Project;
 use App\Modules\Report\Enums\ReportKind;
+use App\Modules\Review\Enums\ReportVerdict;
 use App\Modules\Review\Models\ReviewCycle;
 use Database\Factories\ReportFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -32,6 +33,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $note
  * @property int|null $superseded_by
  * @property string|null $invalid_reason
+ * @property ReportVerdict|null $bpd_verdict
+ * @property Carbon|null $bpd_verified_at
+ * @property string|null $bpd_reply
+ * @property Carbon|null $bpd_replied_at
  * @property Carbon|null $opened_at
  */
 #[Fillable([
@@ -47,6 +52,10 @@ use Illuminate\Support\Carbon;
     'note',
     'superseded_by',
     'invalid_reason',
+    'bpd_verdict',
+    'bpd_verified_at',
+    'bpd_reply',
+    'bpd_replied_at',
     'opened_at',
 ])]
 #[UseFactory(ReportFactory::class)]
@@ -59,8 +68,17 @@ final class Report extends Model implements OwnedThroughParent
     {
         return [
             'kind' => ReportKind::class,
+            'bpd_verdict' => ReportVerdict::class,
+            'bpd_verified_at' => 'immutable_datetime',
+            'bpd_replied_at' => 'immutable_datetime',
             'opened_at' => 'immutable_datetime',
         ];
+    }
+
+    /** A BPD verdict is final: reports marked valid or invalid can no longer be verified or annotated. */
+    public function isVerified(): bool
+    {
+        return $this->bpd_verdict !== null || $this->invalid_reason !== null;
     }
 
     public function villageId(): int

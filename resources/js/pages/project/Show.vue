@@ -1,19 +1,22 @@
 <script setup lang="ts">
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import Badge from '@/components/ui/Badge.vue';
 import DesktopSidebar from '@/components/ui/DesktopSidebar.vue';
 import Dialog from '@/components/ui/Dialog.vue';
-import ProjectChanges from '@/features/project/ProjectChanges.vue';
-import ProjectHeader from '@/features/project/ProjectHeader.vue';
-import ProjectItems, { type BudgetFilter } from '@/features/project/ProjectItems.vue';
 import ProjectBudget from '@/features/project/ProjectBudget.vue';
+import ProjectChanges from '@/features/project/ProjectChanges.vue';
 import ProjectCheckSpecInvite from '@/features/project/ProjectCheckSpecInvite.vue';
+import ProjectHeader from '@/features/project/ProjectHeader.vue';
 import ProjectHero from '@/features/project/ProjectHero.vue';
+import ProjectItems, { type BudgetFilter } from '@/features/project/ProjectItems.vue';
 import ProjectJourney from '@/features/project/ProjectJourney.vue';
 import ProjectMeasurements from '@/features/project/ProjectMeasurements.vue';
 import ProjectProgress from '@/features/project/ProjectProgress.vue';
 import ProjectReviewsFab from '@/features/project/ProjectReviewsFab.vue';
 import ProjectStatusNotice from '@/features/project/ProjectStatusNotice.vue';
+import { formatDate } from '@/lib/format';
+import { reportType, reviewOutcome, type ReviewOutcome } from '@/lib/labels';
 import type { ProjectDetail } from '@/types/project';
 
 interface Props {
@@ -260,6 +263,155 @@ function handleTabClick(tabId: string): void {
                             </div>
 
                             <ProjectJourney :project="project" />
+
+                            <!-- Berita Acara, Catatan Susulan, & Tanggapan Resmi BPD (Tampil otomatis sesuai isi database) -->
+                            <section
+                                v-if="
+                                    project.review ||
+                                    (project.published_reports && project.published_reports.length > 0)
+                                "
+                                id="ulasan-bpd"
+                                class="scroll-mt-20 space-y-4"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <h2 class="text-xl font-semibold text-content">
+                                            Berita acara &amp; tanggapan BPD
+                                        </h2>
+                                        <p class="text-sm text-content-secondary">
+                                            Arsip berita acara tinjauan siklus, catatan tindak lanjut susulan, serta
+                                            verifikasi laporan Cek Spek warga
+                                        </p>
+                                    </div>
+                                    <Badge v-if="project.review" color="info">Ditinjau BPD</Badge>
+                                </div>
+
+                                <!-- 1. Kartu Arsip Berita Acara Tinjauan & Catatan Tindak Lanjut Susulan BPD -->
+                                <article
+                                    v-if="project.review"
+                                    class="space-y-3 rounded-2xl border border-info-border bg-info-subtle/60 p-5"
+                                >
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="text-sm font-bold text-info">
+                                                Arsip berita acara tinjauan BPD {{ project.village.name }}
+                                            </span>
+                                            <Badge v-if="project.review.outcome" color="info">
+                                                {{
+                                                    reviewOutcome[project.review.outcome as ReviewOutcome] ??
+                                                    project.review.outcome
+                                                }}
+                                            </Badge>
+                                        </div>
+                                        <span
+                                            v-if="project.review.reviewed_at"
+                                            class="text-xs text-content-tertiary tabular-nums"
+                                        >
+                                            {{ formatDate(project.review.reviewed_at) }}
+                                        </span>
+                                    </div>
+
+                                    <p v-if="project.review.note" class="text-sm text-content">
+                                        {{ project.review.note }}
+                                    </p>
+
+                                    <div
+                                        v-if="project.review.notes && project.review.notes.length > 0"
+                                        class="space-y-2 rounded-xl border border-stroke bg-surface p-4 text-sm"
+                                    >
+                                        <p class="font-semibold text-content-secondary">
+                                            Catatan tindak lanjut susulan:
+                                        </p>
+                                        <div
+                                            v-for="(noteItem, idx) in project.review.notes"
+                                            :key="idx"
+                                            class="text-sm text-content"
+                                        >
+                                            <span
+                                                v-if="noteItem.created_at"
+                                                class="text-xs text-content-tertiary tabular-nums"
+                                            >
+                                                {{ formatDate(noteItem.created_at) }} &mdash;
+                                            </span>
+                                            {{ noteItem.note }}
+                                        </div>
+                                    </div>
+                                </article>
+
+                                <!-- 2. Daftar Laporan Warga & Catatan Balasan BPD -->
+                                <div
+                                    v-if="project.published_reports && project.published_reports.length > 0"
+                                    class="space-y-3"
+                                >
+                                    <article
+                                        v-for="report in project.published_reports"
+                                        :key="report.id"
+                                        class="space-y-3 rounded-2xl border border-stroke bg-surface p-5"
+                                    >
+                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <span class="text-sm font-semibold text-content">
+                                                    {{ report.reporter_label }}
+                                                </span>
+                                                <Badge
+                                                    :color="
+                                                        report.kind === 'mismatch'
+                                                            ? 'negative'
+                                                            : report.kind === 'match'
+                                                              ? 'positive'
+                                                              : 'neutral'
+                                                    "
+                                                >
+                                                    {{ reportType[report.kind] }}
+                                                </Badge>
+                                                <Badge
+                                                    v-if="report.bpd_verdict === 'invalid' || report.invalid_reason"
+                                                    color="negative"
+                                                >
+                                                    Ditandai tidak valid oleh BPD
+                                                </Badge>
+                                                <Badge v-else-if="report.bpd_verdict === 'valid'" color="positive">
+                                                    Diverifikasi valid oleh BPD
+                                                </Badge>
+                                            </div>
+                                            <span class="text-xs text-content-tertiary tabular-nums">
+                                                {{ formatDate(report.created_at) }}
+                                            </span>
+                                        </div>
+
+                                        <p v-if="report.note" class="text-sm text-content">
+                                            &ldquo;{{ report.note }}&rdquo;
+                                        </p>
+
+                                        <div
+                                            v-if="report.invalid_reason"
+                                            class="rounded-xl border border-negative-border bg-negative-subtle p-3 text-sm text-negative"
+                                        >
+                                            <p class="font-semibold">Status verifikasi BPD: Tidak valid</p>
+                                            <p class="mt-0.5">Alasan: {{ report.invalid_reason }}</p>
+                                        </div>
+
+                                        <div
+                                            v-if="report.bpd_reply"
+                                            class="rounded-xl border border-stroke bg-primary-subtle p-3.5 text-sm text-content"
+                                        >
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <span class="font-semibold text-primary">
+                                                    Catatan balasan BPD {{ project.village.name }}
+                                                </span>
+                                                <span
+                                                    v-if="report.bpd_replied_at"
+                                                    class="text-xs text-content-tertiary tabular-nums"
+                                                >
+                                                    {{ formatDate(report.bpd_replied_at) }}
+                                                </span>
+                                            </div>
+                                            <p class="mt-1 text-content">{{ report.bpd_reply }}</p>
+                                        </div>
+                                    </article>
+                                </div>
+                            </section>
+
                             <ProjectChanges :changes="project.changes" />
                         </div>
 
