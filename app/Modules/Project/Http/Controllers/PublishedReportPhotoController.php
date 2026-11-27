@@ -9,13 +9,15 @@ use App\Modules\Project\Enums\PublicStatus;
 use App\Modules\Project\Models\Project;
 use App\Modules\Report\Models\Report;
 use App\Modules\Report\Models\ReportPhoto;
+use App\Modules\Review\Enums\ReportVerdict;
 use App\Modules\Review\Models\ReviewCycle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Serves citizen report photos publicly ONLY after BPD closes the review cycle (PublicStatus::Reviewed).
+ * Serves citizen report photos publicly after BPD closes the review cycle (PublicStatus::Reviewed)
+ * or verifies/replies to a valid citizen report.
  * Unreviewed, invalid, superseded, unpublished, or cross-session demo photos always return 404 (C11).
  */
 final class PublishedReportPhotoController
@@ -31,9 +33,15 @@ final class PublishedReportPhotoController
             || ! $report instanceof Report
             || $report->invalid_reason !== null
             || $report->superseded_by !== null
-            || ! $cycle instanceof ReviewCycle
-            || $cycle->closed_at === null
         ) {
+            abort(404, 'Foto tidak ditemukan');
+        }
+
+        $isReviewedCycle = $cycle instanceof ReviewCycle && $cycle->closed_at !== null;
+        $isBpdVerifiedOrReplied = $report->bpd_verdict === ReportVerdict::Valid
+            || ($report->bpd_reply !== null && trim($report->bpd_reply) !== '');
+
+        if (! $isReviewedCycle && ! $isBpdVerifiedOrReplied) {
             abort(404, 'Foto tidak ditemukan');
         }
 
@@ -44,7 +52,7 @@ final class PublishedReportPhotoController
         if (
             ! $project instanceof Project
             || ! $project->isPublished()
-            || $project->public_status !== PublicStatus::Reviewed
+            || ($project->public_status !== PublicStatus::Reviewed && ! $isBpdVerifiedOrReplied)
             || ! $visibility->allows($request, $project->village)
         ) {
             abort(404, 'Foto tidak ditemukan');

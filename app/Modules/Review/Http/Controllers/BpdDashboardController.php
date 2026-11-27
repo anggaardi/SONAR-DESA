@@ -236,10 +236,7 @@ final class BpdDashboardController
         $projectOptions = [];
 
         foreach ($projects as $project) {
-            $cycleId = $project->current_cycle_id;
-            $cycleReports = $project->reports
-                ->filter(static fn (Report $r): bool => $cycleId === null || $r->cycle_id === $cycleId)
-                ->values();
+            $cycleReports = $project->reports->values();
 
             $projectOptions[] = [
                 'id' => $project->id,
@@ -324,12 +321,6 @@ final class BpdDashboardController
     {
         $this->ensureBpd($request);
         $report = $this->findVillageReport($reportId);
-
-        if ($report->cycle !== null && $report->cycle->closed_at !== null) {
-            return back()->withErrors([
-                'reply' => 'Siklus tinjauan sudah ditutup; tidak dapat mengirim catatan balasan.',
-            ]);
-        }
 
         if ($report->bpd_reply !== null && trim($report->bpd_reply) !== '') {
             return back()->withErrors([
@@ -439,7 +430,7 @@ final class BpdDashboardController
         try {
             $action->markValid($report, $trimmedNote);
             $project = Project::query()->find($report->project_id);
-            if ($project instanceof Project) {
+            if ($project instanceof Project && ($report->cycle === null || $report->cycle->closed_at === null)) {
                 $threshold->execute($project);
             }
         } catch (DomainException $e) {

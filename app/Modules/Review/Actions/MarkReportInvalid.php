@@ -54,12 +54,6 @@ final readonly class MarkReportInvalid
         if ($report->isVerified()) {
             throw new DomainException('Laporan ini sudah diverifikasi BPD dan tidak dapat diubah lagi.');
         }
-
-        $report->loadMissing('cycle');
-        $cycle = $report->cycle;
-        if ($cycle !== null && $cycle->closed_at !== null) {
-            throw new DomainException('Siklus tinjauan sudah ditutup; status laporan tidak bisa diubah.');
-        }
     }
 
     /**

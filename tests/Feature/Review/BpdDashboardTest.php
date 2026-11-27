@@ -625,3 +625,73 @@ it('preserves historical target snapshot on citizen reports across subsequent CC
             ->where('project.published_reports.0.answers.0.measured_value', '8.5')
         );
 });
+
+it('displays BPD verification verdict (valid / invalid) and reply notes on citizen project page as soon as BPD saves them in the database', function () {
+    [$village, $bpd] = setupBpdVillage();
+
+    $project = Project::factory()->create([
+        'village_id' => $village->id,
+        'audit_id' => auditFor($village),
+        'slug' => 'rabat-sinkron-warga',
+        'public_status' => PublicStatus::None,
+        'published_at' => now(),
+    ]);
+
+    $cycle = ReviewCycle::create([
+        'project_id' => $project->id,
+        'opened_at' => now(),
+    ]);
+    $project->update(['current_cycle_id' => $cycle->id]);
+
+    $warga1 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+    $warga2 = User::factory()->create(['role' => Role::Warga, 'village_id' => null]);
+
+    $report1 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $warga1->id,
+        'kind' => ReportKind::Mismatch,
+        'note' => 'Ketebalan beton di sisi utara 9 cm.',
+        'created_at' => now()->subMinutes(10),
+    ]);
+
+    $report2 = Report::factory()->create([
+        'project_id' => $project->id,
+        'cycle_id' => $cycle->id,
+        'user_id' => $warga2->id,
+        'kind' => ReportKind::Mismatch,
+        'note' => 'Foto kabur dari proyek lain.',
+        'created_at' => now()->subMinutes(5),
+    ]);
+
+    // BPD validates report1 and sends a reply note.
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.validate', $report1->id), [
+            'note' => 'Terima kasih, BPD sudah mengukur di lokasi bersama pelaksana.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    // BPD marks report2 invalid with a reason and reply note.
+    $this->actingAs($bpd)
+        ->post(route('bpd.reports.invalidate', $report2->id), [
+            'reason' => 'Bukan proyek ini',
+            'note' => 'Titik foto berada di ruas jalan desa tetangga.',
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect();
+
+    // Citizen / public view immediately reflects the database state for both reports.
+    $this->get("/p/{$project->slug}")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('project.published_reports', 2)
+            ->where('project.published_reports.0.id', $report2->id)
+            ->where('project.published_reports.0.bpd_verdict', 'invalid')
+            ->where('project.published_reports.0.invalid_reason', 'Bukan proyek ini')
+            ->where('project.published_reports.0.bpd_reply', 'Titik foto berada di ruas jalan desa tetangga.')
+            ->where('project.published_reports.1.id', $report1->id)
+            ->where('project.published_reports.1.bpd_verdict', 'valid')
+            ->where('project.published_reports.1.bpd_reply', 'Terima kasih, BPD sudah mengukur di lokasi bersama pelaksana.')
+        );
+});

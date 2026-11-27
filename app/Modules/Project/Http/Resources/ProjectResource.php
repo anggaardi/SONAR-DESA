@@ -78,19 +78,28 @@ final class ProjectResource extends JsonResource
         $reviewedCycle = $closedCycles->first();
         $closedCycleIds = $closedCycles->pluck('id')->all();
 
-        $publishedReports = collect();
-        if ($project->public_status === PublicStatus::Reviewed) {
-            $reportsCollection = $project->relationLoaded('reports')
-                ? $project->reports
-                : $project->reports()->with(['answers.measurement', 'photos'])->get();
+        $reportsCollection = $project->relationLoaded('reports')
+            ? $project->reports
+            : $project->reports()->with(['answers.measurement', 'photos'])->get();
 
-            $publishedReports = $reportsCollection
-                ->whereNull('invalid_reason')
-                ->whereNull('superseded_by')
-                ->filter(static fn ($report): bool => $closedCycleIds === [] || in_array($report->cycle_id, $closedCycleIds, true))
-                ->sortByDesc('created_at')
-                ->values();
-        }
+        $publishedReports = $reportsCollection
+            ->whereNull('superseded_by')
+            ->filter(static function ($report) use ($project, $closedCycleIds): bool {
+                $hasBpdAction = $report->bpd_verdict !== null
+                    || ($report->bpd_reply !== null && trim((string) $report->bpd_reply) !== '');
+
+                if ($hasBpdAction) {
+                    return true;
+                }
+
+                if (($project->public_status === PublicStatus::Reviewed || $closedCycleIds !== []) && $report->invalid_reason === null) {
+                    return $closedCycleIds === [] || in_array($report->cycle_id, $closedCycleIds, true);
+                }
+
+                return false;
+            })
+            ->sortByDesc('created_at')
+            ->values();
 
         $publishedReportCounts = array_fill_keys(array_column(ReportKind::cases(), 'value'), 0);
         foreach ($publishedReports as $report) {
@@ -100,6 +109,10 @@ final class ProjectResource extends JsonResource
         $inReviewSince = $project->public_status === PublicStatus::InReview
             ? $currentCycle?->in_review_since
             : $reviewedCycle?->in_review_since;
+
+        $effectivePublicStatus = $project->public_status === PublicStatus::None && $reviewedCycle !== null
+            ? PublicStatus::Reviewed
+            : $project->public_status;
 
         return [
             'id' => $project->id,
@@ -117,9 +130,9 @@ final class ProjectResource extends JsonResource
             'total_amount_rp' => (int) ($items->sum('amount_rp') ?: $audit?->written_total_rp ?: 0),
             'progress_pct' => $project->progress_pct,
             'last_photo_date' => $latestPhoto?->taken_at?->toIso8601String(),
-            'public_status' => $project->public_status->value,
+            'public_status' => $effectivePublicStatus->value,
             'in_review_since' => $inReviewSince?->toIso8601String(),
-            'review' => $reviewedCycle !== null && $project->public_status === PublicStatus::Reviewed ? [
+            'review' => $reviewedCycle !== null ? [
                 'outcome' => $reviewedCycle->result?->value,
                 'note' => $reviewedCycle->note,
                 'reviewed_at' => $reviewedCycle->closed_at?->toIso8601String(),
@@ -136,15 +149,26 @@ final class ProjectResource extends JsonResource
                 'reporter_label' => 'Warga Pelapor '.($idx + 1),
                 'kind' => $r->kind->value,
                 'note' => $r->note,
+                'bpd_verdict' => $r->bpd_verdict !== null
+                    ? $r->bpd_verdict->value
+                    : ($r->invalid_reason !== null
+                        ? 'invalid'
+                        : ($project->public_status === PublicStatus::Reviewed ? 'valid' : null)),
+                'bpd_verified_at' => $r->bpd_verified_at?->toIso8601String(),
+                'invalid_reason' => $r->invalid_reason,
+                'bpd_reply' => $r->bpd_reply,
+                'bpd_replied_at' => $r->bpd_replied_at?->toIso8601String(),
                 'created_at' => $r->created_at->toIso8601String(),
-                'photos' => $r->photos
-                    ->sortBy('position')
-                    ->values()
-                    ->map(fn ($p): array => [
-                        'id' => $p->id,
-                        'position' => $p->position,
-                        'url' => route('media.report-photo', $p->id),
-                    ])->all(),
+                'photos' => $r->invalid_reason === null
+                    ? $r->photos
+                        ->sortBy('position')
+                        ->values()
+                        ->map(fn ($p): array => [
+                            'id' => $p->id,
+                            'position' => $p->position,
+                            'url' => route('media.report-photo', $p->id),
+                        ])->all()
+                    : [],
                 'answers' => $r->answers->map(fn ($a) => [
                     'id' => $a->id,
                     'measurement_name' => $a->measurement?->name,
